@@ -251,17 +251,17 @@ def fast_correctness_inproc(seed: int) -> CorrectnessResult:
             if c["expects"] == "valid":
                 got = parse(c["input"])
                 if not _equal(got, c["expected_value"]):
-                    failures.append((c["id"], "mismatch"))
+                    failures.append((c["id"], f"mismatch on {c['input'][:30]!r}"))
             else:
                 try:
                     parse(c["input"])
-                    failures.append((c["id"], "malformed accepted"))
+                    failures.append((c["id"], f"malformed accepted: {c['input'][:30]!r}"))
                 except JSONParseError:
                     pass
                 except Exception as e:
-                    failures.append((c["id"], f"wrong exception {type(e).__name__}"))
+                    failures.append((c["id"], f"wrong exception {type(e).__name__}: {str(e)[:60]}"))
         except Exception as e:
-            failures.append((c["id"], f"valid raised {type(e).__name__}"))
+            failures.append((c["id"], f"valid raised {type(e).__name__}: {str(e)[:60]} on {c['input'][:30]!r}"))
 
     # Random tests
     import random as _random

@@ -173,7 +173,7 @@ def run_correctness(cfg: dict) -> dict:
             try:
                 got = parse(text)
             except Exception as e:
-                failures.append((cid, f"valid raised: {type(e).__name__}: {str(e)[:100]}"))
+                failures.append((cid, f"valid raised {type(e).__name__}: {str(e)[:80]} on {text[:30]!r}"))
                 continue
             if not _equal(got, c["expected_value"]):
                 failures.append((cid, f"mismatch: got={repr(got)[:60]} expected={repr(c['expected_value'])[:60]}"))
@@ -183,9 +183,9 @@ def run_correctness(cfg: dict) -> dict:
             except JSONParseError:
                 continue
             except Exception as e:
-                failures.append((cid, f"malformed wrong exception: {type(e).__name__}: {str(e)[:80]}"))
+                failures.append((cid, f"malformed wrong exception {type(e).__name__}: {str(e)[:60]}"))
                 continue
-            failures.append((cid, "malformed accepted as valid"))
+            failures.append((cid, f"malformed accepted: {text[:30]!r}"))
 
     rng_seed = int(cfg.get("seed", 0)) ^ int(time.time_ns() & 0xFFFF_FFFF)
     rand_cases = _gen_random_tests(rng_seed)

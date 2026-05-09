@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
@@ -22,6 +22,10 @@ BISHOP_TIMEOUT_S = 60.0
 class IterationHistory:
     promoted: list[str]
     rejected: list[str]
+    # Optional: short code excerpts from the last rejected candidates so the
+    # next proposer can visually compare against what failed. Stored in
+    # newest-first order. Each entry is at most ~30 lines.
+    rejected_code_excerpts: list[str] = field(default_factory=list)
 
 
 def _truncate_source(source: str, max_lines: int = 400) -> str:
@@ -38,7 +42,13 @@ def _format_history(hist: IterationHistory) -> str:
     rejected = hist.rejected[-5:]
     p = "\n".join(f"  - {s}" for s in promoted) if promoted else "  (none yet)"
     r = "\n".join(f"  - {s}" for s in rejected) if rejected else "  (none yet)"
-    return f"Accepted improvements (most recent first):\n{p}\n\nRejected attempts (most recent first):\n{r}"
+    out = f"Accepted improvements (most recent first):\n{p}\n\nRejected attempts (most recent first):\n{r}"
+    excerpts = hist.rejected_code_excerpts[:2]
+    if excerpts:
+        out += "\n\nExcerpts from the most recent rejected candidates (avoid repeating these mistakes):\n"
+        for i, ex in enumerate(excerpts, 1):
+            out += f"\n--- rejection {i} ---\n{ex}\n"
+    return out
 
 
 def _common_constraints() -> str:

@@ -310,17 +310,72 @@ def _arm_result_dict(r: ArmResult) -> dict:
     return out
 
 
+def _excerpt_for_history(code: str, max_lines: int = 35) -> str:
+    """Pull a representative excerpt from the candidate code for the next-iteration prompt.
+
+    We grab two regions: the top of the file (precompiled regex definitions etc.)
+    and the first `_skip_ws` or `_parse_*` function. Most bugs in this experiment
+    live in one of those two regions.
+    """
+    import re
+    lines = code.splitlines()
+    # Top: skip docstring/imports, find the first `_RE`/`_PATTERN` or `def` line.
+    top_start = 0
+    for i, ln in enumerate(lines[:80]):
+        if re.match(r"^_[A-Z][A-Z0-9_]*_(?:RE|PATTERN|PAT)\s*=", ln) or re.match(r"^def\s+", ln):
+            top_start = i
+            break
+    top_end = min(len(lines), top_start + 12)
+
+    # Function: first `_skip_ws` or `_parse_object` / `_parse_array`.
+    fn_start = None
+    for i, ln in enumerate(lines):
+        if re.match(r"^def\s+(_skip_ws|_parse_object|_parse_array)\b", ln):
+            fn_start = i
+            break
+    if fn_start is None:
+        for i, ln in enumerate(lines):
+            if re.match(r"^def\s+_parse_", ln):
+                fn_start = i
+                break
+    if fn_start is None:
+        return "\n".join(lines[:max_lines])
+    fn_end = min(len(lines), fn_start + 18)
+
+    out = []
+    if top_start < top_end:
+        out.append(f"# (top of file, lines {top_start+1}-{top_end})")
+        out.extend(lines[top_start:top_end])
+        out.append("# ...")
+    out.append(f"# (function at lines {fn_start+1}-{fn_end})")
+    out.extend(lines[fn_start:fn_end])
+    return "\n".join(out)
+
+
 def _summarize_arm_history(arm: ArmResult) -> str:
     """Short human description for the IterationHistory log."""
     if arm.code is None:
-        return f"[{arm.arm}] {arm.extra.get('error', 'no code emitted')}"
+        return f"[{arm.arm}] {arm.extra.get('error', 'no code emitted')[:120]}"
     if arm.correctness and not arm.correctness.passed:
-        reason = arm.correctness.reason or f"{len(arm.correctness.failures)} fixed + {len(arm.correctness.rand_failures)} random"
-        return f"[{arm.arm}] correctness failed: {reason[:80]}"
+        if arm.correctness.reason:
+            return f"[{arm.arm}] correctness load error: {arm.correctness.reason[:140]}"
+        # Summarize a couple of representative failures so the next iteration
+        # has a concrete signal about what went wrong.
+        fail_samples = []
+        for case_id, msg in (arm.correctness.failures + arm.correctness.rand_failures)[:3]:
+            fail_samples.append(f"{case_id}:{msg}")
+        return (
+            f"[{arm.arm}] correctness failed: {len(arm.correctness.failures)} fixed + "
+            f"{len(arm.correctness.rand_failures)} random failures; "
+            f"e.g. {', '.join(fail_samples)[:160]}"
+        )
     if arm.perf and arm.perf.error:
-        return f"[{arm.arm}] perf error: {arm.perf.error[:80]}"
+        return f"[{arm.arm}] perf error: {arm.perf.error[:120]}"
     if arm.verdict:
-        return f"[{arm.arm}] {arm.verdict.kind} z={arm.verdict.z:+.2f} mean={arm.verdict.candidate_mean:.4f}"
+        return (
+            f"[{arm.arm}] {arm.verdict.kind} z={arm.verdict.z:+.2f} "
+            f"mean={arm.verdict.candidate_mean:.4f} (baseline {arm.verdict.baseline_mean:.4f})"
+        )
     return f"[{arm.arm}] no verdict"
 
 
@@ -387,6 +442,10 @@ def run_one_iteration(state: LoopState) -> dict:
         # Add rejection summaries to history
         for a in arms:
             state.history.rejected.append(_summarize_arm_history(a))
+            if a.code is not None and a.correctness and not a.correctness.passed:
+                state.history.rejected_code_excerpts.insert(0, _excerpt_for_history(a.code))
+                # Keep at most 4 excerpts (we display 2 in the prompt)
+                state.history.rejected_code_excerpts = state.history.rejected_code_excerpts[:4]
     else:
         # Apply winner permanently
         write_candidate(winning_arm.code)
@@ -405,6 +464,9 @@ def run_one_iteration(state: LoopState) -> dict:
         for a in arms:
             if a is not winning_arm:
                 state.history.rejected.append(_summarize_arm_history(a))
+                if a.code is not None and a.correctness and not a.correctness.passed:
+                    state.history.rejected_code_excerpts.insert(0, _excerpt_for_history(a.code))
+        state.history.rejected_code_excerpts = state.history.rejected_code_excerpts[:4]
         state.history.promoted.append(_summarize_arm_history(winning_arm))
 
     state.trajectory.append({
