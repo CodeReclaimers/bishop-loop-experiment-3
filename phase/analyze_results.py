@@ -187,9 +187,9 @@ def write_writeup_data(out_path: Path) -> dict:
 
 
 def main() -> None:
-    plot_trajectories(aggregate(), RESULTS_DIR.parent / "trajectory.png")
-    plot_final_with_errorbars(aggregate(), RESULTS_DIR.parent / "final_per_condition.png")
-    plot_arm_wins(aggregate(), RESULTS_DIR.parent / "arm_wins.png")
+    plot_trajectories(aggregate(), PROJECT_ROOT / "trajectory.png")
+    plot_final_with_errorbars(aggregate(), PROJECT_ROOT / "final_per_condition.png")
+    plot_arm_wins(aggregate(), PROJECT_ROOT / "arm_wins.png")
     data = write_writeup_data(PROJECT_ROOT / "final_writeup_data.json")
     print(json.dumps(data["by_condition"], indent=2, default=str))
 
