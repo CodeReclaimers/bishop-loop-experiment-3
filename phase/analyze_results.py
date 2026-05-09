@@ -42,6 +42,22 @@ def per_condition_stats(summaries: list[dict]) -> dict:
     promotes = [s.get("promotions", 0) for s in summaries]
     skippy_wins = [s.get("skippy_arm_wins", 0) for s in summaries]
     bishop_wins = [s.get("bishop_arm_wins", 0) for s in summaries]
+    # Time-to-first-promote per run
+    ttfp = []
+    for s in summaries:
+        for t in s.get("trajectory", []):
+            if t.get("verdict") == "PROMOTE":
+                ttfp.append(t.get("wall_s", 0))
+                break
+        else:
+            ttfp.append(float("nan"))
+    # Speedup over initial baseline per run
+    speedups = []
+    for s in summaries:
+        init = s.get("initial_metric")
+        best = s.get("best_ever_metric")
+        if init and best and best > 0:
+            speedups.append(init / best)
     return {
         "n_runs": len(summaries),
         "final_metric_values": finals,
@@ -52,6 +68,9 @@ def per_condition_stats(summaries: list[dict]) -> dict:
         "promotions_mean": float(np.mean(promotes)),
         "skippy_arm_wins_total": sum(skippy_wins),
         "bishop_arm_wins_total": sum(bishop_wins),
+        "time_to_first_promote_s_per_run": ttfp,
+        "speedup_over_initial_per_run": speedups,
+        "speedup_mean": float(np.mean(speedups)) if speedups else 0.0,
     }
 
 

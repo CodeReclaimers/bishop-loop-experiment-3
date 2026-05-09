@@ -119,6 +119,16 @@ def main() -> None:
         c: (statistics.mean(v) if v else float("inf"))
         for c, v in finals.items()
     }
+    # Speedup-over-initial per condition
+    speedups = {}
+    for cond_name in ("skippy_only", "bare_faithful", "steelman"):
+        ss = []
+        for s in by_condition.get(cond_name, []):
+            init = s.get("initial_metric")
+            best = s.get("best_ever_metric")
+            if init and best and best > 0:
+                ss.append(init / best)
+        speedups[cond_name] = statistics.mean(ss) if ss else 0.0
     init_metrics = []
     for cond_name, summaries in by_condition.items():
         for s in summaries:
@@ -128,11 +138,15 @@ def main() -> None:
     init_mean = statistics.mean(init_metrics) if init_metrics else 0.0
 
     tldr_lines = [
-        f"Across 9 runs (3 conditions × 3 seeds), the steelman variant produced a final best "
-        f"metric of {_fmt_num(means['steelman'])} (mean across seeds), versus "
-        f"{_fmt_num(means['bare_faithful'])} for bare-faithful and "
-        f"{_fmt_num(means['skippy_only'])} for skippy-only. "
-        f"Initial baseline was {_fmt_num(init_mean)}.",
+        f"Across 9 runs (3 conditions × 3 seeds, 90 minutes each), "
+        f"final best metrics were "
+        f"**skippy_only** = {_fmt_num(means['skippy_only'])}s "
+        f"({speedups['skippy_only']:.2f}× over baseline), "
+        f"**bare_faithful** = {_fmt_num(means['bare_faithful'])}s "
+        f"({speedups['bare_faithful']:.2f}×), "
+        f"**steelman** = {_fmt_num(means['steelman'])}s "
+        f"({speedups['steelman']:.2f}×). "
+        f"Initial baseline was {_fmt_num(init_mean)}s.",
     ]
 
     # Pairwise note
