@@ -72,3 +72,36 @@ proceed with this caveat.
 - `gate_policy = "mann_whitney"` requires explicit `promotion_z` to silence
   a load-time warning. We set `promotion_z = 1.5` per the spec's §3.6
   recommendation.
+
+## Recovery: subprocess timeout vs in-process correctness check
+
+During the actual sweep, `bare_faithful/1001` hung at iter ~178 (~87 min in)
+because a candidate `_skip_ws` was implemented as:
+
+```python
+_WS_RE = re.compile(r'\s*')
+def _skip_ws(text, pos):
+    while pos < len(text):
+        m = _WS_RE.match(text, pos)
+        if not m: break
+        pos = m.end()
+    return pos
+```
+
+`r'\s*'` matches a zero-width string at any position, so `m` is always truthy
+and `m.end() == pos`, looping forever. The candidate's `parse()` was called
+in-process by the bishop-loop's pre-flight correctness check, which had no
+timeout guard. The whole sweep stalled silently for ~20 hours of wall-clock
+before being killed and resumed.
+
+The bench_runner's `WHOLE_CORRECTNESS_TIMEOUT_S = 60.0` only checks between
+test cases — it doesn't preempt a single hung `parse()` call. The fix is to
+run correctness via the subprocess path with a hard `subprocess.run(timeout=30)`
+which Popen-kills the child process. This costs ~70 ms per check vs the
+in-process version, but bench_runner round-trips dominate that anyway.
+
+**Generalizable lesson for autoloops:** if your candidate is untrusted code
+(LLM-generated), every entry point that loads/runs it must be either out-of-process
+with a hard timeout, or wrapped in `signal.alarm` (single-threaded only) or a
+watchdog thread that can `os._exit`. An in-process call with no preemption is
+a session-ending failure mode, not a recoverable one.
