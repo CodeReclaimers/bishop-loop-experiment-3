@@ -238,11 +238,16 @@ def run_performance(cfg: dict) -> dict:
     cases = _load_corpus()
     inputs = [c["input"] for c in cases]
 
-    # Warm up once (don't time it). This stabilizes any one-time imports
-    # the candidate does on first call.
-    for s in inputs:
+    # Warm up with a SINGLE call (not the full corpus). This stabilizes any
+    # one-time module setup (regex compilation etc.) on the first call. We
+    # deliberately do NOT iterate the full corpus here because that would let
+    # a candidate that memoizes by input text populate its cache and skip
+    # real work in the timed pass — a 200x apparent speedup with no real
+    # algorithmic improvement. With a single warm-up call, the cache holds
+    # at most one input and the timed pass has 199 cache misses out of 200.
+    if inputs:
         try:
-            parse(s)
+            parse(inputs[0])
         except JSONParseError:
             pass
         except Exception:

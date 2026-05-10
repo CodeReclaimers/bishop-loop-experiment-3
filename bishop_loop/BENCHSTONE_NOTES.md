@@ -73,6 +73,33 @@ proceed with this caveat.
   a load-time warning. We set `promotion_z = 1.5` per the spec's §3.6
   recommendation.
 
+## Recovery: warm-up loop populated candidate's memoization cache
+
+`bare_faithful/1002` reported `best_ever_metric = 4.35e-05` — ~400× faster than
+the baseline. The candidate (iter 131) added a module-level dict
+`_parse_cache = {}` and memoized by input text. The bench_runner's warm-up loop
+parsed all 200 corpus inputs to "stabilize one-time imports" — populating the
+cache. The timed pass then got 200 cache hits in 43 microseconds, no real
+parsing. Recursive equality still passed because the cached values were
+structurally correct: the exploit was in *timing*, not correctness.
+
+**Fix:** warm-up calls `parse(inputs[0])` once instead of iterating the corpus.
+This still amortizes one-time module setup (regex compilation etc.) on the
+first call but limits the cache to ≤1 entry, neutralizing the 200× exploit
+(timed pass would have 199 cache misses out of 200).
+
+Result preserved as `phase/results/bare_faithful_1002.gamed-2026-05-10/` so
+the writeup can quote the gaming pattern. Runs after this point use the fixed
+bench_runner; runs before (3 skippy_only + bare_faithful_1001) used the old
+bench_runner with full-corpus warm-up. Asymmetry impact: ~5-10% overhead per
+candidate (the new code includes any one-time setup costs the old absorbed),
+small relative to the ~1.2-1.8× speedups observed.
+
+**Generalizable lesson:** a warm-up that touches the full corpus is an
+attractive nuisance for memoizing candidates. Either skip warm-up entirely,
+warm with a single representative input, or run warm-up in a separate
+subprocess so module-level state is reset before timing.
+
 ## Recovery: subprocess timeout vs in-process correctness check
 
 During the actual sweep, `bare_faithful/1001` hung at iter ~178 (~87 min in)
