@@ -31,7 +31,7 @@ from typing import Any
 from .budget import Budget
 from .evaluator import (
     CorrectnessResult, GateVerdict, PerfResult, PROMOTION_Z,
-    compute_verdict, fast_correctness_inproc, measure_perf,
+    check_correctness, compute_verdict, measure_perf,
     read_target, write_candidate,
 )
 from . import ollama_client, proposers
@@ -127,8 +127,15 @@ def _baseline_check(state: LoopState) -> None:
 
 
 def _evaluate_candidate(seed: int) -> tuple[CorrectnessResult, PerfResult | None]:
-    """Run the in-process correctness check, then perf if correctness passed."""
-    cr = fast_correctness_inproc(seed=seed)
+    """Run the subprocess-based correctness check, then perf if correctness passed.
+
+    The subprocess version has a 120s subprocess timeout — important because
+    a candidate `parse()` can have an infinite loop (e.g., a `_skip_ws` using
+    `re.compile(r'\\s*').match(text, pos)` that always matches a zero-length
+    string and never advances pos). The previous in-process version had no
+    such guard and hung the entire loop indefinitely.
+    """
+    cr = check_correctness(seed=seed)
     if not cr.passed:
         return cr, None
     pr = measure_perf(seed=seed * 7919, n_reps=3)

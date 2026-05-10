@@ -100,8 +100,14 @@ def _run_bench_subprocess(entry: str, seed: int, timeout_s: float = 120.0) -> di
 
 
 def check_correctness(seed: int) -> CorrectnessResult:
-    """Run the correctness benchmark via subprocess for protocol parity."""
-    res = _run_bench_subprocess("correctness", seed=seed, timeout_s=120.0)
+    """Run the correctness benchmark via subprocess for protocol parity.
+
+    Tight 30s subprocess timeout: a correct parser finishes in <1s; longer than
+    30s indicates a hung candidate (e.g., a zero-width-regex infinite loop in
+    _skip_ws). The kill is the only safe response; the loop treats the candidate
+    as REJECTed and moves on.
+    """
+    res = _run_bench_subprocess("correctness", seed=seed, timeout_s=30.0)
     if res.get("status") == "error":
         return CorrectnessResult(passed=False, reason=res.get("message", "unknown error"))
     metric = res.get("metric", 1.0)
@@ -121,13 +127,16 @@ def check_correctness(seed: int) -> CorrectnessResult:
 
 
 def measure_perf(seed: int, n_reps: int = 3) -> PerfResult:
-    """Run the perf benchmark `n_reps` times. Returns the metric list."""
+    """Run the perf benchmark `n_reps` times. Returns the metric list.
+
+    30s subprocess timeout per rep — see check_correctness for rationale.
+    """
     metrics: list[float] = []
     started = 0.0
     import time
     started = time.monotonic()
     for i in range(n_reps):
-        res = _run_bench_subprocess("performance", seed=seed + i, timeout_s=120.0)
+        res = _run_bench_subprocess("performance", seed=seed + i, timeout_s=30.0)
         if res.get("status") != "ok":
             return PerfResult(
                 metrics=metrics,
