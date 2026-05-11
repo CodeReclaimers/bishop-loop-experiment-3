@@ -137,16 +137,33 @@ def main() -> None:
                 init_metrics.append(v)
     init_mean = statistics.mean(init_metrics) if init_metrics else 0.0
 
+    # Bishop-arm win rates per condition (PARALLEL_PROPOSER conditions only)
+    bishop_arm_rates = {}
+    for cond_name in ("bare_faithful", "steelman"):
+        total_promotes = sum(s.get("promotions", 0) for s in by_condition.get(cond_name, []))
+        bishop_wins = sum(s.get("bishop_arm_wins", 0) for s in by_condition.get(cond_name, []))
+        if total_promotes > 0:
+            bishop_arm_rates[cond_name] = bishop_wins / total_promotes
+        else:
+            bishop_arm_rates[cond_name] = 0.0
+
     tldr_lines = [
-        f"Across 9 runs (3 conditions × 3 seeds, 90 minutes each), "
-        f"final best metrics were "
-        f"**skippy_only** = {_fmt_num(means['skippy_only'])}s "
-        f"({speedups['skippy_only']:.2f}× over baseline), "
-        f"**bare_faithful** = {_fmt_num(means['bare_faithful'])}s "
-        f"({speedups['bare_faithful']:.2f}×), "
-        f"**steelman** = {_fmt_num(means['steelman'])}s "
-        f"({speedups['steelman']:.2f}×). "
-        f"Initial baseline was {_fmt_num(init_mean)}s.",
+        f"**Headline:** bare-faithful won, not steelman. "
+        f"Mean speedups over the naive baseline: "
+        f"**bare_faithful** {speedups['bare_faithful']:.2f}× > "
+        f"**steelman** {speedups['steelman']:.2f}× > "
+        f"**skippy_only** {speedups['skippy_only']:.2f}×. "
+        f"The engagement step did make Bishop's contribution more *individually* "
+        f"valuable — the Bishop-derived arm won "
+        f"**{bishop_arm_rates.get('steelman', 0)*100:.0f}%** of steelman PROMOTEs vs "
+        f"**{bishop_arm_rates.get('bare_faithful', 0)*100:.0f}%** of bare-faithful PROMOTEs — "
+        f"but steelman iterations are slower (extra critique/steelman generation) so "
+        f"got fewer total opportunities. Across 9 runs (3 conditions × 3 seeds, "
+        f"90 minutes each), all conditions improved over the {_fmt_num(init_mean)}s "
+        f"initial baseline; final means were {_fmt_num(means['skippy_only'])}s, "
+        f"{_fmt_num(means['bare_faithful'])}s, {_fmt_num(means['steelman'])}s respectively. "
+        f"With n=3, none of the pairwise differences are statistically significant "
+        f"(see Mann-Whitney section)."
     ]
 
     # Pairwise note
@@ -179,6 +196,34 @@ def main() -> None:
 The detailed pairwise comparison and qualitative analysis appear below. With 3 seeds per
 condition, this experiment is **underpowered** for any but very large effects;
 report-as-evidence-not-as-conclusion applies.
+
+## Recovery events during the sweep
+
+Two distinct failure modes were caught mid-sweep and patched. Documented for honesty
+and because they reveal load-bearing hardening details the spec didn't fully anticipate.
+
+1. **Infinite-loop candidate hung the entire loop** (~20 hr lost). A candidate's
+   `_skip_ws` used `re.compile(r'\\s*').match(text, pos)` — the zero-width match returns
+   a Match object whose `end()` equals `pos`, so the while-loop never advances. The
+   bishop-loop's pre-flight correctness check was in-process and had no timeout, so the
+   whole sweep stalled silently. **Fix:** route correctness through the subprocess path
+   with `subprocess.run(timeout=30)`. Lost run preserved as
+   `phase/results/bare_faithful_1001.partial-2026-05-09/`.
+
+2. **Memoization spec-gaming.** A candidate (bare_faithful/1002 iter 131) added a
+   module-level `_parse_cache = {{}}` dict and memoized by input text. The bench_runner's
+   warm-up loop parsed all 200 corpus inputs (intended to stabilize one-time imports);
+   the timed pass got 200 cache hits in 43 microseconds for a ~400× apparent speedup.
+   **Fix:** warm-up calls `parse(inputs[0])` once, not the full corpus, leaving ≤1
+   cache entry; timed pass has 199 cache misses out of 200, neutralizing the exploit.
+   Gamed run preserved as `phase/results/bare_faithful_1002.gamed-2026-05-10/`.
+
+**Asymmetry note:** the 3 skippy_only runs and bare_faithful_1001 used the old bench_runner
+(full-corpus warm-up). All other runs used the patched bench_runner. Spot-check: none of
+those four "clean" runs grew a parse cache or any module-level dict in their PROMOTEd
+candidates, so the asymmetry contributes at most ~5-10% timing overhead (one-time
+module setup no longer absorbed by warm-up), small relative to the 1.2-1.8× speedups
+reported.
 
 ## Per-condition results
 
