@@ -10,12 +10,30 @@ from . import ollama_client
 from .ollama_client import GenerateResult
 
 SKIPPY_MODEL = "qwen3-coder:30b"
-BISHOP_MODEL = "qwen2.5-coder:1.5b"
+# Pilot for follow-up experiment: 1.5B Bishop produced ideas too thin for
+# Skippy to implement faithfully (median candidate-similarity ratio 0.99).
+# Trying a 4B reasoning model whose ideas are more substantive.
+BISHOP_MODEL = "nemotron-3-nano:4b"
 
 SKIPPY_TEMP = 0.7
 BISHOP_TEMP = 0.7
 SKIPPY_TIMEOUT_S = 180.0
-BISHOP_TIMEOUT_S = 60.0
+BISHOP_TIMEOUT_S = 120.0  # nemotron uses tokens for chain-of-thought
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove `<think>...</think>` blocks (used by reasoning models like
+    nemotron-3-nano). If the closing tag is missing but an opening tag is
+    present, also drop everything up to the next newline-then-newline boundary
+    or the last 3 sentences, whichever is shorter."""
+    import re as _re
+    cleaned = _re.sub(r"<think>.*?</think>\s*", "", text, flags=_re.DOTALL)
+    # Some completions stop mid-think with only the closing tag present
+    # ("...</think>\nfinal answer"). Drop everything up to and including
+    # the closing tag.
+    if "</think>" in cleaned:
+        cleaned = cleaned.split("</think>", 1)[1]
+    return cleaned.strip()
 
 
 @dataclass
@@ -155,13 +173,25 @@ def call_skippy(prompt: str, *, seed: int) -> GenerateResult:
 
 
 def call_bishop(prompt: str, *, seed: int, temperature: float | None = None) -> GenerateResult:
-    return ollama_client.generate(
+    # Nemotron uses chain-of-thought; budget for that plus the final 2-3
+    # sentence answer.
+    res = ollama_client.generate(
         model=BISHOP_MODEL,
         prompt=prompt,
         seed=seed,
         temperature=temperature if temperature is not None else BISHOP_TEMP,
-        num_predict=512,
+        num_predict=1024,
         timeout_s=BISHOP_TIMEOUT_S,
+    )
+    # Strip any reasoning prelude (model-specific; harmless on models that
+    # don't emit <think> tags).
+    cleaned_text = _strip_thinking(res.text)
+    return GenerateResult(
+        text=cleaned_text,
+        eval_count=res.eval_count,
+        eval_duration_ns=res.eval_duration_ns,
+        prompt_eval_count=res.prompt_eval_count,
+        total_duration_ns=res.total_duration_ns,
     )
 
 
