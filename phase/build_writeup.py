@@ -148,22 +148,20 @@ def main() -> None:
             bishop_arm_rates[cond_name] = 0.0
 
     tldr_lines = [
-        f"**Headline:** bare-faithful won, not steelman. "
-        f"Mean speedups over the naive baseline: "
-        f"**bare_faithful** {speedups['bare_faithful']:.2f}× > "
-        f"**steelman** {speedups['steelman']:.2f}× > "
-        f"**skippy_only** {speedups['skippy_only']:.2f}×. "
-        f"The engagement step did make Bishop's contribution more *individually* "
-        f"valuable — the Bishop-derived arm won "
-        f"**{bishop_arm_rates.get('steelman', 0)*100:.0f}%** of steelman PROMOTEs vs "
-        f"**{bishop_arm_rates.get('bare_faithful', 0)*100:.0f}%** of bare-faithful PROMOTEs — "
-        f"but steelman iterations are slower (extra critique/steelman generation) so "
-        f"got fewer total opportunities. Across 9 runs (3 conditions × 3 seeds, "
-        f"90 minutes each), all conditions improved over the {_fmt_num(init_mean)}s "
-        f"initial baseline; final means were {_fmt_num(means['skippy_only'])}s, "
-        f"{_fmt_num(means['bare_faithful'])}s, {_fmt_num(means['steelman'])}s respectively. "
-        f"With n=3, none of the pairwise differences are statistically significant "
-        f"(see Mann-Whitney section)."
+        f"**Headline:** bare-faithful and steelman both beat skippy_only on the metric — "
+        f"means {speedups['bare_faithful']:.2f}× and {speedups['steelman']:.2f}× over baseline "
+        f"vs skippy_only's {speedups['skippy_only']:.2f}× — "
+        f"**but a retrospective text-similarity analysis shows the gain is not from Bishop's "
+        f"contribution.** In 95% of bare_faithful iterations and 98% of steelman iterations, "
+        f"Skippy's two arms produced near-identical code (difflib ratio ≥ 0.8). The "
+        f"PARALLEL_PROPOSER advantage is mostly a best-of-2-Skippy-samples ensemble effect, "
+        f"not the engagement-step hypothesis the spec set out to test. When Skippy *does* "
+        f"produce a distinct implementation of Bishop's literal idea (ratio < 0.65), it fails "
+        f"correctness 100% of the time — Bishop=qwen2.5-coder:1.5b ideas are too thin to "
+        f"survive faithful implementation. With n=3, none of the pairwise speedup differences "
+        f"are statistically significant (Mann-Whitney p > 0.10 for all pairs), and the "
+        f"similarity finding suggests more seeds with this setup will not resolve the headline "
+        f"question. See \"Post-hoc finding\" below for the full breakdown."
     ]
 
     # Pairwise note
@@ -247,6 +245,51 @@ requires substantially more seeds. Treat these p-values as descriptive, not as s
 
 {qualitative}
 
+## Post-hoc finding: the bare-faithful and steelman arms are largely degenerate
+
+After the sweep, a retrospective text-similarity analysis (`phase/arm_similarity.py`)
+computed `difflib.SequenceMatcher.ratio()` between the Skippy arm's and the
+Bishop-derived arm's code in each iteration of the PARALLEL_PROPOSER conditions.
+
+| similarity bucket | bare_faithful n | bishop arm correct% | bishop arm wins | steelman n | bishop correct% | bishop wins |
+|---|---|---|---|---|---|---|
+| <0.65 (distinct) | 13 | 0% | 0 | 5 | 0% | 0 |
+| 0.65-0.85 | 18 | 28% | 0 | 2 | 0% | 0 |
+| 0.85-0.95 | 50 | 50% | 1 | 67 | 69% | 2 |
+| 0.95-1.00 (near-identical) | 388 | 88% | 1 | 368 | 92% | 1 |
+
+Median similarity is 0.991 for bare_faithful and 0.993 for steelman; 95% / 98% of
+iterations have similarity ≥ 0.8. **In the vast majority of iterations, the
+Bishop-derived arm is essentially a second Skippy proposal with cosmetic
+variations**, not a faithful implementation of Bishop's idea.
+
+Two patterns visible in the breakdown:
+
+1. **When Skippy *does* produce a distinct implementation of Bishop's idea
+   (similarity <0.65), it almost always fails correctness** (0% pass on
+   bare_faithful, 0% on steelman). Bishop=qwen2.5-coder:1.5b ideas, taken
+   literally, produce code Skippy can't make correct in one rewrite.
+
+2. **When Skippy "implements" Bishop's idea by regenerating his own approach
+   (similarity ≥ 0.95), correctness is fine** (88-92% pass) **but the
+   condition is no longer testing Bishop's contribution** — it's a
+   best-of-2-Skippy-samples ensemble.
+
+**Implication for the headline result.** The 1.67× bare_faithful and 1.50×
+steelman mean speedups, both better than the 1.27× skippy_only baseline, are
+likely *not* explained by Bishop's idea distribution adding signal. They are
+better explained by running two Skippy samples per iteration and taking the
+best. The Bishop-arm-wins-43%-of-promotes statistic in steelman, which looked
+encouraging in the TL;DR, also lands inside this near-identical bucket: of the
+3 Bishop-arm wins in steelman, only 2 are in the <0.95 similarity range (and
+those are 0.867 and 0.877 — still highly overlapping). The "engagement step"
+isn't engaging with a meaningfully different idea distribution.
+
+**This was anticipated as a spec confound** (§10 point 6: "Skippy may have
+implemented a Bishop idea but improved it anyway despite instructions").
+What's new is the magnitude: median 0.99 similarity is the strong form of
+that confound, not the marginal-degradation form the spec described.
+
 ## Confounds and limitations
 
 - **Small sample (3 seeds).** Means and stds are computed on n=3.
@@ -271,16 +314,30 @@ requires substantially more seeds. Treat these p-values as descriptive, not as s
 
 ## Suggested follow-ups
 
-- **Repeat with more seeds (≥10 per condition).** The current sample is informative for
-  exploring the design space but not for statistical claims.
-- **Two-round steelman.** If steelman > bare-faithful, test whether iterating the
-  critique-and-steelman cycle continues to help.
-- **Diff-family Bishop with hardened gate.** The prior bishop-loop run used diff-family
-  Bishop but had specification-gaming exploits in the gate; rerunning with the no-`json`
-  constraint and the inline correctness check may give a cleaner read.
-- **Track reasons-for-rejection.** Attribute REJECTs to "wrong API" vs "passed correctness
-  but no perf gain" — the proportion is itself a signal about how the engagement step
-  affects candidate distribution.
+The retrospective similarity analysis changes the priority order. More seeds with the
+current setup will tighten the mean estimates but won't resolve the headline question
+(does the engagement step matter?) because the engagement step is barely engaging.
+
+Priority order for next experiments:
+
+- **More-capable Bishop.** The 1.5B model produces ideas that, when faithfully
+  implemented, fail correctness 100% of the time (n=13 bare_faithful, n=5 steelman).
+  A 4-7B Bishop (nemotron-3-nano:4b, qwen2.5-coder:7b) could produce ideas Skippy is
+  able to implement correctly without falling back to his own approach. This is the
+  single highest-value change.
+- **Force diff-style application instead of full file rewrite.** Instead of asking
+  Skippy to rewrite the whole file given Bishop's idea, ask Skippy to produce a *minimal
+  diff* targeting only the lines Bishop named. Skippy's tendency to regenerate the
+  whole file from scratch (which is where his own approach takes over) is suppressed.
+- **Stronger anti-collapse prompting.** "Reject" responses that don't substantively
+  change the input file. Could be enforced via the same similarity ratio: if Skippy's
+  output has >0.95 ratio to the current file *and* >0.95 to the parallel Skippy arm,
+  reject as "did not implement the suggestion." This re-runs Bishop's idea generation
+  to surface a different idea.
+- **Then, with the above fixes, repeat with more seeds (≥10 per condition).** Once the
+  bishop-arm is genuinely different from the skippy arm, more seeds become useful.
+- **Two-round steelman** is downstream of all of the above — it only matters if the
+  one-round steelman shows signal.
 
 ---
 
