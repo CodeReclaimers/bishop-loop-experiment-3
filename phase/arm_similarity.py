@@ -34,7 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "phase" / "results"
 
 PARALLEL_CONDITIONS = ["bare_faithful", "steelman"]
-SEEDS = [1001, 1002, 1003]
+SEEDS = [1001, 1002, 1003, 2001]  # 2001 is the nemotron-Bishop pilot
 
 
 def _extract_python_block(text: str) -> str | None:
