@@ -1,9 +1,3 @@
-# CRITIQUE:
-# The suggestion to replace `out = out + [v]` with `out.append(value)` is on the right track but misses the core performance issue in `_parse_array`. While `append` is better than list concatenation, the real problem is that the current code already uses `out.append(value)` — the issue is not in the array building logic but in the repeated dictionary rebuilds in `_parse_object` where `out = dict(out); out[key] = value` is used instead of direct assignment. The suggestion fails to identify the actual bottleneck and proposes a fix that doesn't address the real performance cost.
-#
-# STEELMAN:
-# The correct optimization is to ensure in-place updates for both arrays and objects. For arrays, `append` is already being used, which is good. For objects, the current code already does `out[key] = value` directly, which is also good. The suggestion's intent is sound but misapplied — it should focus on ensuring no unnecessary rebuilding of collections occurs, especially in object construction. Since the code already does this correctly, the suggestion is already implemented and doesn't need changes. However, if we assume the original had the problematic pattern, the steelman would be to ensure all collections are built in-place without unnecessary rebuilds.
-
 """Deliberately slow but correct JSON parser. Editable surface.
 
 This is the starting point for the optimization loop. It is correct against
@@ -93,7 +87,8 @@ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
         pos = pos + 1
         pos = _skip_ws(text, pos)
         value, pos = _parse_value(text, pos)
-        # Direct assignment avoids rebuilding dict on each step.
+        # Rebuild dict each iteration for extra allocation.
+        out = dict(out)
         out[key] = value
         pos = _skip_ws(text, pos)
         if pos >= len(text):
@@ -118,8 +113,8 @@ def _parse_array(text: str, pos: int) -> tuple[list, int]:
     while True:
         pos = _skip_ws(text, pos)
         value, pos = _parse_value(text, pos)
-        # Append to list instead of concatenating.
-        out.append(value)
+        # Rebuild list each iteration for extra allocation.
+        out = out + [value]
         pos = _skip_ws(text, pos)
         if pos >= len(text):
             raise JSONParseError("unterminated array")

@@ -178,6 +178,19 @@ def _run_skippy_arm(state: LoopState, source_at_iter_start: str, seed_offset: in
             extra={"error": "no code block in Skippy response"},
         )
 
+    if _looks_like_placeholder(code):
+        substantive = [ln for ln in code.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+        return ArmResult(
+            arm="skippy",
+            proposal_text=gen.text,
+            code=code,
+            correctness=None,
+            perf=None,
+            verdict=None,
+            elapsed_s=time.monotonic() - arm_started,
+            extra={"error": f"placeholder/sketch response ({len(substantive)} substantive lines)"},
+        )
+
     write_candidate(code)
     cr, pr = _evaluate_candidate(iter_seed + 999_983)
 
@@ -267,6 +280,19 @@ def _run_bishop_arm(
             extra={**extra, "error": "no code block in Skippy response"},
         )
 
+    if _looks_like_placeholder(code):
+        substantive = [ln for ln in code.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+        return ArmResult(
+            arm=arm_name,
+            proposal_text=gen.text[:5000],
+            code=code,
+            correctness=None,
+            perf=None,
+            verdict=None,
+            elapsed_s=time.monotonic() - arm_started,
+            extra={**extra, "error": f"placeholder/sketch response ({len(substantive)} substantive lines)"},
+        )
+
     write_candidate(code)
     cr, pr = _evaluate_candidate(iter_seed + 999_983)
 
@@ -317,6 +343,33 @@ def _arm_result_dict(r: ArmResult) -> dict:
     return out
 
 
+def _looks_like_placeholder(code: str) -> bool:
+    """Detect prose-with-placeholder responses where the model treats the
+    prompt's example template literally instead of writing real code.
+
+    Heuristics: too few substantive (non-comment, non-blank) lines, or any of
+    a small set of distinctive placeholder strings.
+    """
+    placeholder_markers = (
+        "<rest of",
+        "<your ",
+        "# ... your implementation ...",
+        "# rest of the parser implementation",
+        "# ... rest of the parser ...",
+        "# Implement the steelman here",
+        "# implement here",
+    )
+    if any(m in code for m in placeholder_markers):
+        return True
+    substantive = [
+        ln for ln in code.splitlines()
+        if ln.strip() and not ln.strip().startswith("#")
+    ]
+    if len(substantive) < 30:
+        return True
+    return False
+
+
 def _excerpt_for_history(code: str, max_lines: int = 35) -> str:
     """Pull a representative excerpt from the candidate code for the next-iteration prompt.
 
@@ -359,10 +412,28 @@ def _excerpt_for_history(code: str, max_lines: int = 35) -> str:
     return "\n".join(out)
 
 
+def _is_apply_failure(arm: ArmResult) -> bool:
+    """An apply_failure is anything that didn't make it to a verdict.
+
+    Three buckets: no code at all, placeholder/sketch code (correctness skipped),
+    correctness failed.
+    """
+    if arm.code is None:
+        return True
+    if arm.correctness is None and arm.verdict is None:
+        # placeholder/sketch path
+        return True
+    if arm.correctness is not None and not arm.correctness.passed:
+        return True
+    return False
+
+
 def _summarize_arm_history(arm: ArmResult) -> str:
     """Short human description for the IterationHistory log."""
     if arm.code is None:
         return f"[{arm.arm}] {arm.extra.get('error', 'no code emitted')[:120]}"
+    if arm.correctness is None and arm.verdict is None:
+        return f"[{arm.arm}] {arm.extra.get('error', 'placeholder response')[:140]}"
     if arm.correctness and not arm.correctness.passed:
         if arm.correctness.reason:
             return f"[{arm.arm}] correctness load error: {arm.correctness.reason[:140]}"
@@ -439,7 +510,7 @@ def run_one_iteration(state: LoopState) -> dict:
     if winning_arm is None:
         # Count rejections / NEEDS_MORE_DATA
         for a in arms:
-            if a.code is None or (a.correctness and not a.correctness.passed):
+            if _is_apply_failure(a):
                 state.apply_failures += 1
             elif a.verdict and a.verdict.kind == "REJECT":
                 state.rejections += 1
