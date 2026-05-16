@@ -191,6 +191,57 @@ def read_target() -> str:
     return TARGET_PATH.read_text()
 
 
+def apply_diff_to_source(source: str, diff_text: str) -> tuple[str | None, str | None]:
+    """Apply a unified diff to `source` and return (new_source, error).
+
+    Uses `patch -p1` in a temp dir. Returns (None, err) on any failure
+    (rejected hunks, malformed diff, fuzz). Returns (new_source, None) on
+    clean application.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if not diff_text or "--- a/" not in diff_text:
+        return None, "diff missing standard headers"
+    with tempfile.TemporaryDirectory(prefix="bishop-diff-") as tmp:
+        tmpd = Path(tmp)
+        # The diff refers to json_parser.py with the `a/` prefix; patch -p1
+        # strips one leading directory.
+        srcfile = tmpd / "json_parser.py"
+        srcfile.write_text(source)
+        difffile = tmpd / "candidate.diff"
+        # Ensure trailing newline (patch insists).
+        if not diff_text.endswith("\n"):
+            diff_text = diff_text + "\n"
+        difffile.write_text(diff_text)
+        # `patch -p1 --no-backup-if-mismatch --forward`. Default fuzz factor (2)
+        # gives some slack on LLM-generated line numbers. `--reject-file=-`
+        # discards rejects rather than writing them to disk; a hunk failure
+        # still surfaces as a non-zero exit.
+        try:
+            r = subprocess.run(
+                ["patch", "-p1", "--forward", "--no-backup-if-mismatch",
+                 "--reject-file=-", "-i", str(difffile)],
+                cwd=tmpd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=20,
+            )
+        except subprocess.TimeoutExpired:
+            return None, "patch timeout"
+        if r.returncode != 0:
+            stderr = r.stderr.decode("utf-8", errors="replace")[:300]
+            stdout = r.stdout.decode("utf-8", errors="replace")[:300]
+            return None, f"patch exit={r.returncode}: {stdout} | {stderr}"
+        if not srcfile.exists():
+            return None, "patch succeeded but output file missing"
+        new_source = srcfile.read_text()
+        if new_source == source:
+            return None, "diff was a no-op"
+        return new_source, None
+
+
 def snapshot_target_to(path: Path) -> None:
     shutil.copy2(TARGET_PATH, path)
 

@@ -31,7 +31,7 @@ from typing import Any
 from .budget import Budget
 from .evaluator import (
     CorrectnessResult, GateVerdict, PerfResult, PROMOTION_Z,
-    check_correctness, compute_verdict, measure_perf,
+    apply_diff_to_source, check_correctness, compute_verdict, measure_perf,
     read_target, write_candidate,
 )
 from . import ollama_client, proposers
@@ -236,9 +236,9 @@ def _run_bishop_arm(
     arm_name = "bishop_bare" if mode == "bare_faithful" else "bishop_steelman"
 
     if mode == "bare_faithful":
-        prompt = proposers.skippy_bare_faithful_prompt(source_at_iter_start, bishop_idea)
+        prompt = proposers.skippy_bare_faithful_diff_prompt(source_at_iter_start, bishop_idea)
     else:
-        prompt = proposers.skippy_steelman_prompt(source_at_iter_start, bishop_idea)
+        prompt = proposers.skippy_steelman_diff_prompt(source_at_iter_start, bishop_idea)
     _save_proposal(state.out_dir, state.iter_idx, arm_name, "prompt", prompt)
 
     try:
@@ -257,18 +257,24 @@ def _run_bishop_arm(
     state.skippy_total_tokens += gen.total_tokens
     _save_proposal(state.out_dir, state.iter_idx, arm_name, "response", gen.text)
 
-    code = ollama_client.extract_python_block(gen.text)
     extra: dict[str, Any] = {
         "gen_seconds": gen.total_seconds,
         "tokens": gen.total_tokens,
         "bishop_idea": bishop_idea[:1000],
+        "mode": "diff",
     }
-    if mode == "steelman" and code is not None:
-        crit, steel = extract_critique_steelman(code)
-        extra["critique"] = crit
-        extra["steelman"] = steel
 
-    if code is None:
+    # Extract critique/steelman lines if present (for steelman the prompt asks
+    # for them as bare `CRITIQUE:` / `STEELMAN:` lines outside the diff).
+    if mode == "steelman":
+        import re as _re
+        m_c = _re.search(r"(?:^|\n)\s*CRITIQUE:\s*(.+?)(?:\n\s*STEELMAN:|\n\s*```|\Z)", gen.text, _re.DOTALL)
+        m_s = _re.search(r"(?:^|\n)\s*STEELMAN:\s*(.+?)(?:\n\s*```|\Z)", gen.text, _re.DOTALL)
+        extra["critique"] = m_c.group(1).strip() if m_c else None
+        extra["steelman_text"] = m_s.group(1).strip() if m_s else None
+
+    diff_text = ollama_client.extract_diff_block(gen.text)
+    if diff_text is None:
         return ArmResult(
             arm=arm_name,
             proposal_text=gen.text[:5000],
@@ -277,8 +283,24 @@ def _run_bishop_arm(
             perf=None,
             verdict=None,
             elapsed_s=time.monotonic() - arm_started,
-            extra={**extra, "error": "no code block in Skippy response"},
+            extra={**extra, "error": "no diff block in Skippy response"},
         )
+
+    new_source, apply_err = apply_diff_to_source(source_at_iter_start, diff_text)
+    extra["diff_chars"] = len(diff_text)
+    if new_source is None:
+        return ArmResult(
+            arm=arm_name,
+            proposal_text=gen.text[:5000],
+            code=None,
+            correctness=None,
+            perf=None,
+            verdict=None,
+            elapsed_s=time.monotonic() - arm_started,
+            extra={**extra, "error": f"diff did not apply cleanly: {apply_err}", "raw_diff": diff_text[:2000]},
+        )
+
+    code = new_source
 
     if _looks_like_placeholder(code):
         substantive = [ln for ln in code.splitlines() if ln.strip() and not ln.strip().startswith("#")]

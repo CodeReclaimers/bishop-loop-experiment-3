@@ -112,6 +112,90 @@ def bishop_idea_prompt(source: str, hist: IterationHistory) -> str:
     )
 
 
+def skippy_bare_faithful_diff_prompt(source: str, bishop_idea: str) -> str:
+    """Diff-mode bare-faithful prompt.
+
+    Asks Skippy to output a unified diff (not a full file rewrite) that
+    implements Bishop's idea on top of the current file. This suppresses
+    Skippy's tendency to regenerate the whole file from scratch in his own
+    style — diff mode requires every change to be a delta against the
+    existing source.
+    """
+    return (
+        "You are implementing an optimization idea suggested by another developer.\n\n"
+        f"The current implementation is in `json_parser.py`. Here is its full source "
+        f"(with line numbers shown only for your reference; do not include them in your diff):\n\n"
+        f"```python\n{source}\n```\n\n"
+        "The suggestion to implement:\n\n"
+        f'"""\n{bishop_idea.strip()}\n"""\n\n'
+        "Your task: produce a **unified diff** against the current file that implements\n"
+        "EXACTLY this suggestion. Do not improve, substitute, combine with other ideas,\n"
+        "or 'fix' the suggestion. Edit only the lines that need to change to implement\n"
+        "the suggestion — leave everything else alone.\n\n"
+        "Output format: a single ```diff ... ``` fenced block containing standard\n"
+        "unified-diff syntax (the format `patch -p1` accepts). The diff must:\n"
+        "  - Use `--- a/json_parser.py` and `+++ b/json_parser.py` as the file headers.\n"
+        "  - Use `@@ -<old_start>,<old_count> +<new_start>,<new_count> @@` hunk headers.\n"
+        "  - Include 3 lines of unchanged context around each change.\n"
+        "  - Use single-space-prefix lines for context, `-` for removed lines,\n"
+        "    `+` for added lines.\n"
+        "  - Be applicable to the source above via `patch -p1` with no fuzz.\n\n"
+        "Do not output the full rewritten file. Do not output prose. Just the diff.\n"
+        "If the suggestion requires no code change, output a diff with a single\n"
+        "no-op hunk that adds a comment explaining why.\n\n"
+        "Example shape (your diff must contain real hunks targeting the actual file):\n\n"
+        "    ```diff\n"
+        "    --- a/json_parser.py\n"
+        "    +++ b/json_parser.py\n"
+        "    @@ -27,7 +27,7 @@\n"
+        "     _WS_CHARS = [\" \", \"\\t\", \"\\n\", \"\\r\"]\n"
+        "    -_DIGIT_CHARS = [\"0\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\"]\n"
+        "    +_DIGIT_CHARS = frozenset(\"0123456789\")\n"
+        "    ```\n"
+    )
+
+
+def skippy_steelman_diff_prompt(source: str, bishop_idea: str) -> str:
+    """Diff-mode steelman prompt: critique + steelman + diff."""
+    return (
+        "You are evaluating and implementing an optimization idea suggested by another developer.\n\n"
+        f"The current implementation is in `json_parser.py`. Here is its full source:\n\n"
+        f"```python\n{source}\n```\n\n"
+        "The suggestion to consider:\n\n"
+        f'"""\n{bishop_idea.strip()}\n"""\n\n'
+        "Your task has three parts:\n\n"
+        "Part 1 — Critique (2-3 sentences). Explain why this suggestion as stated seems\n"
+        "unworkable, suboptimal, or naive. Be specific about the failure modes you anticipate.\n\n"
+        "Part 2 — Steelman (2-3 sentences). Propose the strongest version of this suggestion —\n"
+        "the steelman that addresses the failure modes you identified. The steelman should\n"
+        "preserve the core direction of the original suggestion, not replace it with a\n"
+        "different idea entirely.\n\n"
+        "Part 3 — Diff. Produce a unified diff against the current `json_parser.py` that\n"
+        "implements the Part 2 steelman. Edit only the lines that need to change; leave\n"
+        "everything else alone.\n\n"
+        "Output format: emit the critique and steelman first, each on its own line\n"
+        "prefixed exactly with `CRITIQUE:` and `STEELMAN:` (no code-fence around them).\n"
+        "Then a single ```diff ... ``` fenced block containing the unified diff. The diff must:\n"
+        "  - Use `--- a/json_parser.py` and `+++ b/json_parser.py` headers.\n"
+        "  - Use `@@ -<old_start>,<old_count> +<new_start>,<new_count> @@` hunk headers.\n"
+        "  - Include 3 lines of unchanged context around each change.\n"
+        "  - Be applicable via `patch -p1` with no fuzz against the source above.\n\n"
+        "Do not output the full rewritten file. Do not put the critique/steelman inside\n"
+        "the diff block. Do not include explanatory prose between the headers and the diff.\n\n"
+        "Example shape (your actual diff must target the real file):\n\n"
+        "    CRITIQUE: <your critique>\n"
+        "    STEELMAN: <your steelman>\n\n"
+        "    ```diff\n"
+        "    --- a/json_parser.py\n"
+        "    +++ b/json_parser.py\n"
+        "    @@ -27,7 +27,7 @@\n"
+        "     _WS_CHARS = [\" \", \"\\t\", \"\\n\", \"\\r\"]\n"
+        "    -_DIGIT_CHARS = [\"0\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\"]\n"
+        "    +_DIGIT_CHARS = frozenset(\"0123456789\")\n"
+        "    ```\n"
+    )
+
+
 def skippy_bare_faithful_prompt(source: str, bishop_idea: str) -> str:
     return (
         "You are implementing an optimization idea suggested by another developer.\n\n"

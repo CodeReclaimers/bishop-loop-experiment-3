@@ -97,3 +97,23 @@ def extract_python_block(text: str) -> str | None:
     if m is not None:
         return m.group(1)
     return None
+
+
+def extract_diff_block(text: str) -> str | None:
+    """Return the first ```diff ...``` fenced block. Falls back to an unfenced
+    block that begins with `--- a/` if no diff fence is found.
+    """
+    import re
+
+    m = re.search(r"```(?:diff|patch)\s*\n(.*?)```", text, re.DOTALL)
+    if m is not None:
+        return m.group(1)
+    # Sometimes the model omits the language tag.
+    m = re.search(r"```\s*\n(--- a/.*?)```", text, re.DOTALL)
+    if m is not None:
+        return m.group(1)
+    # No fence at all — look for a bare unified diff.
+    m = re.search(r"(^--- a/json_parser\.py.*?(?=\n\Z|\n[^ +\-@]))", text, re.DOTALL | re.MULTILINE)
+    if m is not None:
+        return m.group(1)
+    return None
