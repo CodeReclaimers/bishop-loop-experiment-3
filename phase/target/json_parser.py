@@ -1,18 +1,21 @@
-"""Optimized JSON parser. Editable surface.
+"""Deliberately slow but correct JSON parser. Editable surface.
 
-This is the optimized version of the JSON parser, focusing on performance while
-maintaining correctness against `json.loads` on the full corpus.
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
 
-Key optimizations:
-- Use regex for whitespace skipping.
-- Use built-in int/float conversion for numbers.
-- Pre-allocate lists and dicts where possible.
-- Avoid redundant whitespace handling.
-- Use direct character access and slicing.
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
 """
 from __future__ import annotations
 
-import re
 from typing import Any
 
 
@@ -20,10 +23,11 @@ class JSONParseError(ValueError):
     """Raised when the input is not valid JSON."""
 
 
-# Pre-compiled regex for whitespace skipping
-_WS_RE = re.compile(r'\s*')
-_DIGIT_CHARS = frozenset("0123456789")
-_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
 
 
 def parse(text: str) -> Any:
@@ -40,8 +44,10 @@ def parse(text: str) -> Any:
 
 
 def _skip_ws(text: str, pos: int) -> int:
-    m = _WS_RE.match(text, pos)
-    return m.end() if m else pos
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
 
 
 def _parse_value(text: str, pos: int) -> tuple[Any, int]:
@@ -83,6 +89,7 @@ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
         pos = pos + 1
         pos = _skip_ws(text, pos)
         value, pos = _parse_value(text, pos)
+        # Use direct dict assignment instead of rebuilding
         out[key] = value
         pos = _skip_ws(text, pos)
         if pos >= len(text):
@@ -107,6 +114,7 @@ def _parse_array(text: str, pos: int) -> tuple[list, int]:
     while True:
         pos = _skip_ws(text, pos)
         value, pos = _parse_value(text, pos)
+        # Use append instead of list concatenation
         out.append(value)
         pos = _skip_ws(text, pos)
         if pos >= len(text):
@@ -129,7 +137,7 @@ def _parse_string(text: str, pos: int) -> tuple[str, int]:
     while pos < n:
         c = text[pos]
         if c == '"':
-            return ''.join(out), pos + 1
+            return "".join(out), pos + 1
         if c == "\\":
             pos = pos + 1
             if pos >= n:
@@ -189,7 +197,10 @@ def _parse_string(text: str, pos: int) -> tuple[str, int]:
 def _is_hex4(s: str) -> bool:
     if len(s) != 4:
         return False
-    return all(ch in _HEX_CHARS for ch in s)
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
 
 
 def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
@@ -207,34 +218,35 @@ def _parse_null(text: str, pos: int) -> tuple[None, int]:
 
 
 def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
     start = pos
-    if text[pos] == "-":
+    if pos < n and text[pos] == "-":
         pos = pos + 1
-    if pos >= len(text):
+    if pos >= n:
         raise JSONParseError(f"bad number at {pos}")
     if text[pos] == "0":
         pos = pos + 1
     elif text[pos] in _DIGIT_CHARS:
-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
             pos = pos + 1
     else:
         raise JSONParseError(f"bad number at {pos}")
     is_float = False
-    if pos < len(text) and text[pos] == ".":
+    if pos < n and text[pos] == ".":
         is_float = True
         pos = pos + 1
-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
             raise JSONParseError(f"bad number fractional at {pos}")
-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
             pos = pos + 1
-    if pos < len(text) and text[pos] in ("e", "E"):
+    if pos < n and text[pos] in ("e", "E"):
         is_float = True
         pos = pos + 1
-        if pos < len(text) and text[pos] in ("+", "-"):
+        if pos < n and text[pos] in ("+", "-"):
             pos = pos + 1
-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
             raise JSONParseError(f"bad number exponent at {pos}")
-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
             pos = pos + 1
     s = text[start:pos]
     if is_float:

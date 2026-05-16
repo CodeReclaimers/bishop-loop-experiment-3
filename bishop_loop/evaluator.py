@@ -194,11 +194,15 @@ def read_target() -> str:
 def apply_diff_to_source(source: str, diff_text: str) -> tuple[str | None, str | None]:
     """Apply a unified diff to `source` and return (new_source, error).
 
-    Uses `patch -p1` in a temp dir. Returns (None, err) on any failure
-    (rejected hunks, malformed diff, fuzz). Returns (new_source, None) on
-    clean application.
+    Uses `git apply --recount` in a temp git repo. `--recount` lets git
+    recompute hunk line counts from the actual hunk body, which lets us
+    accept diffs from LLMs that consistently get the `@@ -X,Y +Z,W @@`
+    line counts wrong. Line numbers (X, Z) still must be roughly correct;
+    git apply uses context matching to find the real location.
+
+    Returns (None, err) on any failure (rejected hunks, malformed diff,
+    no-op). Returns (new_source, None) on clean application.
     """
-    import shutil
     import subprocess
     import tempfile
 
@@ -206,36 +210,40 @@ def apply_diff_to_source(source: str, diff_text: str) -> tuple[str | None, str |
         return None, "diff missing standard headers"
     with tempfile.TemporaryDirectory(prefix="bishop-diff-") as tmp:
         tmpd = Path(tmp)
-        # The diff refers to json_parser.py with the `a/` prefix; patch -p1
-        # strips one leading directory.
         srcfile = tmpd / "json_parser.py"
         srcfile.write_text(source)
+        # Initialize a throwaway git repo so `git apply` has an index to work
+        # against; `--recount` requires being inside a git work tree.
+        try:
+            subprocess.run(["git", "init", "-q"], cwd=tmpd, check=True, timeout=10)
+            subprocess.run(["git", "add", "json_parser.py"], cwd=tmpd, check=True, timeout=10)
+            subprocess.run(
+                ["git", "-c", "user.email=l@l", "-c", "user.name=l", "commit", "-q", "-m", "init"],
+                cwd=tmpd, check=True, timeout=10,
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            return None, f"git init failed: {exc}"
         difffile = tmpd / "candidate.diff"
-        # Ensure trailing newline (patch insists).
         if not diff_text.endswith("\n"):
             diff_text = diff_text + "\n"
         difffile.write_text(diff_text)
-        # `patch -p1 --no-backup-if-mismatch --forward`. Default fuzz factor (2)
-        # gives some slack on LLM-generated line numbers. `--reject-file=-`
-        # discards rejects rather than writing them to disk; a hunk failure
-        # still surfaces as a non-zero exit.
         try:
             r = subprocess.run(
-                ["patch", "-p1", "--forward", "--no-backup-if-mismatch",
-                 "--reject-file=-", "-i", str(difffile)],
+                ["git", "apply", "--recount", "--whitespace=fix",
+                 "--unsafe-paths", str(difffile)],
                 cwd=tmpd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 timeout=20,
             )
         except subprocess.TimeoutExpired:
-            return None, "patch timeout"
+            return None, "git apply timeout"
         if r.returncode != 0:
             stderr = r.stderr.decode("utf-8", errors="replace")[:300]
             stdout = r.stdout.decode("utf-8", errors="replace")[:300]
-            return None, f"patch exit={r.returncode}: {stdout} | {stderr}"
+            return None, f"git apply exit={r.returncode}: {stdout} | {stderr}"
         if not srcfile.exists():
-            return None, "patch succeeded but output file missing"
+            return None, "git apply succeeded but output file missing"
         new_source = srcfile.read_text()
         if new_source == source:
             return None, "diff was a no-op"
