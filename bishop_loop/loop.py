@@ -31,8 +31,8 @@ from typing import Any
 from .budget import Budget
 from .evaluator import (
     CorrectnessResult, GateVerdict, PerfResult, PROMOTION_Z,
-    apply_diff_to_source, check_correctness, compute_verdict, measure_perf,
-    read_target, write_candidate,
+    apply_search_replace_blocks, check_correctness, compute_verdict,
+    measure_perf, read_target, write_candidate,
 )
 from . import ollama_client, proposers
 from .proposers import IterationHistory, extract_critique_steelman
@@ -273,21 +273,11 @@ def _run_bishop_arm(
         extra["critique"] = m_c.group(1).strip() if m_c else None
         extra["steelman_text"] = m_s.group(1).strip() if m_s else None
 
-    diff_text = ollama_client.extract_diff_block(gen.text)
-    if diff_text is None:
-        return ArmResult(
-            arm=arm_name,
-            proposal_text=gen.text[:5000],
-            code=None,
-            correctness=None,
-            perf=None,
-            verdict=None,
-            elapsed_s=time.monotonic() - arm_started,
-            extra={**extra, "error": "no diff block in Skippy response"},
-        )
-
-    new_source, apply_err = apply_diff_to_source(source_at_iter_start, diff_text)
-    extra["diff_chars"] = len(diff_text)
+    # SEARCH/REPLACE blocks may be wrapped in a code fence or appear directly
+    # in the response. Pass the whole response to the applier — it locates the
+    # blocks via regex.
+    new_source, apply_err, n_blocks = apply_search_replace_blocks(source_at_iter_start, gen.text)
+    extra["sr_blocks"] = n_blocks
     if new_source is None:
         return ArmResult(
             arm=arm_name,
@@ -297,7 +287,7 @@ def _run_bishop_arm(
             perf=None,
             verdict=None,
             elapsed_s=time.monotonic() - arm_started,
-            extra={**extra, "error": f"diff did not apply cleanly: {apply_err}", "raw_diff": diff_text[:2000]},
+            extra={**extra, "error": f"SEARCH/REPLACE did not apply: {apply_err}"},
         )
 
     code = new_source

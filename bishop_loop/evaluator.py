@@ -191,6 +191,52 @@ def read_target() -> str:
     return TARGET_PATH.read_text()
 
 
+def apply_search_replace_blocks(source: str, response: str) -> tuple[str | None, str | None, int]:
+    """Apply aider-style SEARCH/REPLACE blocks to `source`.
+
+    Block format (whitespace-tolerant on the markers):
+
+        <<<<<<< SEARCH
+        <exact text from source>
+        =======
+        <replacement text>
+        >>>>>>> REPLACE
+
+    Multiple blocks are applied in order. Each SEARCH must match the current
+    state of the source exactly once. Returns (new_source, error, n_blocks).
+    On any failure (block not found, multiple matches, missing markers) the
+    function returns (None, err, n_blocks_processed).
+    """
+    import re as _re
+
+    block_re = _re.compile(
+        r"<{5,}\s*SEARCH\s*\n(.*?)\n=+\s*\n(.*?)\n>{5,}\s*REPLACE",
+        _re.DOTALL,
+    )
+    blocks = block_re.findall(response)
+    if not blocks:
+        return None, "no SEARCH/REPLACE blocks found", 0
+
+    cur = source
+    for i, (search, replace) in enumerate(blocks):
+        # Trim each block of any leading/trailing blank lines but preserve
+        # internal whitespace exactly. LLMs frequently add a trailing newline.
+        search_norm = search.rstrip("\n")
+        replace_norm = replace.rstrip("\n")
+        if search_norm == "":
+            return None, f"block {i}: SEARCH text empty", i
+        count = cur.count(search_norm)
+        if count == 0:
+            return None, f"block {i}: SEARCH text not found ({len(search_norm)} chars)", i
+        if count > 1:
+            return None, f"block {i}: SEARCH text matches {count} times (ambiguous)", i
+        cur = cur.replace(search_norm, replace_norm, 1)
+
+    if cur == source:
+        return None, "all blocks were no-ops", len(blocks)
+    return cur, None, len(blocks)
+
+
 def apply_diff_to_source(source: str, diff_text: str) -> tuple[str | None, str | None]:
     """Apply a unified diff to `source` and return (new_source, error).
 
