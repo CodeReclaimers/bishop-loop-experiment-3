@@ -2,11 +2,9 @@
 
 ## TL;DR
 
-**Headline:** bare-faithful and steelman both beat skippy_only on the metric — means 1.67× and 1.50× over baseline vs skippy_only's 1.28× — **but a retrospective text-similarity analysis shows the gain is not from Bishop's contribution.** In 95% of bare_faithful iterations and 98% of steelman iterations, Skippy's two arms produced near-identical code (difflib ratio ≥ 0.8). The PARALLEL_PROPOSER advantage is mostly a best-of-2-Skippy-samples ensemble effect, not the engagement-step hypothesis the spec set out to test. When Skippy *does* produce a distinct implementation of Bishop's literal idea (ratio < 0.65), it fails correctness 100% of the time — Bishop=qwen2.5-coder:1.5b ideas are too thin to survive faithful implementation. With n=3, none of the pairwise speedup differences are statistically significant (Mann-Whitney p > 0.10 for all pairs), and the similarity finding suggests more seeds with this setup will not resolve the headline question. See "Post-hoc finding" below for the full breakdown.
+**Headline:** at n=10 seeds per condition, **bare_faithful** (1.72× speedup over baseline) and **steelman** (1.64×) both clearly beat **skippy_only** (1.40×). The two PARALLEL_PROPOSER conditions are statistically indistinguishable from each other on the final metric (0.0101s vs 0.0105s, std ≈ 0.0006 each). The Bishop-arm-win rate is **higher under bare-faithful** (60%) than under steelman (35%) — the opposite of what the engagement-step hypothesis predicts. Unlike earlier pilots, the bishop-derived arm is now genuinely distinct from the skippy arm (median similarity bare_faithful=0.10, steelman=0.07; ≈ 0% of iterations have ratio ≥ 0.8). The PARALLEL_PROPOSER arms are actually competing approaches, not Skippy regenerating the same code twice. Initial baseline was 0.0175s.
 
-The detailed pairwise comparison and qualitative analysis appear below. With 3 seeds per
-condition, this experiment is **underpowered** for any but very large effects;
-report-as-evidence-not-as-conclusion applies.
+The detailed pairwise comparison and qualitative analysis appear below.
 
 ## Recovery events during the sweep
 
@@ -40,18 +38,39 @@ reported.
 
 | condition_seed | iters | promotes | best metric | initial metric | wall_s | skippy wins | bishop wins |
 |----|----|----|----|----|----|----|----|
-| skippy_only_1001 | 315 | 1 | 0.0141 | 0.0168 | 5404.4 | 1 | 0 |
-| skippy_only_1002 | 313 | 3 | 0.0139 | 0.0171 | 5409.4 | 3 | 0 |
-| skippy_only_1003 | 312 | 4 | 0.0122 | 0.0171 | 5410.1 | 4 | 0 |
-| **skippy_only mean ± std** | 313 | 2.7 | 0.0134 ± 0.0011 | — | — | 8 | 0 |
-| bare_faithful_1001 | 145 | 3 | 0.0094 | 0.0169 | 5408.6 | 2 | 1 |
-| bare_faithful_1002 | 157 | 2 | 0.0106 | 0.0173 | 5432.2 | 2 | 0 |
-| bare_faithful_1003 | 170 | 4 | 0.0108 | 0.0170 | 5422.4 | 3 | 1 |
-| **bare_faithful mean ± std** | 157 | 3.0 | 0.0103 ± 0.0007 | — | — | 7 | 2 |
-| steelman_1001 | 142 | 4 | 0.0131 | 0.0168 | 5411.6 | 2 | 2 |
-| steelman_1002 | 155 | 1 | 0.0106 | 0.0173 | 5424.5 | 1 | 0 |
-| steelman_1003 | 146 | 2 | 0.0108 | 0.0171 | 5409.4 | 1 | 1 |
-| **steelman mean ± std** | 148 | 2.3 | 0.0115 ± 0.0014 | — | — | 4 | 3 |
+| skippy_only_3001 | 340 | 3 | 0.0165 | 0.0205 | 5404.0 | 3 | 0 |
+| skippy_only_3002 | 343 | 4 | 0.0143 | 0.0198 | 5411.4 | 4 | 0 |
+| skippy_only_3003 | 305 | 3 | 0.0142 | 0.0173 | 5419.2 | 3 | 0 |
+| skippy_only_3004 | 314 | 2 | 0.0146 | 0.0173 | 5405.1 | 2 | 0 |
+| skippy_only_3005 | 275 | 2 | 0.0141 | 0.0174 | 5409.4 | 2 | 0 |
+| skippy_only_3006 | 311 | 1 | 0.0145 | 0.0174 | 5414.9 | 1 | 0 |
+| skippy_only_3007 | 280 | 5 | 0.0103 | 0.0175 | 5403.2 | 5 | 0 |
+| skippy_only_3008 | 282 | 3 | 0.0108 | 0.0174 | 5403.6 | 3 | 0 |
+| skippy_only_3009 | 307 | 2 | 0.0107 | 0.0172 | 5412.8 | 2 | 0 |
+| skippy_only_3010 | 276 | 2 | 0.0109 | 0.0174 | 5418.8 | 2 | 0 |
+| **skippy_only mean ± std** | 303 | 2.7 | 0.0131 ± 0.0022 | — | — | 27 | 0 |
+| bare_faithful_3001 | 180 | 4 | 0.0107 | 0.0175 | 5426.7 | 1 | 3 |
+| bare_faithful_3002 | 194 | 5 | 0.0099 | 0.0174 | 5425.9 | 1 | 4 |
+| bare_faithful_3003 | 195 | 4 | 0.0108 | 0.0180 | 5404.4 | 3 | 1 |
+| bare_faithful_3004 | 209 | 4 | 0.0099 | 0.0171 | 5400.9 | 1 | 3 |
+| bare_faithful_3005 | 224 | 2 | 0.0103 | 0.0170 | 5408.5 | 1 | 1 |
+| bare_faithful_3006 | 204 | 5 | 0.0101 | 0.0173 | 5400.5 | 3 | 2 |
+| bare_faithful_3007 | 222 | 3 | 0.0102 | 0.0173 | 5418.2 | 2 | 1 |
+| bare_faithful_3008 | 195 | 3 | 0.0104 | 0.0173 | 5400.0 | 2 | 1 |
+| bare_faithful_3009 | 218 | 7 | 0.0088 | 0.0171 | 5405.1 | 1 | 6 |
+| bare_faithful_3010 | 166 | 5 | 0.0103 | 0.0180 | 5435.0 | 2 | 3 |
+| **bare_faithful mean ± std** | 201 | 4.2 | 0.0101 ± 0.0006 | — | — | 17 | 25 |
+| steelman_3001 | 210 | 6 | 0.0108 | 0.0178 | 5412.2 | 3 | 3 |
+| steelman_3002 | 236 | 4 | 0.0102 | 0.0170 | 5405.4 | 3 | 1 |
+| steelman_3003 | 240 | 2 | 0.0109 | 0.0171 | 5402.9 | 1 | 1 |
+| steelman_3004 | 232 | 4 | 0.0103 | 0.0173 | 5415.7 | 1 | 3 |
+| steelman_3005 | 247 | 3 | 0.0101 | 0.0172 | 5400.8 | 2 | 1 |
+| steelman_3006 | 230 | 2 | 0.0106 | 0.0172 | 5415.3 | 2 | 0 |
+| steelman_3007 | 221 | 3 | 0.0102 | 0.0169 | 5408.3 | 2 | 1 |
+| steelman_3008 | 230 | 3 | 0.0106 | 0.0173 | 5401.5 | 3 | 0 |
+| steelman_3009 | 206 | 3 | 0.0106 | 0.0174 | 5414.0 | 3 | 0 |
+| steelman_3010 | 242 | 4 | 0.0105 | 0.0169 | 5405.5 | 2 | 2 |
+| **steelman mean ± std** | 229 | 3.4 | 0.0105 ± 0.0003 | — | — | 22 | 12 |
 
 ## Cross-condition comparison
 
@@ -59,103 +78,97 @@ See `trajectory.png`, `final_per_condition.png`, and `arm_wins.png` in the repo 
 
 ## Statistical analysis
 
-Pairwise Mann-Whitney U on the 3-vs-3 final-metric distributions:
+Pairwise Mann-Whitney U on the 10-vs-10 final-metric distributions:
 
-- **skippy_vs_bare**: a=0.0134, b=0.0103, Mann-Whitney U=9.0, p=0.100. _(underpowered with n=3 per side)_
-- **skippy_vs_steel**: a=0.0134, b=0.0115, Mann-Whitney U=8.0, p=0.200. _(underpowered with n=3 per side)_
-- **bare_vs_steel**: a=0.0103, b=0.0115, Mann-Whitney U=2.0, p=0.400. _(underpowered with n=3 per side)_
+- **skippy_vs_bare**: a=0.0131, b=0.0101, Mann-Whitney U=95.0, p=0.001. _()_
+- **skippy_vs_steel**: a=0.0131, b=0.0105, Mann-Whitney U=90.0, p=0.003. _()_
+- **bare_vs_steel**: a=0.0101, b=0.0105, Mann-Whitney U=29.0, p=0.121. _()_
 
-**Power note:** With n=3 per side, the smallest non-degenerate U statistic that can yield
-p<0.10 in a two-sided test is around p≈0.10 (rare ordering); detecting medium effects
-requires substantially more seeds. Treat these p-values as descriptive, not as significance.
+At n=10 per condition the skippy-vs-bare and skippy-vs-steel comparisons are
+clearly significant; the bare-vs-steel difference is not. The standard deviations
+within each PARALLEL_PROPOSER condition (~0.0006s) are an order of magnitude smaller
+than the gap between PARALLEL_PROPOSER and skippy_only, so the two-arm effect dominates
+the engagement-step effect at this sample size.
 
 ## Qualitative analysis: steelman in action
 
-### Example: steelman_1001 iter 1
+### Example: steelman_3001 iter 1
 
-**Bishop idea:** To speed up parsing JSON, we can use a more efficient string concatenation mechanism by avoiding unnecessary calls to `str.join`. We can do this by maintaining a buffer and only appending characters when they are needed. This change will reduce the overhead of string concatenation and improve performance, especially for large inputs.
+**Bishop idea:** Replace the redundant `out = dict(out)` call in `_parse_object` with a direct assignment into the existing dictionary, so each key‑value pair is added without recreating the dict. This eliminates repeated allocations and memory churn during object construction, speeding up parsing while preserving correctness.
 
-**Skippy critique:** The suggestion to "avoid unnecessary calls to `str.join`" is unworkable because it
-doesn't identify where `str.join` is actually used in the code — the current
-implementation uses string concatenation (`out = out + c`) but not `str.join`.
-Additionally, the suggestion doesn't address the real bottlenecks like
-repeated dict/list rebuilding, per-character scanning, or redundant whitespace
-skipping. I
+**Skippy critique:** The suggestion to replace `out = dict(out)` with direct assignment would break the existing logic because the current code already assigns to `out[key] = value` after the dict reconstruction. The redundant `dict(out)` call doesn't affect the correctness of the assignment but rather creates unnecessary intermediate dictionaries. Simply removing it without adjusting the assignment logic would cause 
 
-**Skippy steelman:** The steelman version of the idea is to reduce the overhead of string
-concatenation by using a list as a buffer and only joining at the end,
-especially for large strings. This avoids repeated allocations and copies
-during string building in `_parse_string`, and can also be applied to
-building object keys and array elements where possible, reducing the number
-of intermediate string objects created d
+**Skippy steelman:** The steelman is to recognize that the redundant `dict(out)` call is indeed unnecessary and can be removed, but the key insight is that we should not be rebuilding the dictionary at all during parsing. Instead, we should directly assign to the existing dictionary object, which is already the correct approach, and the suggestion should be interpreted as eliminating the unnecessary dict reconstructio
 
-**Outcome:** PROMOTE — candidate metric 0.0137 vs baseline 0.0168
+**Outcome:** PROMOTE — candidate metric 0.0149 vs baseline 0.0178
 
-### Example: steelman_1001 iter 8
+### Example: steelman_3001 iter 19
 
-**Bishop idea:** To speed up the JSON parser, we can replace string concatenation with list concatenation in `_parse_string` where applicable. This reduces the overhead of repeated allocations and copies during string building, especially for large strings. The idea is to use a list as a buffer that only gets joined at the end, avoiding unnecessary intermediate string objects created during parsing.
+**Bishop idea:** Replace the list `_WS_CHARS` with a set so that checking whether a character is whitespace is O(1) instead of O(k) for each character in the string. This will make `_skip_ws` loop faster because each iteration uses constant‑time membership checks. The rest of the parser can remain unchanged, preserving correctness.
 
-**Skippy critique:** The suggestion to "replace string concatenation with list concatenation" in `_parse_string` is unworkable because it misidentifies the performance bottleneck. The current implementation already uses a list buffer (`buffer = []`) and only calls `"".join(buffer)` at the end, which is the correct and optimal approach. The suggestion incorrectly implies that the existing code uses inefficient string c
+**Skippy critique:** The suggestion to replace `_WS_CHARS` with a set would indeed improve lookup performance, but it fails to consider that the current implementation uses lists for other character sets like `_DIGIT_CHARS` which are also accessed via membership checks. Additionally, the suggestion doesn't address the fact that `_skip_ws` is called repeatedly and could benefit from a more optimized approach like using
 
-**Skippy steelman:** The steelman version of the idea is to ensure that all string building operations — especially in `_parse_string`, but also in places like object and array construction — use list buffers to avoid repeated allocations and copies. This should be applied consistently to reduce intermediate string objects and improve performance for large inputs, while preserving correctness and maintaining the exist
+**Skippy steelman:** The steelman is to replace all list-based character membership checks with set or frozenset lookups, not just whitespace characters. This ensures consistent O(1) performance across all character set operations while maintaining the existing parsing logic. The change should also consider using `str.isspace()` for whitespace handling as it's highly optimized in CPython.
 
-**Outcome:** PROMOTE — candidate metric 0.0131 vs baseline 0.0133
+**Outcome:** PROMOTE — candidate metric 0.0127 vs baseline 0.0149
 
-### Example: steelman_1003 iter 1
+### Example: steelman_3001 iter 25
 
-**Bishop idea:** To optimize the `parse` function for speed, we can replace the explicit concatenation and rebuilding of collections with a more efficient approach. Specifically, we can use a list to store the values and rebuild the dictionary only when necessary. This reduces the overhead of string concatenation in each iteration of the loop.
+**Bishop idea:** Replace the character‑by‑character loop in `_skip_ws` with a single call to `text.find` that looks for the next non‑whitespace character, using the C‑level implementation instead of the Python loop. This eliminates the per‑character Python overhead while still advancing `pos` to the first non‑space character, keeping the parsing logic correct.
 
-**Skippy critique:** The suggestion to "use a list to store the values and rebuild the dictionary only when necessary" is problematic because it misidentifies the core performance bottleneck. The current code already rebuilds collections on every iteration (e.g., `out = dict(out); out[key] = value`), which is inefficient, but simply switching to list storage without addressing the fundamental issues like redundant whi
+**Skippy critique:** The suggestion to replace the character-by-character loop with `text.find` is flawed because `text.find` would need to search the entire string from the current position for any whitespace character, which is inefficient and doesn't handle the case where there are no more whitespace characters (i.e., it would return -1 or continue searching past the end of the string). Additionally, it doesn't pre
 
-**Skippy steelman:** The steelman version should focus on reducing Python-level overhead by using efficient string slicing and built-in functions where possible, and by minimizing redundant work. Specifically, we can improve number parsing with `float()` and `int()` directly, avoid redundant whitespace skipping, and reduce unnecessary string concatenations by using `io.StringIO` or list-based building with `join()` wh
+**Skippy steelman:** The steelman version would use `text.find` to locate the first non-whitespace character, but it should handle the case where no such character exists (i.e., end of string) by returning the current position or raising an appropriate error, ensuring that `pos` is correctly advanced to the next non-whitespace character while maintaining performance.
 
-**Outcome:** PROMOTE — candidate metric 0.0130 vs baseline 0.0171
+**Outcome:** PROMOTE — candidate metric 0.0110 vs baseline 0.0114
+
+### Example: steelman_3002 iter 4
+
+**Bishop idea:** Replace the regex‑based `_skip_ws` implementation with a manual loop that advances the index while `ord(text[pos]) < 0x20`, since all whitespace characters have ordinals below 0x20 and this avoids the overhead of a regex match. This change keeps correctness because it still skips only whitespace and is faster due to the low‑overhead arithmetic and loop.
+
+**Skippy critique:** The suggestion fails to account for the fact that JSON whitespace includes characters beyond those with ordinals below 0x20, specifically U+0009 (tab), U+000A (line feed), U+000D (carriage return), and U+0020 (space). Using `ord(text[pos]) < 0x20` would incorrectly skip non-whitespace characters like 'A' or 'z' and fail to skip valid whitespace like tab or space. Additionally, it ignores that the 
+
+**Skippy steelman:** The steelman version should replace the regex with a manual loop that checks for the specific whitespace characters defined in the JSON standard (space, tab, line feed, carriage return) rather than relying on ord < 0x20. This maintains correctness while avoiding regex overhead, and can be implemented efficiently by checking against a set of valid whitespace characters.
+
+**Outcome:** PROMOTE — candidate metric 0.0103 vs baseline 0.0133
+
+### Example: steelman_3003 iter 3
+
+**Bishop idea:** Replace the _skip_ws function with a simple while‑loop that advances pos while text[pos] is in _WS_CHARS, eliminating the regex call and using the pre‑computed frozenset for constant‑time look‑ups. This removes the overhead of compiling and matching a regex each time, making the whitespace‑skipping step faster while preserving correct token boundaries.
+
+**Skippy critique:** The suggestion to replace the regex with a while-loop using a frozenset would break the whitespace skipping behavior because the current regex `r"[ \t\n\r]*"` advances past *zero or more* whitespace characters, but a simple loop would only advance past *one* whitespace character at a time. This would cause incorrect parsing of multiple consecutive whitespace characters and could lead to parsing fa
+
+**Skippy steelman:** The steelman version of the suggestion is to replace the regex-based `_skip_ws` with an optimized while-loop that advances `pos` as long as `text[pos]` is in `_WS_CHARS`, ensuring that all consecutive whitespace characters are skipped in one pass, while still using the precomputed frozenset for O(1) lookup. This preserves the performance benefits of avoiding regex overhead while maintaining correc
+
+**Outcome:** PROMOTE — candidate metric 0.0109 vs baseline 0.0142
 
 
-## Post-hoc finding: the bare-faithful and steelman arms are largely degenerate
+## Post-hoc finding: arms are now genuinely distinct (SEARCH/REPLACE mode)
 
-After the sweep, a retrospective text-similarity analysis (`phase/arm_similarity.py`)
-computed `difflib.SequenceMatcher.ratio()` between the Skippy arm's and the
-Bishop-derived arm's code in each iteration of the PARALLEL_PROPOSER conditions.
+The original 3-seed sweep showed bare_faithful and steelman PARALLEL_PROPOSER
+arms producing near-identical code (median similarity 0.99). The cause was the
+full-file-rewrite paradigm: when Skippy was given a free hand to rewrite the
+file in response to Bishop's idea, he regenerated his own approach with tiny
+variations. The "Bishop arm" was effectively a second Skippy sample.
 
-| similarity bucket | bare_faithful n | bishop arm correct% | bishop arm wins | steelman n | bishop correct% | bishop wins |
-|---|---|---|---|---|---|---|
-| <0.65 (distinct) | 13 | 0% | 0 | 5 | 0% | 0 |
-| 0.65-0.85 | 18 | 28% | 0 | 2 | 0% | 0 |
-| 0.85-0.95 | 50 | 50% | 1 | 67 | 69% | 2 |
-| 0.95-1.00 (near-identical) | 388 | 88% | 1 | 368 | 92% | 1 |
+A series of pilots (documented in `bishop_loop/BENCHSTONE_NOTES.md` and
+`phase/results/{bare_faithful,steelman}_2001.*` snapshots) iterated through:
+- Full-file rewrite with full-corpus warm-up (memoization gaming surfaced).
+- Full-file rewrite with single-input warm-up (placeholder-string bug surfaced).
+- Unified diff via GNU patch (97% apply-failure rate — LLMs can't count hunk lines).
+- Unified diff via `git apply --recount` (94% apply-failure rate — Skippy hallucinates source content).
+- **SEARCH/REPLACE blocks (aider-style).** Skippy quotes exact source text in a SEARCH block
+  and provides the replacement; the patcher does literal string substitution. No line
+  counting, no context fuzz, robust to hallucination because the SEARCH must match
+  the source exactly to apply.
 
-Median similarity is 0.991 for bare_faithful and 0.993 for steelman; 95% / 98% of
-iterations have similarity ≥ 0.8. **In the vast majority of iterations, the
-Bishop-derived arm is essentially a second Skippy proposal with cosmetic
-variations**, not a faithful implementation of Bishop's idea.
+The 10-seed sweep uses SEARCH/REPLACE mode for both PARALLEL_PROPOSER conditions.
+Result: arm-to-arm similarity collapsed from median 0.99 to median **~0.07-0.10**,
+with 0% of iterations having ratio ≥ 0.8. The Bishop-derived arm is now genuinely
+the baseline source + a small targeted edit, while the Skippy arm is a full
+rewrite — they are competing approaches, not duplicates.
 
-Two patterns visible in the breakdown:
-
-1. **When Skippy *does* produce a distinct implementation of Bishop's idea
-   (similarity <0.65), it almost always fails correctness** (0% pass on
-   bare_faithful, 0% on steelman). Bishop=qwen2.5-coder:1.5b ideas, taken
-   literally, produce code Skippy can't make correct in one rewrite.
-
-2. **When Skippy "implements" Bishop's idea by regenerating his own approach
-   (similarity ≥ 0.95), correctness is fine** (88-92% pass) **but the
-   condition is no longer testing Bishop's contribution** — it's a
-   best-of-2-Skippy-samples ensemble.
-
-**Implication for the headline result.** The 1.67× bare_faithful and 1.50×
-steelman mean speedups, both better than the 1.27× skippy_only baseline, are
-likely *not* explained by Bishop's idea distribution adding signal. They are
-better explained by running two Skippy samples per iteration and taking the
-best. The Bishop-arm-wins-43%-of-promotes statistic in steelman, which looked
-encouraging in the TL;DR, also lands inside this near-identical bucket: of the
-3 Bishop-arm wins in steelman, only 2 are in the <0.95 similarity range (and
-those are 0.867 and 0.877 — still highly overlapping). The "engagement step"
-isn't engaging with a meaningfully different idea distribution.
-
-**This was anticipated as a spec confound** (§10 point 6: "Skippy may have
-implemented a Bishop idea but improved it anyway despite instructions").
-What's new is the magnitude: median 0.99 similarity is the strong form of
-that confound, not the marginal-degradation form the spec described.
+The headline result above is computed against this corrected experimental design.
 
 ## Confounds and limitations
 

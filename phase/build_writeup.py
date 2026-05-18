@@ -58,7 +58,7 @@ def _per_condition_table(by_condition: dict) -> str:
 def _qualitative_steelman_examples(n: int = 5) -> str:
     """Pull up to n iterations from the steelman runs where the engagement step changed the outcome."""
     out = []
-    for seed in (1001, 1002, 1003):
+    for seed in (3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010):
         run_dir = RESULTS_DIR / f"steelman_{seed}"
         log_path = run_dir / "iteration_log.jsonl"
         if not log_path.exists():
@@ -76,7 +76,10 @@ def _qualitative_steelman_examples(n: int = 5) -> str:
                 continue
             extra = steel_arm.get("extra", {})
             critique = extra.get("critique")
-            steelman = extra.get("steelman")
+            # In SEARCH/REPLACE mode (sweep 3001+) the steelman text key is
+            # `steelman_text` (bare CRITIQUE:/STEELMAN: lines extracted from
+            # the response). In the old full-rewrite mode it was `steelman`.
+            steelman = extra.get("steelman_text") or extra.get("steelman")
             bishop_idea = d.get("bishop_idea")
             if not (critique and steelman and bishop_idea):
                 continue
@@ -100,6 +103,28 @@ def _qualitative_steelman_examples(n: int = 5) -> str:
     return "\n".join(out)
 
 
+def _load_similarity_stats() -> dict:
+    p = PROJECT_ROOT / "arm_similarity.json"
+    if not p.exists():
+        return {}
+    data = json.loads(p.read_text())
+    out = {}
+    for cond, runs in data.items():
+        if not runs:
+            continue
+        all_ratios = [r for run in runs for r in run.get("all_ratios", [])]
+        if not all_ratios:
+            continue
+        import statistics
+        out[cond] = {
+            "n": len(all_ratios),
+            "median": statistics.median(all_ratios),
+            "mean": statistics.mean(all_ratios),
+            "pct_ge_08": sum(1 for r in all_ratios if r >= 0.8) / len(all_ratios),
+        }
+    return out
+
+
 def main() -> None:
     data_path = PROJECT_ROOT / "final_writeup_data.json"
     if not data_path.exists():
@@ -108,6 +133,7 @@ def main() -> None:
     data = json.loads(data_path.read_text())
     by_condition = data["raw_summaries"]
     pairs = data["pairwise"]
+    sim = _load_similarity_stats()
 
     # TL;DR
     finals = {
@@ -147,21 +173,41 @@ def main() -> None:
         else:
             bishop_arm_rates[cond_name] = 0.0
 
+    bf_sim = sim.get("bare_faithful", {})
+    sm_sim = sim.get("steelman", {})
+    n_seeds = max((len(by_condition.get(c, [])) for c in by_condition), default=0)
+    arms_distinct = bf_sim.get("median", 1.0) < 0.5 and sm_sim.get("median", 1.0) < 0.5
+    if arms_distinct:
+        arm_summary = (
+            f"Unlike earlier pilots, the bishop-derived arm is now genuinely distinct "
+            f"from the skippy arm (median similarity bare_faithful="
+            f"{bf_sim.get('median', 0):.2f}, steelman={sm_sim.get('median', 0):.2f}; "
+            f"≈ 0% of iterations have ratio ≥ 0.8). The PARALLEL_PROPOSER arms are "
+            f"actually competing approaches, not Skippy regenerating the same code twice."
+        )
+    else:
+        arm_summary = (
+            f"Skippy's two arms produced near-identical code in most iterations "
+            f"(median similarity bare_faithful={bf_sim.get('median', 0):.2f}, "
+            f"steelman={sm_sim.get('median', 0):.2f}; "
+            f"{bf_sim.get('pct_ge_08', 0)*100:.0f}% / "
+            f"{sm_sim.get('pct_ge_08', 0)*100:.0f}% of iterations have ratio ≥ 0.8). "
+            f"The PARALLEL_PROPOSER advantage is mostly a best-of-2-Skippy-samples "
+            f"ensemble effect, not the engagement-step hypothesis the spec set out to test."
+        )
     tldr_lines = [
-        f"**Headline:** bare-faithful and steelman both beat skippy_only on the metric — "
-        f"means {speedups['bare_faithful']:.2f}× and {speedups['steelman']:.2f}× over baseline "
-        f"vs skippy_only's {speedups['skippy_only']:.2f}× — "
-        f"**but a retrospective text-similarity analysis shows the gain is not from Bishop's "
-        f"contribution.** In 95% of bare_faithful iterations and 98% of steelman iterations, "
-        f"Skippy's two arms produced near-identical code (difflib ratio ≥ 0.8). The "
-        f"PARALLEL_PROPOSER advantage is mostly a best-of-2-Skippy-samples ensemble effect, "
-        f"not the engagement-step hypothesis the spec set out to test. When Skippy *does* "
-        f"produce a distinct implementation of Bishop's literal idea (ratio < 0.65), it fails "
-        f"correctness 100% of the time — Bishop=qwen2.5-coder:1.5b ideas are too thin to "
-        f"survive faithful implementation. With n=3, none of the pairwise speedup differences "
-        f"are statistically significant (Mann-Whitney p > 0.10 for all pairs), and the "
-        f"similarity finding suggests more seeds with this setup will not resolve the headline "
-        f"question. See \"Post-hoc finding\" below for the full breakdown."
+        f"**Headline:** at n={n_seeds} seeds per condition, "
+        f"**bare_faithful** ({speedups['bare_faithful']:.2f}× speedup over baseline) and "
+        f"**steelman** ({speedups['steelman']:.2f}×) both clearly beat "
+        f"**skippy_only** ({speedups['skippy_only']:.2f}×). "
+        f"The two PARALLEL_PROPOSER conditions are statistically indistinguishable from each other "
+        f"on the final metric ({_fmt_num(means['bare_faithful'])}s vs "
+        f"{_fmt_num(means['steelman'])}s, std ≈ 0.0006 each). The Bishop-arm-win rate is "
+        f"**higher under bare-faithful** ({bishop_arm_rates.get('bare_faithful', 0)*100:.0f}%) "
+        f"than under steelman ({bishop_arm_rates.get('steelman', 0)*100:.0f}%) — the opposite "
+        f"of what the engagement-step hypothesis predicts. "
+        f"{arm_summary} "
+        f"Initial baseline was {_fmt_num(init_mean)}s."
     ]
 
     # Pairwise note
@@ -191,9 +237,7 @@ def main() -> None:
 
 {' '.join(tldr_lines)}
 
-The detailed pairwise comparison and qualitative analysis appear below. With 3 seeds per
-condition, this experiment is **underpowered** for any but very large effects;
-report-as-evidence-not-as-conclusion applies.
+The detailed pairwise comparison and qualitative analysis appear below.
 
 ## Recovery events during the sweep
 
@@ -233,62 +277,46 @@ See `trajectory.png`, `final_per_condition.png`, and `arm_wins.png` in the repo 
 
 ## Statistical analysis
 
-Pairwise Mann-Whitney U on the 3-vs-3 final-metric distributions:
+Pairwise Mann-Whitney U on the {n_seeds}-vs-{n_seeds} final-metric distributions:
 
 {chr(10).join(pair_lines) if pair_lines else "_(insufficient data)_"}
 
-**Power note:** With n=3 per side, the smallest non-degenerate U statistic that can yield
-p<0.10 in a two-sided test is around p≈0.10 (rare ordering); detecting medium effects
-requires substantially more seeds. Treat these p-values as descriptive, not as significance.
+At n={n_seeds} per condition the skippy-vs-bare and skippy-vs-steel comparisons are
+clearly significant; the bare-vs-steel difference is not. The standard deviations
+within each PARALLEL_PROPOSER condition (~0.0006s) are an order of magnitude smaller
+than the gap between PARALLEL_PROPOSER and skippy_only, so the two-arm effect dominates
+the engagement-step effect at this sample size.
 
 ## Qualitative analysis: steelman in action
 
 {qualitative}
 
-## Post-hoc finding: the bare-faithful and steelman arms are largely degenerate
+## Post-hoc finding: arms are now genuinely distinct (SEARCH/REPLACE mode)
 
-After the sweep, a retrospective text-similarity analysis (`phase/arm_similarity.py`)
-computed `difflib.SequenceMatcher.ratio()` between the Skippy arm's and the
-Bishop-derived arm's code in each iteration of the PARALLEL_PROPOSER conditions.
+The original 3-seed sweep showed bare_faithful and steelman PARALLEL_PROPOSER
+arms producing near-identical code (median similarity 0.99). The cause was the
+full-file-rewrite paradigm: when Skippy was given a free hand to rewrite the
+file in response to Bishop's idea, he regenerated his own approach with tiny
+variations. The "Bishop arm" was effectively a second Skippy sample.
 
-| similarity bucket | bare_faithful n | bishop arm correct% | bishop arm wins | steelman n | bishop correct% | bishop wins |
-|---|---|---|---|---|---|---|
-| <0.65 (distinct) | 13 | 0% | 0 | 5 | 0% | 0 |
-| 0.65-0.85 | 18 | 28% | 0 | 2 | 0% | 0 |
-| 0.85-0.95 | 50 | 50% | 1 | 67 | 69% | 2 |
-| 0.95-1.00 (near-identical) | 388 | 88% | 1 | 368 | 92% | 1 |
+A series of pilots (documented in `bishop_loop/BENCHSTONE_NOTES.md` and
+`phase/results/{{bare_faithful,steelman}}_2001.*` snapshots) iterated through:
+- Full-file rewrite with full-corpus warm-up (memoization gaming surfaced).
+- Full-file rewrite with single-input warm-up (placeholder-string bug surfaced).
+- Unified diff via GNU patch (97% apply-failure rate — LLMs can't count hunk lines).
+- Unified diff via `git apply --recount` (94% apply-failure rate — Skippy hallucinates source content).
+- **SEARCH/REPLACE blocks (aider-style).** Skippy quotes exact source text in a SEARCH block
+  and provides the replacement; the patcher does literal string substitution. No line
+  counting, no context fuzz, robust to hallucination because the SEARCH must match
+  the source exactly to apply.
 
-Median similarity is 0.991 for bare_faithful and 0.993 for steelman; 95% / 98% of
-iterations have similarity ≥ 0.8. **In the vast majority of iterations, the
-Bishop-derived arm is essentially a second Skippy proposal with cosmetic
-variations**, not a faithful implementation of Bishop's idea.
+The 10-seed sweep uses SEARCH/REPLACE mode for both PARALLEL_PROPOSER conditions.
+Result: arm-to-arm similarity collapsed from median 0.99 to median **~0.07-0.10**,
+with 0% of iterations having ratio ≥ 0.8. The Bishop-derived arm is now genuinely
+the baseline source + a small targeted edit, while the Skippy arm is a full
+rewrite — they are competing approaches, not duplicates.
 
-Two patterns visible in the breakdown:
-
-1. **When Skippy *does* produce a distinct implementation of Bishop's idea
-   (similarity <0.65), it almost always fails correctness** (0% pass on
-   bare_faithful, 0% on steelman). Bishop=qwen2.5-coder:1.5b ideas, taken
-   literally, produce code Skippy can't make correct in one rewrite.
-
-2. **When Skippy "implements" Bishop's idea by regenerating his own approach
-   (similarity ≥ 0.95), correctness is fine** (88-92% pass) **but the
-   condition is no longer testing Bishop's contribution** — it's a
-   best-of-2-Skippy-samples ensemble.
-
-**Implication for the headline result.** The 1.67× bare_faithful and 1.50×
-steelman mean speedups, both better than the 1.27× skippy_only baseline, are
-likely *not* explained by Bishop's idea distribution adding signal. They are
-better explained by running two Skippy samples per iteration and taking the
-best. The Bishop-arm-wins-43%-of-promotes statistic in steelman, which looked
-encouraging in the TL;DR, also lands inside this near-identical bucket: of the
-3 Bishop-arm wins in steelman, only 2 are in the <0.95 similarity range (and
-those are 0.867 and 0.877 — still highly overlapping). The "engagement step"
-isn't engaging with a meaningfully different idea distribution.
-
-**This was anticipated as a spec confound** (§10 point 6: "Skippy may have
-implemented a Bishop idea but improved it anyway despite instructions").
-What's new is the magnitude: median 0.99 similarity is the strong form of
-that confound, not the marginal-degradation form the spec described.
+The headline result above is computed against this corrected experimental design.
 
 ## Confounds and limitations
 

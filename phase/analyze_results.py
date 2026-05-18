@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "phase" / "results"
 
 CONDITIONS = ["skippy_only", "bare_faithful", "steelman"]
-SEEDS = [1001, 1002, 1003]
+SEEDS = [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010]
 
 
 def load_summary(condition: str, seed: int) -> dict | None:
@@ -119,7 +119,8 @@ def plot_trajectories(by_cond: dict, out_path: Path) -> None:
                      label=f"{cond}_{s['seed']}")
     plt.xlabel("wall-clock seconds")
     plt.ylabel("best-ever metric (lower is better)")
-    plt.title("Per-condition best metric over time (3 seeds × 3 conditions)")
+    n_seeds = max(len(v) for v in by_cond.values()) if by_cond else 0
+    plt.title(f"Per-condition best metric over time ({n_seeds} seeds × {len(by_cond)} conditions)")
     plt.legend(fontsize=7, ncol=3)
     plt.grid(alpha=0.3)
     plt.tight_layout()
@@ -151,7 +152,8 @@ def plot_final_with_errorbars(by_cond: dict, out_path: Path) -> None:
     plt.scatter(individual_xs, individual_ys, color="black", zorder=10, s=40, marker="x")
     plt.xticks(xs, conditions)
     plt.ylabel("final best metric (lower is better)")
-    plt.title("Final best metric per condition (mean ± std across 3 seeds)")
+    n_seeds = max(len(v) for v in by_cond.values()) if by_cond else 0
+    plt.title(f"Final best metric per condition (mean ± std across {n_seeds} seeds)")
     plt.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     plt.savefig(out_path, dpi=130)
