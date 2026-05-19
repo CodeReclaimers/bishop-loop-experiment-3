@@ -10,15 +10,18 @@ from . import ollama_client
 from .ollama_client import GenerateResult
 
 SKIPPY_MODEL = "qwen3-coder:30b"
-# Pilot for follow-up experiment: 1.5B Bishop produced ideas too thin for
-# Skippy to implement faithfully (median candidate-similarity ratio 0.99).
-# Trying a 4B reasoning model whose ideas are more substantive.
-BISHOP_MODEL = "nemotron-3-nano:4b"
+# Control experiment: swap Bishop back to qwen2.5-coder:1.5b (original spec)
+# while keeping the SEARCH/REPLACE application mode. Disentangles the
+# "60% bishop-arm-win in 10-seed sweep" result into its two confounded causes:
+# model swap (qwen-1.5B → nemotron-4B) vs application format (full-rewrite →
+# SEARCH/REPLACE). If qwen-1.5B + SEARCH/REPLACE still gives high bishop-arm
+# wins, the format change was load-bearing; if low, the model swap was.
+BISHOP_MODEL = "qwen2.5-coder:1.5b"
 
 SKIPPY_TEMP = 0.7
 BISHOP_TEMP = 0.7
 SKIPPY_TIMEOUT_S = 180.0
-BISHOP_TIMEOUT_S = 120.0  # nemotron uses tokens for chain-of-thought
+BISHOP_TIMEOUT_S = 60.0  # qwen does not chain-of-thought; <think>-strip is a no-op
 
 
 def _strip_thinking(text: str) -> str:
