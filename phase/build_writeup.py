@@ -318,6 +318,32 @@ rewrite — they are competing approaches, not duplicates.
 
 The headline result above is computed against this corrected experimental design.
 
+## Control: is the high bishop-arm rate from the format change or the model swap?
+
+The pilot pipeline conflated two changes: Bishop was swapped from `qwen2.5-coder:1.5b`
+to `nemotron-3-nano:4b`, AND the application format was swapped from full-file rewrite
+to SEARCH/REPLACE. A 3-seed control sweep (seeds 4001-4003) re-runs bare_faithful +
+steelman with `qwen2.5-coder:1.5b` Bishop under SEARCH/REPLACE mode, isolating the
+two effects.
+
+| condition | nemotron-4B + SR (n=10) | qwen-1.5B + SR (n=3) |
+|---|---|---|
+| bare_faithful best | 0.0101 ± 0.0006 | 0.0104 ± 0.0005 |
+| bare_faithful bishop-arm wins | 60% (25/42) | 50% (7/14) |
+| steelman best | 0.0105 ± 0.0003 | 0.0103 ± 0.0003 |
+| steelman bishop-arm wins | 35% (12/34) | 53% (8/15) |
+
+Final metrics are statistically identical across both Bishop models. Bare_faithful's
+bishop-win rate is within noise (50% vs 60%, n=3 control). Steelman's is actually
+*higher* with the smaller Bishop (53% vs 35%), the opposite of what capability scaling
+would predict (though n=3 is too small to call a real effect).
+
+**Conclusion:** the SEARCH/REPLACE format change was the load-bearing fix, not the
+Bishop-model swap. The original 22% bishop-win rate (qwen-1.5B + full-rewrite) reflected
+the same-arms-degeneracy confound, not a Bishop-capability ceiling. Given a format that
+actually applies Bishop's edit to the source, even a 1.5B Bishop produces ideas that
+compete with Skippy's full-rewrite arm.
+
 ## Confounds and limitations
 
 - **Small sample (3 seeds).** Means and stds are computed on n=3.

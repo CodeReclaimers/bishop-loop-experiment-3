@@ -34,7 +34,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "phase" / "results"
 
 PARALLEL_CONDITIONS = ["bare_faithful", "steelman"]
-SEEDS = [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010]
+SEEDS = [3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010,
+         4001, 4002, 4003]  # 4xxx = qwen-1.5B Bishop control
 
 
 def _extract_python_block(text: str) -> str | None:
