@@ -1,3 +1,27 @@
 \usepackage{etoolbox}
 \AtBeginEnvironment{longtable}{\footnotesize}
 \AtBeginEnvironment{tabular}{\footnotesize}
+
+% Allow long inline-code spans (paths, identifiers) to break across lines
+% at natural delimiters (/, ., -) so they don't overflow into the margin.
+% (Underscore appears as \_ from pandoc, not a bare _, so it won't match
+% a character comparison — paths typically have / or . available anyway.)
+\makeatletter
+\def\BTT@break{\discretionary{}{}{}}
+\let\BTT@stop\relax
+\def\BTT@scan#1{%
+  \ifx\BTT@stop#1%
+  \else
+    #1%
+    \ifx/#1\BTT@break\fi
+    \ifx.#1\BTT@break\fi
+    \ifx-#1\BTT@break\fi
+    \expandafter\BTT@scan
+  \fi}
+\newcommand{\BreakableTT}[1]{\BTT@scan#1\BTT@stop}
+\let\origtexttt\texttt
+\renewcommand{\texttt}[1]{\origtexttt{\BreakableTT{#1}}}
+\makeatother
+
+\sloppy
+\setlength{\emergencystretch}{3em}
