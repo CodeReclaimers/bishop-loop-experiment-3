@@ -27,7 +27,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from bishop_loop import loop  # noqa: E402
 
-CONDITIONS = ["skippy_only", "bare_faithful", "steelman"]
+CONDITIONS = ["skippy_only", "skippy_parallel", "bare_faithful", "steelman"]
 SEEDS = [1001, 1002, 1003]
 DEFAULT_BUDGET_SECONDS = 90 * 60  # 90 minutes per spec §5.4
 

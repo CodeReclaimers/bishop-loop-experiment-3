@@ -71,6 +71,7 @@ class LoopState:
     rejections: int = 0
     needs_more_data: int = 0
     apply_failures: int = 0
+    no_improvement: int = 0
     skippy_arm_wins: int = 0
     bishop_arm_wins: int = 0
     skippy_arm_evals: int = 0
@@ -142,18 +143,29 @@ def _evaluate_candidate(seed: int) -> tuple[CorrectnessResult, PerfResult | None
     return cr, pr
 
 
-def _run_skippy_arm(state: LoopState, source_at_iter_start: str, seed_offset: int) -> ArmResult:
-    """Generate a Skippy proposal and evaluate it. Returns metrics; does not modify state.history."""
+def _run_skippy_arm(
+    state: LoopState,
+    source_at_iter_start: str,
+    seed_offset: int,
+    arm_name: str = "skippy",
+) -> ArmResult:
+    """Generate a Skippy SEARCH/REPLACE proposal and evaluate it.
+
+    `arm_name` is used for proposal-file naming and the returned ArmResult.arm
+    field. The default "skippy" keeps backwards compatibility with skippy_only
+    and the Skippy idea arm of bare_faithful; skippy_parallel passes
+    "skippy_a"/"skippy_b" to separate the two draws on disk.
+    """
     iter_seed = state.seed + state.iter_idx * 10_000 + seed_offset
     arm_started = time.monotonic()
 
-    prompt = proposers.skippy_prompt(source_at_iter_start, state.history)
-    _save_proposal(state.out_dir, state.iter_idx, "skippy", "prompt", prompt)
+    prompt = proposers.skippy_diff_prompt(source_at_iter_start, state.history)
+    _save_proposal(state.out_dir, state.iter_idx, arm_name, "prompt", prompt)
     try:
         gen = proposers.call_skippy(prompt, seed=iter_seed)
     except Exception as e:
         return ArmResult(
-            arm="skippy",
+            arm=arm_name,
             proposal_text="",
             code=None,
             correctness=None,
@@ -163,32 +175,55 @@ def _run_skippy_arm(state: LoopState, source_at_iter_start: str, seed_offset: in
             extra={"error": f"Skippy call failed: {type(e).__name__}: {e}"},
         )
     state.skippy_total_tokens += gen.total_tokens
-    _save_proposal(state.out_dir, state.iter_idx, "skippy", "response", gen.text)
+    _save_proposal(state.out_dir, state.iter_idx, arm_name, "response", gen.text)
 
-    code = ollama_client.extract_python_block(gen.text)
-    if code is None:
+    extra: dict[str, Any] = {
+        "gen_seconds": gen.total_seconds,
+        "tokens": gen.total_tokens,
+        "mode": "diff",
+    }
+
+    # Honest-skip path: the prompt offers "NO_IMPROVEMENT" as a literal opt-out
+    # so the model can signal exhaustion instead of padding with degenerate
+    # SR blocks. Treat as a graceful no-op iteration (not an apply failure).
+    if _is_no_improvement(gen.text):
         return ArmResult(
-            arm="skippy",
-            proposal_text=gen.text,
+            arm=arm_name,
+            proposal_text=gen.text[:5000],
             code=None,
             correctness=None,
             perf=None,
             verdict=None,
             elapsed_s=time.monotonic() - arm_started,
-            extra={"error": "no code block in Skippy response"},
+            extra={**extra, "no_improvement": True},
         )
+
+    new_source, apply_err, n_blocks = apply_search_replace_blocks(source_at_iter_start, gen.text)
+    extra["sr_blocks"] = n_blocks
+    if new_source is None:
+        return ArmResult(
+            arm=arm_name,
+            proposal_text=gen.text[:5000],
+            code=None,
+            correctness=None,
+            perf=None,
+            verdict=None,
+            elapsed_s=time.monotonic() - arm_started,
+            extra={**extra, "error": f"SEARCH/REPLACE did not apply: {apply_err}"},
+        )
+    code = new_source
 
     if _looks_like_placeholder(code):
         substantive = [ln for ln in code.splitlines() if ln.strip() and not ln.strip().startswith("#")]
         return ArmResult(
-            arm="skippy",
-            proposal_text=gen.text,
+            arm=arm_name,
+            proposal_text=gen.text[:5000],
             code=code,
             correctness=None,
             perf=None,
             verdict=None,
             elapsed_s=time.monotonic() - arm_started,
-            extra={"error": f"placeholder/sketch response ({len(substantive)} substantive lines)"},
+            extra={**extra, "error": f"placeholder/sketch response ({len(substantive)} substantive lines)"},
         )
 
     write_candidate(code)
@@ -198,14 +233,14 @@ def _run_skippy_arm(state: LoopState, source_at_iter_start: str, seed_offset: in
     if cr.passed and pr is not None and not pr.error:
         verdict = compute_verdict(state.baseline_metrics, pr.metrics)
     return ArmResult(
-        arm="skippy",
+        arm=arm_name,
         proposal_text=gen.text[:5000],
         code=code,
         correctness=cr,
         perf=pr,
         verdict=verdict,
         elapsed_s=time.monotonic() - arm_started,
-        extra={"gen_seconds": gen.total_seconds, "tokens": gen.total_tokens},
+        extra=extra,
     )
 
 
@@ -424,12 +459,71 @@ def _excerpt_for_history(code: str, max_lines: int = 35) -> str:
     return "\n".join(out)
 
 
+def _is_no_improvement(response_text: str) -> bool:
+    """Detect the prompt's literal opt-out token.
+
+    The skippy_diff_prompt invites the model to output `NO_IMPROVEMENT` on a
+    line by itself when it genuinely has nothing further to propose. Accept
+    that as an honest skip rather than punishing the model for not padding
+    with no-op SR blocks. Tolerant of leading/trailing whitespace and
+    accidental fencing.
+    """
+    import re as _re
+    stripped = response_text.strip()
+    if stripped == "NO_IMPROVEMENT":
+        return True
+    # Single-line response wrapped in a code fence.
+    if _re.fullmatch(r"```\w*\s*NO_IMPROVEMENT\s*```", stripped, _re.DOTALL):
+        return True
+    # First non-empty non-comment line is NO_IMPROVEMENT and the rest is empty.
+    lines = [ln.strip() for ln in stripped.splitlines() if ln.strip()]
+    if lines and lines[0] == "NO_IMPROVEMENT" and len(lines) == 1:
+        return True
+    return False
+
+
+def _normalize_code_for_similarity(code: str) -> str:
+    """Strip comments and blank lines before similarity comparison.
+
+    Mirrors phase/arm_similarity.py so live per-iteration logging matches
+    the post-hoc analysis.
+    """
+    import re as _re
+    out_lines = []
+    for ln in code.splitlines():
+        nocomment = _re.sub(r"#.*$", "", ln)
+        stripped = nocomment.strip()
+        if not stripped:
+            continue
+        out_lines.append(stripped)
+    return "\n".join(out_lines)
+
+
+def _arm_similarity_ratio(a: ArmResult, b: ArmResult) -> float | None:
+    """SequenceMatcher.ratio() on the two arms' normalized post-SR source.
+
+    Returns None when either arm has no code (apply failure, model error,
+    placeholder rejection) — the comparison is undefined.
+    """
+    if a.code is None or b.code is None:
+        return None
+    import difflib as _difflib
+    na = _normalize_code_for_similarity(a.code)
+    nb = _normalize_code_for_similarity(b.code)
+    if not na or not nb:
+        return None
+    return _difflib.SequenceMatcher(None, na, nb).ratio()
+
+
 def _is_apply_failure(arm: ArmResult) -> bool:
     """An apply_failure is anything that didn't make it to a verdict.
 
     Three buckets: no code at all, placeholder/sketch code (correctness skipped),
-    correctness failed.
+    correctness failed. The honest-skip case (model emitted NO_IMPROVEMENT) is
+    not an apply_failure — it's a deliberate graceful no-op.
     """
+    if arm.extra.get("no_improvement"):
+        return False
     if arm.code is None:
         return True
     if arm.correctness is None and arm.verdict is None:
@@ -477,8 +571,11 @@ def run_one_iteration(state: LoopState) -> dict:
 
     arms: list[ArmResult] = []
 
-    # Skippy arm always runs.
-    skippy = _run_skippy_arm(state, source_at_iter_start, seed_offset=1)
+    # Arm A: always run a Skippy SEARCH/REPLACE draw. For skippy_parallel the
+    # two arms are skippy_a / skippy_b so the saved proposal files are
+    # disambiguated on disk.
+    arm_a_name = "skippy_a" if state.condition == "skippy_parallel" else "skippy"
+    skippy = _run_skippy_arm(state, source_at_iter_start, seed_offset=1, arm_name=arm_a_name)
     arms.append(skippy)
     state.skippy_arm_evals += 1
     if skippy.verdict and skippy.verdict.kind == "PROMOTE":
@@ -490,7 +587,17 @@ def run_one_iteration(state: LoopState) -> dict:
     bishop_idea: str | None = None
     bishop_idea_extra: dict = {}
 
-    if state.condition in ("bare_faithful", "steelman"):
+    if state.condition == "skippy_parallel":
+        # Arm B: a second independent Skippy SR draw. Distinct seed offset
+        # (7919 — same prime used for perf seeds) so the two arms decode
+        # different trajectories at temperature 0.7.
+        skippy_b = _run_skippy_arm(state, source_at_iter_start, seed_offset=7919, arm_name="skippy_b")
+        arms.append(skippy_b)
+        state.skippy_arm_evals += 1
+        if skippy_b.verdict and skippy_b.verdict.kind == "PROMOTE":
+            state.skippy_arm_promotes += 1
+        write_candidate(source_at_iter_start)
+    elif state.condition in ("bare_faithful", "steelman"):
         bishop_idea, bishop_idea_extra = _run_bishop_idea(state, source_at_iter_start, seed_offset=2)
         if bishop_idea:
             mode = "bare_faithful" if state.condition == "bare_faithful" else "steelman"
@@ -508,6 +615,13 @@ def run_one_iteration(state: LoopState) -> dict:
     if promotable:
         winning_arm = min(promotable, key=lambda a: a.verdict.candidate_mean)
 
+    # Brief §3 free-bonus: log per-iteration arm-to-arm similarity on every
+    # multi-arm condition so the analysis script doesn't have to rebuild it
+    # post-hoc. For skippy_parallel this is the *reference* distribution for
+    # the similarity diagnostic — two independent draws with no
+    # degeneracy-suppression pressure.
+    arm_similarity = _arm_similarity_ratio(arms[0], arms[1]) if len(arms) >= 2 else None
+
     log_entry = {
         "iter": state.iter_idx,
         "wall_s": state.budget.elapsed(),
@@ -517,12 +631,15 @@ def run_one_iteration(state: LoopState) -> dict:
         "bishop_extra": bishop_idea_extra,
         "winning_arm": winning_arm.arm if winning_arm else None,
         "winning_metric": winning_arm.verdict.candidate_mean if winning_arm else None,
+        "arm_similarity": arm_similarity,
     }
 
     if winning_arm is None:
-        # Count rejections / NEEDS_MORE_DATA
+        # Count rejections / NEEDS_MORE_DATA / no-improvement skips
         for a in arms:
-            if _is_apply_failure(a):
+            if a.extra.get("no_improvement"):
+                state.no_improvement += 1
+            elif _is_apply_failure(a):
                 state.apply_failures += 1
             elif a.verdict and a.verdict.kind == "REJECT":
                 state.rejections += 1
@@ -543,7 +660,7 @@ def run_one_iteration(state: LoopState) -> dict:
         state.baseline_metrics = list(winning_arm.perf.metrics)
         # Track stats
         state.promotions += 1
-        if winning_arm.arm == "skippy":
+        if winning_arm.arm.startswith("skippy"):
             state.skippy_arm_wins += 1
         else:
             state.bishop_arm_wins += 1
@@ -632,6 +749,7 @@ def run(condition: str, seed: int, budget_seconds: float, out_dir: Path) -> dict
             "rejections": state.rejections,
             "needs_more_data": state.needs_more_data,
             "apply_failures": state.apply_failures,
+            "no_improvement": state.no_improvement,
             "skippy_arm_evals": state.skippy_arm_evals,
             "skippy_arm_promotes": state.skippy_arm_promotes,
             "skippy_arm_wins": state.skippy_arm_wins,

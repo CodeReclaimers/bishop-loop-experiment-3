@@ -101,6 +101,51 @@ def skippy_prompt(source: str, hist: IterationHistory) -> str:
     )
 
 
+def skippy_diff_prompt(source: str, hist: IterationHistory) -> str:
+    """SEARCH/REPLACE-mode standalone-Skippy prompt.
+
+    Same task framing as skippy_prompt (make json_parser.py faster, no
+    external direction) but the output format is SR blocks rather than a
+    full file rewrite. Used by skippy_only, skippy_parallel, and the
+    Skippy idea arm of bare_faithful so every arm in every condition of
+    the run-brief sweep uses one edit format (brief §0.3).
+    """
+    return (
+        "You are improving a Python JSON parser to make it faster while keeping it correct.\n\n"
+        f"The current implementation is in `json_parser.py`. Here is its full source:\n\n"
+        f"```python\n{source}\n```\n\n"
+        "Recent history:\n"
+        f"{_format_history(hist)}\n\n"
+        "Your task: propose one or more changes to `json_parser.py` that make it faster on a\n"
+        "corpus of mixed JSON inputs while keeping it correct against the reference\n"
+        "(`json.loads`). The corpus contains shallow objects, deep nesting, wide arrays\n"
+        "(100-500 elements), edge cases (unicode, scientific notation, surrogate pairs), and\n"
+        "malformed inputs your parser must reject by raising JSONParseError.\n\n"
+        "Approach: before writing any blocks, internally consider AT LEAST THREE distinct\n"
+        "candidate optimizations (different functions, different data structures, different\n"
+        "algorithmic approaches) and pick the most promising one. The recent history above\n"
+        "shows what has already been tried — do not repeat a rejected approach verbatim;\n"
+        "find a different angle, a different function to attack, or a different mechanism.\n\n"
+        "If after this brainstorm you genuinely have no productive change to propose at\n"
+        "this point in the trajectory, output ONLY the single literal token NO_IMPROVEMENT\n"
+        "on its own line, with no code fence and no other text. Do NOT pad an empty response\n"
+        "with SEARCH/REPLACE blocks where the SEARCH text and the REPLACE text are identical —\n"
+        "the harness rejects identical-S/R blocks as no-ops, wasting the iteration's budget.\n"
+        "An honest NO_IMPROVEMENT is preferred over a degenerate edit.\n\n"
+        + _search_replace_format_help() +
+        "Additional rule: every SEARCH/REPLACE block you emit MUST change at least one\n"
+        "non-whitespace token. Identical SEARCH and REPLACE text is never acceptable.\n\n"
+        "\nExample (your blocks must target the actual file shown above):\n\n"
+        "```python\n"
+        "<<<<<<< SEARCH\n"
+        "_DIGIT_CHARS = [\"0\", \"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\"]\n"
+        "=======\n"
+        "_DIGIT_CHARS = frozenset(\"0123456789\")\n"
+        ">>>>>>> REPLACE\n"
+        "```\n"
+    )
+
+
 def bishop_idea_prompt(source: str, hist: IterationHistory) -> str:
     return (
         "You are suggesting an optimization idea for a Python JSON parser.\n\n"
