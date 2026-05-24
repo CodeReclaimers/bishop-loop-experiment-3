@@ -174,27 +174,28 @@ The headline result above is computed against this corrected experimental design
 
 The pilot pipeline conflated two changes: Bishop was swapped from `qwen2.5-coder:1.5b`
 to `nemotron-3-nano:4b`, AND the application format was swapped from full-file rewrite
-to SEARCH/REPLACE. A 3-seed control sweep (seeds 4001-4003) re-runs bare_faithful +
+to SEARCH/REPLACE. A 10-seed control sweep (seeds 4001-4010) re-runs bare_faithful +
 steelman with `qwen2.5-coder:1.5b` Bishop under SEARCH/REPLACE mode, isolating the
 two effects.
 
-| condition | nemotron-4B + SR (n=10) | qwen-1.5B + SR (n=3) |
-|---|---|---|
-| bare_faithful best | 0.0101 ± 0.0006 | 0.0104 ± 0.0005 |
-| bare_faithful bishop-arm wins | 60% (25/42) | 50% (7/14) |
-| steelman best | 0.0105 ± 0.0003 | 0.0103 ± 0.0003 |
-| steelman bishop-arm wins | 35% (12/34) | 53% (8/15) |
+| condition | nemotron-4B + SR (n=10) | qwen-1.5B + SR (n=10) | Mann-Whitney p (best) | Fisher p (bishop wins) |
+|---|---|---|---|---|
+| bare_faithful best | 0.0101 ± 0.0006 | 0.0101 ± 0.0006 | 0.791 | — |
+| bare_faithful bishop-arm wins | 60% (25/42) | 51% (26/51) | — | 0.530 |
+| steelman best | 0.0105 ± 0.0003 | 0.0103 ± 0.0003 | 0.385 | — |
+| steelman bishop-arm wins | 35% (12/34) | 41% (17/42) | — | 0.813 |
 
-Final metrics are statistically identical across both Bishop models. Bare_faithful's
-bishop-win rate is within noise (50% vs 60%, n=3 control). Steelman's is actually
-*higher* with the smaller Bishop (53% vs 35%), the opposite of what capability scaling
-would predict (though n=3 is too small to call a real effect).
+At n=10 vs n=10, every comparison between Bishop models is statistically indistinguishable
+(p ≥ 0.385 on all four). The n=3 hint that "steelman bishop-wins are higher with the smaller
+Bishop" (53% qwen vs 35% nemotron) was noise — adding 7 more qwen seeds dropped the rate
+to 41%, well within noise of the nemotron 35%.
 
-**Conclusion:** the SEARCH/REPLACE format change was the load-bearing fix, not the
-Bishop-model swap. The original 22% bishop-win rate (qwen-1.5B + full-rewrite) reflected
+**Conclusion:** the SEARCH/REPLACE format change was the load-bearing fix, and **Bishop
+model capability (1.5B vs 4B) does not measurably affect the bishop-arm contribution in
+this experiment**. The original 22% bishop-win rate (qwen-1.5B + full-rewrite) reflected
 the same-arms-degeneracy confound, not a Bishop-capability ceiling. Given a format that
-actually applies Bishop's edit to the source, even a 1.5B Bishop produces ideas that
-compete with Skippy's full-rewrite arm.
+actually applies Bishop's edit to the source, a 1.5B Bishop produces ideas that compete
+with Skippy's full-rewrite arm just as effectively as a 4B Bishop does.
 
 ## Confounds and limitations
 
