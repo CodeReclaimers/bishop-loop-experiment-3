@@ -46,4 +46,5 @@ optimization problem, three seeds per condition, 90 min wall-clock per run.
   random inputs.
 - Result equality is recursive (lazy / thunked structures fail).
 - Mann-Whitney U gate at `promotion_z=1.5`, 3 reps × 3 baseline reps
-  (`|z|_max ≈ 2.087`, real headroom over the threshold).
+  (`|z|_max ≈ 1.964` from the closed-form bound √(3n²/(2n+1)) at n=3, real
+  headroom over the threshold).

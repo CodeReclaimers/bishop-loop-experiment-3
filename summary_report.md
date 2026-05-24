@@ -45,7 +45,9 @@ A deliberately slow but correct pure-Python JSON parser
 corpus). 200-case corpus split into shallow / deep / wide / edge / malformed
 buckets (`phase/corpus/_generate.py`, hash-pinned in the manifest). Metric:
 total wall-clock to parse all 200 inputs, lower is better. Mann-Whitney U
-gate at `promotion_z = 1.5`, 3 reps × 3 baseline reps (`|z|_max ≈ 2.087`).
+gate at `promotion_z = 1.5`, 3 reps × 3 baseline reps (`|z|_max ≈ 1.964`,
+from the closed-form bound √(3n²/(2n+1)) at n=3 with no continuity/tie
+correction in the benchstone `mann_whitney_z` implementation).
 Correctness: every fixed-corpus case + 50 random cases generated fresh per
 evaluation; structural equality (not lazy thunks).
 
