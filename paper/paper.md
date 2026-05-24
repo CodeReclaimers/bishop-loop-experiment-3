@@ -122,7 +122,15 @@ Three events during the experiment required mid-run intervention and produced du
 
 *Generalizable lesson:* Long unattended runs on GPU hardware should include a lightweight infrastructure health check on a short cron interval.  Silent hardware degradation -- driver updates, thermal throttling, VRAM allocation failures -- is otherwise invisible until results are anomalous.
 
-[TABLE: Summary of the three loop conditions, model lineup, and key harness parameters]
+**Table 1.** Summary of the three loop conditions, model lineup, and key harness parameters.  Skippy = `qwen3-coder:30b` throughout.  Bishop is `nemotron-3-nano:4b` in the main 10-seed sweep (§5.1) and `qwen2.5-coder:1.5b` in the control sweep (§5.2).  The edit-format asymmetry between conditions is consequential for interpreting §5.1; see §5.3.
+
+| Condition       | Skippy arm (A)                | Bishop arm (B)                                                    | Engagement step                | Candidates per iteration |
+| --------------- | ----------------------------- | ----------------------------------------------------------------- | ------------------------------ | ------------------------ |
+| `skippy_only`   | full-file rewrite             | —                                                                 | —                              | 1                        |
+| `bare_faithful` | full-file rewrite             | implements Bishop's idea verbatim via SEARCH/REPLACE              | none                           | 2                        |
+| `steelman`      | full-file rewrite             | critiques + steelmans + implements via SEARCH/REPLACE              | 1-round critique + steelman   | 2                        |
+
+Shared parameters across all conditions: per-evaluation correctness check against the 200-case fixed corpus plus 50 randomized cases; subprocess correctness timeout 30 s; PROMOTE gate Mann-Whitney U at `promotion_z = 1.5` over 3 candidate vs. 3 baseline reps; single-input warm-up; per-condition budget 90 min wall-clock.
 
 ## 4. Methodological Findings
 
@@ -164,7 +172,15 @@ All results in this section use the v3.2 harness: `nemotron-3-nano:4b` as Bishop
 
 The sweep ran 10 seeds per condition.  The headline numbers are in Table 1.
 
-[TABLE: Per-condition aggregate statistics: n, mean best metric (s), std, mean speedup over initial, bishop arm wins (count/total, %), Mann-Whitney p-value vs. skippy\_only]
+**Table 2.** Per-condition aggregate statistics, seeds 3001--3010 (n = 10 per condition).  "Bishop arm wins" reports the count of iterations in which the Bishop-derived arm produced the better PROMOTE outcome, out of the total promoted iterations (n/a for `skippy_only`, which has no Bishop arm).  Mann-Whitney U p-values are computed on the per-run final best metric.
+
+| Condition       | n  | Mean best (s) ± std    | Speedup vs. initial | Promotions (mean) | Bishop arm wins   | MWU p vs. `skippy_only` |
+| --------------- | -- | ---------------------- | ------------------- | ----------------- | ----------------- | ----------------------- |
+| `skippy_only`   | 10 | 0.0131 ± 0.0022        | 1.40$\times$        | 2.7               | n/a               | —                       |
+| `bare_faithful` | 10 | 0.0101 ± 0.0006        | 1.72$\times$        | 4.2               | 25/42 (60%)       | 0.001                   |
+| `steelman`      | 10 | 0.0105 ± 0.0003        | 1.64$\times$        | 3.4               | 12/34 (35%)       | 0.003                   |
+
+The `bare_faithful` vs. `steelman` comparison gives MWU $p = 0.121$ (not significant).  See §5.3 for the search-budget and edit-format confounds that prevent clean attribution of the architecture comparison.
 
 `skippy_only` reached a mean best time of 0.0131 ± 0.0022 s, corresponding to a 1.40× speedup over the initial baseline.
 
@@ -178,11 +194,17 @@ Arm-to-arm similarity confirmed at scale the pattern first observed in the pilot
 
 Two patterns emerge.  First, both PARALLEL\_PROPOSER conditions reach lower final metrics than `skippy_only` (`bare_faithful` $p = 0.001$, `steelman` $p = 0.003$).  We are explicit in §5.3 about why this comparison is *underdetermined* with respect to the Bishop-direction hypothesis: the experimental conditions evaluate two candidates per iteration while the control evaluates one (search-budget gap), and the conditions are not edit-format matched (§3.1).  The observed gap is therefore consistent with a Bishop contribution and also consistent with a best-of-2 ensemble effect on a more reliable edit format -- the experiment as designed cannot separate these.  Second, the engagement step does not measurably improve the final metric.  The `bare_faithful` vs. `steelman` comparison is not significant ($p = 0.121$), and the bishop arm win rate is actually higher under `bare_faithful` (60% vs. 35%) -- the opposite of what the engagement-step hypothesis predicts.  This second pattern is *not* subject to the search-budget confound, because both PARALLEL\_PROPOSER conditions evaluate the same number of candidates per iteration and use the same edit-format mix; only the critique-and-steelman step differs.  The engagement-step null is therefore a clean within-design result, while the architecture comparison is not.
 
-[FIGURE: trajectory.png -- Per-seed best metric over iterations for each condition. Shows the convergence trajectories and the spread across seeds. bare_faithful and steelman both improve faster and reach lower final values than skippy_only; the two bishop conditions are largely overlapping.]
+![](../trajectory.png)
 
-[FIGURE: final_per_condition.png -- Boxplots of final best metric by condition. Visualizes the separation between skippy_only and the two bishop conditions, and the near-overlap between bare_faithful and steelman.]
+**Figure 1.** Per-seed best metric over iterations for each condition.  Shows convergence trajectories and the spread across seeds.  `bare_faithful` and `steelman` both improve faster and reach lower final values than `skippy_only`; the two PARALLEL\_PROPOSER conditions are largely overlapping.  Note that this figure does not separate the search-budget effect from any Bishop-specific contribution (§5.3).
 
-[FIGURE: arm_wins.png -- Per-condition bishop arm win rates with confidence intervals. Shows the 60% rate for bare_faithful, 35% for steelman, and 0% for skippy_only.]
+![](../final_per_condition.png)
+
+**Figure 2.** Boxplots of final best metric by condition.  Visualizes the separation between `skippy_only` and the two PARALLEL\_PROPOSER conditions and the near-overlap between `bare_faithful` and `steelman`.
+
+![](../arm_wins.png)
+
+**Figure 3.** Per-condition Bishop-arm win rates.  60% under `bare_faithful` (25/42 evaluated iterations), 35% under `steelman` (12/34), and undefined under `skippy_only` (no Bishop arm).  The 60% is the one within-experiment hint that something Bishop-specific may be happening; three caveats apply (§5.3).
 
 **A note on the steelman's per-iteration correctness.**  The source data records `apply_failures` counts per run.  Across conditions, steelman runs show systematically lower apply failure rates than bare\_faithful runs -- consistent with the steelman's pre-critique and reformulation step producing more carefully targeted SEARCH/REPLACE blocks.  Whether this per-iteration implementation advantage translates into better final metrics is what the aggregate numbers answer: it does not, at least not at this scale with this Bishop model.  The ideas that survive correctness under steelman may simply not be systematically better ideas than those that survive under bare\_faithful, only better-implemented versions of ideas that would have failed either way.  That interpretation is speculative; what the data shows clearly is that the final-metric distributions are statistically indistinguishable.
 
@@ -190,7 +212,12 @@ Two patterns emerge.  First, both PARALLEL\_PROPOSER conditions reach lower fina
 
 The original pilot conflated two simultaneous changes: Bishop was swapped from `qwen2.5-coder:1.5b` to `nemotron-3-nano:4b`, and the application format was changed from full-rewrite to SEARCH/REPLACE.  We ran a control sweep to isolate the Bishop model variable -- `qwen2.5-coder:1.5b` vs. `nemotron-3-nano:4b`, both under SEARCH/REPLACE -- at n=10 per condition (seeds 4001--4010).
 
-[TABLE: Control sweep -- qwen-1.5B vs. nemotron-4B Bishop under SEARCH/REPLACE, n=10 per cell. Columns: condition, nemotron-4B (best mean ± std, bishop wins), qwen-1.5B (best mean ± std, bishop wins), Mann-Whitney U p-value on final metric, Fisher exact p-value on bishop-win proportion.]
+**Table 3.** Control sweep at n = 10 per cell, both Bishop models under SEARCH/REPLACE.  Mann-Whitney U p-values compare the per-run final metric (qwen vs. nemotron); Fisher exact p-values compare the bishop-arm-wins proportion.  All four pairwise tests give $p \geq 0.385$ -- the two Bishop models are statistically indistinguishable across both conditions and both metrics.
+
+| Condition       | nemotron-4B best (s) ± std | nemotron-4B bishop wins | qwen-1.5B best (s) ± std | qwen-1.5B bishop wins | MWU p (qwen vs. nemo) | Fisher exact p (bishop wins) |
+| --------------- | -------------------------- | ----------------------- | ------------------------- | --------------------- | --------------------- | ---------------------------- |
+| `bare_faithful` | 0.0101 ± 0.0006            | 25/42 (60%)             | 0.0101 ± 0.0006           | 26/51 (51%)           | 0.791                 | 0.530                        |
+| `steelman`      | 0.0105 ± 0.0003            | 12/34 (35%)             | 0.0103 ± 0.0003           | 17/42 (41%)           | 0.385                 | 0.813                        |
 
 The two Bishop models are statistically indistinguishable on every relevant comparison.  Mann-Whitney U on the final metric gives $p = 0.791$ for `bare_faithful` (both Bishops at $0.0101 \pm 0.0006$ s) and $p = 0.385$ for `steelman` (qwen $0.0103 \pm 0.0003$ s vs. nemotron $0.0105 \pm 0.0003$ s).  Fisher exact on the bishop-arm-win proportion gives $p = 0.530$ for `bare_faithful` (qwen 51% [26/51] vs. nemotron 60% [25/42]) and $p = 0.813$ for `steelman` (qwen 41% [17/42] vs. nemotron 35% [12/34]).  All four pairwise tests give $p \geq 0.385$.
 
@@ -258,7 +285,14 @@ The closest prior work divides into three clusters that each share a design dime
 
 **Debate, amplification, and the self-correction null lineage.** The steelman variant -- where Bishop's idea is critiqued before Skippy implements it -- draws loosely on the motivation behind AI safety via debate [6] and IDA-style amplification [1]: that an engagement step between a weaker and stronger model can surface considerations the stronger model would otherwise miss.  It also sits in a well-developed null-result lineage on LLM self-correction.  Huang et al. [5] establish the general null for reasoning self-correction; Olausson et al. [13] establish the code-specific version.  Our finding is *cross-model* rather than intrinsic-self-correction (the critic and the target are different models, closer in setup to debate [6] and to Mixture-of-Agents aggregation [16] than to single-model introspection), so the mechanistic cause may differ from the prior nulls.  We want to be careful about what our null does and does not say here.  The finding is that one round of cross-model critique-before-implementation does not measurably improve the final optimization metric at this scale, with this Bishop model.  That is not a claim about iterated debate at scale, about the amplification framework generally, or about engagement steps in domains where the weaker model's ideas are genuinely informative.  We discuss this interpretation in §6; the short version is that a substantially larger Bishop ($\geq$ 7B) is the obvious next test -- the 1.5B-vs-4B comparison is closed (§5.2) -- and we flag this as an open question rather than a conclusion about the engagement mechanism itself.
 
-[TABLE: Design-space comparison -- FunSearch, AlphaEvolve, Aider, and Bishop-loop along dimensions: number of models, population vs. per-iteration, edit format, engagement step, evaluation granularity]
+**Table 4.** Design-space comparison.  Dimensions chosen to surface where Bishop-loop overlaps with and differs from the closest published systems.
+
+| System                       | Models                                                  | Loop topology                       | Edit format                                   | Engagement step                              | Evaluation granularity                |
+| ---------------------------- | ------------------------------------------------------- | ----------------------------------- | --------------------------------------------- | -------------------------------------------- | ------------------------------------- |
+| FunSearch [14]               | 1 LLM                                                   | Population (evolutionary)           | full-program                                  | none                                         | score per generation                  |
+| AlphaEvolve [12]             | 2 LLMs (Gemini Flash + Gemini Pro, both proposing)      | Population (evolutionary)           | mixed (full-file and diff)                    | none                                         | score per generation                  |
+| Aider Architect/Editor [3]   | 2 LLMs (strong planner + cheaper editor)                | Per-turn, human-in-the-loop         | SEARCH/REPLACE                                | plan-then-implement (*large $\to$ small*)    | apply success + human acceptance      |
+| Bishop-loop (this work)      | 2 LLMs (small Bishop + large Skippy)                    | Per-iteration two-arm parallel      | mixed (skippy: full-file; bishop: SEARCH/REPLACE) | optional 1-round critique + steelman (*small $\to$ large*; inverse of Aider) | benchmark wall-time per iteration     |
 
 ## 9. Conclusion
 
