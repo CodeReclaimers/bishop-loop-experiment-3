@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to precompile regexes for whitespace skipping is unworkable because the current implementation already uses direct character checks via `c in ' \t\n\r\f'` which is faster than regex matching. Additionally, the suggestion doesn't address the actual performance bottlenecks in the parser, such as string building with list append/join or inefficient number parsing. Precompiling the whitespace regex would be redundant and potentially slower due to regex overhead.
+
+STEELMAN: The strongest version of this suggestion would focus on optimizing the whitespace skipping function by replacing the existing loop with a precompiled regex that matches one or more whitespace characters, since the current approach still involves repeated character comparisons in a loop. This preserves the intent of reducing repeated operations while actually improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using precompiled regex
+    global _WS_RE
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

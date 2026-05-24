@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to "reduce redundant whitespace handling at every level" is too vague and potentially dangerous because it could lead to skipping necessary whitespace checks in critical parsing contexts like between tokens, or it might introduce bugs by inconsistently applying whitespace skipping. It doesn't address the actual performance bottleneck which is the per-character loop in `_skip_ws` and the repeated calls to `_skip_ws` throughout the parser.
+STEELMAN: The steelman is to optimize `_skip_ws` by replacing the Python loop with a regex-based approach for skipping whitespace, which will significantly reduce the overhead of repeated character-by-character checks, while maintaining correctness by ensuring whitespace is still properly handled at all necessary boundaries in the grammar.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, which is much faster than character-by-character loop
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

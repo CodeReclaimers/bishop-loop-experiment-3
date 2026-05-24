@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the loop-based `_skip_ws` with a regex match fails because `re.match()` only matches at the start of the string, but `_skip_ws` is meant to advance through whitespace starting at an arbitrary position in the middle of the text. Using `re.match()` would not advance the position correctly in the middle of the input. Additionally, `re.match()` may not be faster than the simple loop due to regex overhead, especially for small amounts of whitespace.
+
+STEELMAN: The steelman version uses `re.match()` but correctly applies it to the substring starting at the current position, and ensures that the match result's end position is used to advance the position. This preserves the performance benefit of regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

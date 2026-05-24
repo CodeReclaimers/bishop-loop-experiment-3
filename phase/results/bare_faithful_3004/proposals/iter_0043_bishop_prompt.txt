@@ -1,0 +1,299 @@
+You are suggesting an optimization idea for a Python JSON parser.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Fast JSON parser implementing the optimization target.
+
+This implementation optimizes the original parser by:
+- Using regex for whitespace skipping
+- Precomputing digit and whitespace sets for O(1) lookups
+- Avoiding string concatenation in object/array building
+- Using direct index-based parsing instead of redundant whitespace checks
+- Optimizing number parsing with early termination and direct conversion
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+# ... 54 lines elided ...
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc in _ESCAPE_CHARS:
+                out.append(_ESCAPE_CHARS[esc])
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in _HEX_CHARS for c in s)
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+```
+
+Recent ideas already tried:
+Accepted improvements (most recent first):
+  - [skippy] PROMOTE z=+1.96 mean=0.0145 (baseline 0.0171)
+  - [bishop_bare] PROMOTE z=+1.96 mean=0.0114 (baseline 0.0145)
+  - [bishop_bare] PROMOTE z=+1.96 mean=0.0101 (baseline 0.0114)
+
+Rejected attempts (most recent first):
+  - [bishop_bare] SEARCH/REPLACE did not apply: no SEARCH/REPLACE blocks found
+  - [skippy] correctness failed: 1 fixed + 0 random failures; e.g. malformed_002:malformed wrong exception IndexError: string index out of range
+  - [bishop_bare] REJECT z=-0.22 mean=0.0101 (baseline 0.0101)
+  - [skippy] correctness failed: 1 fixed + 0 random failures; e.g. malformed_002:malformed wrong exception IndexError: string index out of range
+  - [bishop_bare] REJECT z=-1.09 mean=0.0103 (baseline 0.0101)
+
+Excerpts from the most recent rejected candidates (avoid repeating these mistakes):
+
+--- rejection 1 ---
+# (top of file, lines 37-48)
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    m = _WS_PATTERN.match(text, pos)
+    pos = m.end()
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+# ...
+# (function at lines 57-74)
+def _skip_ws(text: str, pos: int) -> int:
+    m = _WS_PATTERN.match(text, pos)
+    return m.end()
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+
+--- rejection 2 ---
+# (top of file, lines 37-48)
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    m = _WS_PATTERN.match(text, pos)
+    pos = m.end()
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+# ...
+# (function at lines 57-74)
+def _skip_ws(text: str, pos: int) -> int:
+    m = _WS_PATTERN.match(text, pos)
+    return m.end()
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+
+
+Your task: in 2-3 sentences, suggest one specific change to try in `json_parser.py`
+to make it faster while keeping it correct. Do NOT include code. Describe the approach
+only. Be specific about which part of the code changes and what mechanism makes it faster.
+
+Output: just the 2-3 sentence suggestion. No preamble. No postamble. No code.

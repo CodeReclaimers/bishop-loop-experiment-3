@@ -1,0 +1,93 @@
+CRITIQUE: The suggestion to use bit manipulation or lookup tables for digit/whitespace detection is unworkable because it fails to account for the fact that Python's string membership tests on frozensets are already O(1) and highly optimized. Additionally, the overhead of maintaining bitmasks or large lookup tables would likely outweigh any theoretical performance gains, especially for the limited character sets involved.
+
+STEELMAN: The steelman version of this suggestion would involve using Python's built-in `str.translate` or `str.maketrans` for efficient character filtering, or leveraging the existing frozenset-based approach but optimizing the lookup by using `ord()` values for direct indexing into a precomputed boolean array, which would reduce the number of hash lookups and improve cache locality.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precompute lookup arrays for faster character checks
+_WS_ARRAY = [False] * 128
+for ch in _WS_CHARS:
+    _WS_ARRAY[ord(ch)] = True
+
+_DIGIT_ARRAY = [False] * 128
+for ch in _DIGIT_CHARS:
+    _DIGIT_ARRAY[ord(ch)] = True
+
+_HEX_ARRAY = [False] * 128
+for ch in _HEX_CHARS:
+    _HEX_ARRAY[ord(ch)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and _WS_ARRAY[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or _DIGIT_ARRAY[ord(c)]:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(ch in _HEX_CHARS for ch in s)
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(_HEX_ARRAY[ord(ch)] for ch in s)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace `float()` and `int()` with direct regex-based parsing is problematic because it ignores the complexity of IEEE 754 floating-point representation and overflow/underflow handling. Direct text parsing would be significantly more error-prone and difficult to implement correctly, especially for edge cases like very large numbers, scientific notation, or NaN/Infinity values. It also fails to account for the highly optimized nature of built-in conversion functions.
+
+STEELMAN: A better approach would be to use the existing regex pattern to validate and extract number components, then leverage `int()` and `float()` for conversion, but with a more efficient parsing strategy that minimizes redundant operations and avoids unnecessary string copies during the parsing process.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion functions with pre-validated input
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

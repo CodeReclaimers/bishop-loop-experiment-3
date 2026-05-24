@@ -1,0 +1,88 @@
+CRITIQUE: The suggestion to use a stack-based approach is problematic because it misunderstands how JSON parsing works - the current implementation already uses iterative parsing with explicit state management rather than recursion. The suggestion fails to recognize that the parser already avoids deep recursion by design and that stack-based parsing would complicate the existing control flow without clear performance benefits. Additionally, the suggestion doesn't address how to handle nested structures properly without losing the ability to return parsed values.
+
+STEELMAN: The steelman is to refactor the object and array parsing functions to use an explicit stack-based state machine that maintains the current parsing context (object or array) and handles nested structures more efficiently, while preserving the existing iterative control flow and avoiding recursion. This approach would improve performance by reducing function call overhead and making the parsing state more explicit.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    
+    # Stack-based approach to handle nested structures
+    stack = []
+    key = None
+    expecting_key = True
+    
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+            
+        c = text[pos]
+        if expecting_key and c == '"':
+            key, pos = _parse_string(text, pos)
+            expecting_key = False
+            continue
+        elif not expecting_key and c == ':':
+            pos = pos + 1
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+            expecting_key = True
+            continue
+        elif expecting_key and c == '}':
+            return out, pos + 1
+        elif not expecting_key and c == ',':
+            pos = pos + 1
+            continue
+        elif not expecting_key and c == '}':
+            return out, pos + 1
+        elif expecting_key and c == ',':
+            pos = pos + 1
+            continue
+        elif expecting_key and c == '"':
+            key, pos = _parse_string(text, pos)
+            expecting_key = False
+            continue
+        elif not expecting_key and c in ']}':
+            return out, pos
+        else:
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace whitespace skipping with a fixed-size string match is unworkable because it misunderstands the problem — the current `_skip_ws` function already uses a set-based lookup (`text[pos] in _WS_CHARS`) which is already O(1). The proposed change would likely introduce a regex or string scan that's slower than the existing approach, especially for large amounts of whitespace. Additionally, the suggestion doesn't address the real performance bottlenecks like repeated string concatenation or inefficient parsing loops.
+
+STEELMAN: A better approach would be to use a compiled regex to skip multiple whitespace characters at once, rather than scanning one by one in a loop. This avoids the Python loop overhead while still maintaining correctness and leveraging the efficiency of compiled regex engines for bulk operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a compiled regex to skip multiple whitespace characters at once
+    global _WS_RE
+    try:
+        _WS_RE
+    except NameError:
+        _WS_RE = re.compile(r'[ \t\n\r]*')
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

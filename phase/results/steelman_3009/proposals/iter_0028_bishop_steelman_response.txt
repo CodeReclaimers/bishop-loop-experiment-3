@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.translate` and `str.find` is problematic because `str.translate` requires building a translation table mapping all whitespace characters to a single replacement character, which is inefficient and doesn't directly solve the problem of skipping whitespace. Additionally, `str.find` would need to be called repeatedly to locate the next non-whitespace character, defeating the purpose of a single-pass optimization. The approach also fails to consider that `str.translate` is not designed for skipping characters in-place, and would require complex handling to preserve the original logic.
+
+STEELMAN: A better approach would be to use `str.translate` with a mapping that converts all whitespace characters to a unique sentinel character (like `'\x00'`), then use `str.find` to locate the first non-sentinel character. This allows a single O(1) lookup pass for each whitespace sequence, while preserving the original behavior and avoiding repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with sentinel to skip all whitespace in one pass
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to null byte
+    trans_table = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+    # Translate whitespace to null bytes
+    translated = text[pos:].translate(trans_table)
+    # Find first non-null byte
+    next_non_ws = translated.find("\x00")
+    if next_non_ws == -1:
+        # All remaining characters are non-whitespace
+        return len(text)
+    # Return original position plus offset
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find` in `_skip_ws` is problematic because it would require scanning forward repeatedly and doesn't handle the case where there's no whitespace to skip — the function would need to check if `find` returns the current position, which adds complexity. Additionally, it doesn't account for the fact that `_skip_ws` is called in many places, and replacing a tight loop with a function call could introduce overhead in cases where whitespace is minimal or absent.
+STEELMAN: The steelman version uses `text.find` to locate the first non-whitespace character, but only after confirming that the current position is actually whitespace. This avoids the Python loop while preserving correctness, and the logic remains clear and efficient.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    if pos >= len(text):
+        return pos
+    if text[pos] not in _WS_CHARS:
+        return pos
+    pos = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if pos == -1:
+        return len(text)
+    return pos
+>>>>>>> REPLACE
+```

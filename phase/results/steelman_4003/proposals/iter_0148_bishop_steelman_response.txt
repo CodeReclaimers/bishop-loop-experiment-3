@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to optimize whitespace regex matching is problematic because it fails to recognize that the current `_skip_ws` function already uses an efficient O(1) character lookup with `frozenset`, making regex-based approaches redundant and potentially slower due to regex compilation overhead. Additionally, the proposed optimization doesn't address the actual bottleneck in whitespace skipping, which is already handled efficiently by the existing character-by-character loop.
+
+STEELMAN: The strongest version of this suggestion would be to replace the current character-by-character whitespace skipping with a more efficient regex that matches entire sequences of whitespace in one go, leveraging the fact that whitespace is often contiguous and can be skipped in bulk rather than one character at a time.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]+")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk matching
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace removal is problematic because it would remove ALL whitespace characters from the input, not just skip them. This would corrupt the parsing of JSON values that contain whitespace within strings or numbers, and would break the requirement that parsing must be accurate against `json.loads`. Additionally, `str.translate` operates on the entire string at once, which doesn't fit the incremental parsing model where we need to advance a position pointer through the text.
+
+STEELMAN: A better approach is to use `str.translate` to create a translation table that maps whitespace characters to a sentinel character (like `None` or a placeholder), then use `str.split()` or `str.rstrip()` with the translation table to efficiently skip leading whitespace while preserving the rest of the string structure. However, since we're parsing incrementally and need to maintain position tracking, we can instead use a regex-based approach that matches one or more whitespace characters at once, which still leverages fast compiled code but preserves the position tracking logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile regex for skipping whitespace
+_WS_RE = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all leading whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

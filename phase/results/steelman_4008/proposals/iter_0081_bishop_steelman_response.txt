@@ -1,0 +1,111 @@
+CRITIQUE: The suggestion to "stream" characters one-by-one is fundamentally at odds with the current parser's design, which relies on substring slicing and direct indexing (e.g., `text[pos : pos + 4]` for "true"/"false"). This approach would break the existing logic that assumes random access to the input string. Additionally, the idea of using an iterator to read characters doesn't inherently improve performance for parsing structured data like JSON, and could introduce overhead from frequent iterator calls and state tracking. The suggestion also fails to address that the main bottlenecks are already identified in the code: character-by-character scanning, string concatenation, and redundant whitespace handling.
+
+STEELMAN: A better approach would be to refactor the parser to avoid repeated string slicing and use a character-by-character lookahead with a single pass through the input. Instead of slicing substrings like `text[pos : pos + 4]`, we can advance a position pointer and validate characters in place, reducing memory allocations and improving cache locality. This still maintains the recursive descent structure but makes it more efficient by minimizing string operations and avoiding redundant checks.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if pos + 4 <= len(text) and text[pos:pos+4] == "true":
+        return True, pos + 4
+    if pos + 5 <= len(text) and text[pos:pos+5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+=======
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if pos + 4 <= len(text) and text[pos:pos+4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

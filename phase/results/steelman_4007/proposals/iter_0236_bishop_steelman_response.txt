@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to "use an index to track the current position instead of repeatedly calling `text[pos]`" is fundamentally misguided because it misunderstands the performance bottleneck. The `_skip_ws` function already uses an index (`pos`) and does not repeatedly index into the string in a way that would cause O(n) behavior per call. The real issue is that the function uses a Python loop to check membership in `_WS_CHARS` which is inefficient, not the indexing itself. The suggestion fails to address the actual performance problem.
+STEELMAN: The core insight of using a more efficient whitespace skipping mechanism is sound, but it should focus on optimizing the actual bottleneck: replacing the character-by-character loop with a regex-based approach or a more efficient lookup method. A better approach would be to use a regex to skip whitespace in one go, or at minimum, optimize the membership checks by precomputing a lookup table or using `str.translate` for bulk skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping using a regex for bulk skipping
+    import re
+    # Skip whitespace using regex for better performance
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

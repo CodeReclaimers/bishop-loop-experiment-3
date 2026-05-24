@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace the skip-table implementation with a while-loop is problematic because it fails to address the actual performance bottleneck in `_skip_ws` — the use of `in` membership checks against a string literal instead of a set. Simply removing the table-building logic doesn't eliminate the inefficient character lookup that dominates the function's runtime. Additionally, the suggestion implies a premature optimization without benchmarking or analysis of the real hot path.
+
+STEELMAN: The core idea is sound — to optimize `_skip_ws` by using a more efficient lookup mechanism than `c in ' \t\n\r'`. The steelman version should replace the string-based membership check with a frozenset lookup, which is significantly faster in Python. This change preserves the same character-by-character logic but improves performance by using a constant-time lookup instead of linear search through a string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

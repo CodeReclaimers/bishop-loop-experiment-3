@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple loop using `ord(text[pos])` and a pre-computed set is problematic because it doesn't account for the fact that `ord()` on Unicode characters can be slower than regex matching in some cases, and the loop would still need to check each character individually. Additionally, it ignores that the current implementation uses `re.compile` once and reuses it, so the overhead of regex compilation is not repeated per call — only the matching logic is repeated.
+
+STEELMAN: A better approach is to precompute a set of whitespace characters (including common ones like space, tab, newline, and carriage return) and use a tight loop that advances `pos` while `text[pos]` is in that set, avoiding regex entirely. This preserves the performance benefit of avoiding regex overhead while ensuring correctness and maintaining a clean, readable loop.
+
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -12,6 +12,7 @@
+ 
+ # Pre-compiled regex for whitespace skipping
+ _WS_RE = re.compile(r'\s*')
++_WS_CHARS = frozenset(' \t\n\r')
+ _DIGIT_CHARS = frozenset("0123456789")
+ _HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+ 
+@@ -26,11 +27,12 @@
+ def _skip_ws(text: str, pos: int) -> int:
+-    m = _WS_RE.match(text, pos)
+-    return m.end() if m else pos
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
+```

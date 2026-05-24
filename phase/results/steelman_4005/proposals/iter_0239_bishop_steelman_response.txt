@@ -1,0 +1,27 @@
+CRITIQUE: The suggested implementation would actually be slower than the existing code because it still performs O(n) character-by-character iteration in the worst case, but without the benefit of the optimized frozenset lookup. Additionally, the generator approach doesn't avoid repeated bounds checking since `text[pos:]` still requires checking `pos` against `len(text)` on each iteration. The suggestion also fails to consider that the current implementation already uses a try/except pattern to avoid repeated bounds checking, which is more efficient than a loop with repeated indexing.
+
+STEELMAN: The steelman approach should preserve the performance benefits of avoiding repeated bounds checking while still using the efficient frozenset membership tests. We can optimize the existing `_skip_ws` function to use a more efficient loop that minimizes bounds checking overhead by leveraging the fact that we can use a while loop with a single bounds check per iteration, and still maintain the frozenset lookup for character membership.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

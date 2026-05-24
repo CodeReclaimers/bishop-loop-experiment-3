@@ -1,0 +1,113 @@
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Replace regex with simple while-loop for whitespace skipping
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Pre-compute whitespace indices for efficient lookup
+    ws_indices = _compute_whitespace_indices(text)
+    pos = _skip_ws(text, 0, ws_indices)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, ws_indices)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _compute_whitespace_indices(text: str) -> list[int]:
+    """Pre-compute indices of all whitespace characters."""
+    indices = []
+    for i, c in enumerate(text):
+        if c in ' \t\n\r':
+            indices.append(i)
+    return indices
+
+
+def _skip_ws(text: str, pos: int, ws_indices: list[int]) -> int:
+    """Skip whitespace using pre-computed indices."""
+    # Binary search for the first whitespace character >= pos
+    left, right = 0, len(ws_indices) - 1
+    result = pos
+    while left <= right:
+        mid = (left + right) // 2
+        idx = ws_indices[mid]
+        if idx >= pos:
+            result = idx + 1
+            right = mid - 1
+        else:
+            left = mid + 1
+    return result
+>>>>>>> REPLACE
+```

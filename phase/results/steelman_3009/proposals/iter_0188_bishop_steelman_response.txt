@@ -1,0 +1,60 @@
+CRITIQUE: The suggestion to use `text.translate` with a mapping to `'\x00'` is problematic because it fundamentally changes the semantics of the input string, which could corrupt subsequent parsing if the translated string is used elsewhere. Additionally, the approach doesn't actually eliminate the loop — it just shifts the loop to the `translate` call, which still needs to scan the entire string, and the logic for locating the next non-sentinel character is not clearly specified. Finally, the performance gain from `translate` is not guaranteed to be faster than the existing optimized loop, especially for small inputs or when the whitespace is sparse.
+
+STEELMAN: The steelman version of the suggestion would use `text.translate` with a precomputed translation table to map whitespace characters to a unique sentinel character (e.g., `'\x00'`), then use `str.find` or a similar efficient method to locate the next non-sentinel character, avoiding explicit Python loops in the hot path. This approach should be faster for large inputs with dense whitespace, and the translation table should be computed once and reused.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precomputed translation table to map whitespace to null byte
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to map whitespace to null bytes, then find next non-null char
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    new_pos = pos + len(translated) - len(translated.lstrip('\x00'))
+    return new_pos
+>>>>>>> REPLACE
+```

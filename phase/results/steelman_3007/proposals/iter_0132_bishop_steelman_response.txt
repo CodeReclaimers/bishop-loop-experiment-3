@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex call would break the parser's ability to handle invalid JSON correctly, since the regex would consume all whitespace without checking for invalid control characters. It also doesn't account for the fact that the current implementation advances `pos` one character at a time to allow for proper error reporting and control character validation.
+
+STEELMAN: The steelman version would use the regex to skip whitespace but still validate that no invalid control characters are present in the skipped portion, ensuring correctness while gaining performance benefits. The regex should be used to advance `pos` efficiently, but we must ensure that the skipped content is still valid.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency while preserving validation
+    match = _WS_RE.match(text, pos)
+    if match:
+        # Validate that no control characters were skipped (to maintain error reporting)
+        end_pos = match.end()
+        # Check for invalid control characters in the skipped portion
+        for i in range(pos, end_pos):
+            if ord(text[i]) < 0x20:
+                raise JSONParseError(f"unescaped control character at {i}")
+        return end_pos
+    return pos
+>>>>>>> REPLACE
+```

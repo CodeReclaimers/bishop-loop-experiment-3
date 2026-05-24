@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(_WS_STR, pos)` is flawed because `_WS_CHARS` is a set, not a string, so `find` cannot be directly applied. Additionally, `find` only returns the index of the first occurrence of any whitespace character, but the current implementation needs to skip *all* consecutive whitespace characters, not just the first one. This would break the semantics of skipping multiple spaces, tabs, or newlines.
+
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character, but it must handle the case where no non-whitespace is found (i.e., end of string) and ensure that we skip all consecutive whitespace characters by iterating only once from the starting position to that found index.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to jump to the next non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

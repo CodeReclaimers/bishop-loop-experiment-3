@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion fails to account for the fact that `text.find()` returns the index of the first occurrence of any whitespace character, not necessarily the first non-whitespace character. Additionally, it doesn't handle the case where the entire remaining string consists of whitespace, which would cause `find()` to return the length of the string, making the verification step necessary but still inefficient. It also assumes that checking all characters between `pos` and the found index is cheaper than the loop, which is not true for short whitespace runs.
+
+STEELMAN: A better approach is to use `text.find()` to locate the first non-whitespace character, but only perform the verification step if the `find()` result is not at the end of the string and the intermediate characters are not all whitespace. However, the most practical optimization is to use `str.lstrip()` or a precomputed lookup table for the first non-whitespace character, avoiding the loop entirely while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find() to jump to the next non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

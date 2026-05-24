@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a manual scan using `_WS_CHARS` is flawed because it ignores the fact that the current `_skip_ws` function already uses the precomputed `_WS_CHARS` set for O(1) membership checks, and the regex `_WS_PATTERN` is only used in a single place to skip initial whitespace at the start of parsing, not throughout. Removing the regex and its call would break the parser's ability to skip initial whitespace properly, since `_skip_ws` is used in multiple locations and the regex was intended to handle more complex cases like skipping `\x00` characters.
+
+STEELMAN: The steelman version of the suggestion is to refine the manual whitespace skipping in `_skip_ws` to avoid using regex entirely and instead directly advance `pos` using the precomputed `_WS_CHARS` set, while ensuring that the logic remains correct for all whitespace characters including those that may be present at the beginning of input. This preserves the performance benefits of avoiding regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

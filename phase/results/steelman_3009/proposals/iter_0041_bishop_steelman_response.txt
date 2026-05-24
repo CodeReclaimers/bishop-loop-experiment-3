@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion incorrectly uses `text.find(''.join(_WS_CHARS), pos)` which creates a string of all whitespace characters and searches for it, but `find()` looks for the entire substring, not individual characters. This will not work correctly for skipping whitespace. Additionally, the proposed logic `next = text.find(...); if next == -1: return pos; else: return text.find(..., next)` is flawed because it doesn't actually skip to the first non-whitespace character — it just finds the first occurrence of any whitespace character and then searches again, which is inefficient and incorrect.
+STEELMAN: A correct implementation would use `str.translate` and `str.maketrans` to efficiently skip whitespace by converting all whitespace characters to a sentinel value (like `None`), then use `str.find` to locate the next non-whitespace character, or alternatively, use a single regex-based approach with `re.search` to find the next non-whitespace character, or even better, just precompute a set-based skip loop that's optimized with a fast C-level lookup.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-level string operations to skip whitespace efficiently
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

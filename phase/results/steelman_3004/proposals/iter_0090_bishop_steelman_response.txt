@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex match would be incorrect because `_WS_PATTERN` is compiled to match zero or more whitespace characters (`[ \t\n\r]*`), which means it will always match at least an empty string and return the position right after the last whitespace character, but it won't account for the case where the input is not entirely whitespace and we need to skip only the leading whitespace. Also, using `re.match` or `re.search` in this way would not properly integrate with the existing parsing logic that expects to advance the position one character at a time.
+STEELMAN: A better approach is to use `re.match` with the precompiled pattern on the substring starting from the current position, and then advance the position by the length of the matched whitespace. This preserves the intent of avoiding Python-level loops while maintaining correctness by directly advancing past the whitespace using regex matching.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

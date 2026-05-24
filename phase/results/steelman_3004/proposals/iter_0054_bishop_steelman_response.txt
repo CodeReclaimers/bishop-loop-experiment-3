@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the regex with a simple set lookup is flawed because `_skip_ws` currently uses a loop that advances one character at a time, which is inefficient for large amounts of consecutive whitespace. The regex was designed to skip over long sequences of whitespace in one go, and removing it would cause a performance regression for inputs with large whitespace runs. Additionally, the regex approach was likely chosen to avoid repeatedly checking individual characters, which the naive set lookup would reintroduce.
+
+STEELMAN: The steelman version would preserve the core idea of eliminating regex overhead but optimize the whitespace skipping by using a hybrid approach: keep the set-based membership checks for individual characters but apply them in a way that skips entire runs of whitespace efficiently, similar to how the current `_skip_ws` works but without the regex overhead.
+
+```python
+<<<<<<< SEARCH
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

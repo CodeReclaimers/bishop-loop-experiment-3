@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `str.find` for larger inputs and character-by-character scanning for smaller inputs is flawed because `str.find` has overhead from function call and string search setup that makes it slower than direct iteration for small inputs. It also introduces complexity in determining "large" vs "small" thresholds, which may not generalize well across different input patterns or environments. Additionally, the approach doesn't address the root inefficiency of repeatedly calling `str.find` in a loop, which would still be slower than a simple while loop.
+
+STEELMAN: A better approach is to use a hybrid strategy that switches between a fast precompiled regex for larger inputs (where regex overhead is amortized) and a fast character-by-character scan for smaller inputs, while ensuring the transition point is based on empirical performance data rather than arbitrary thresholds.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning for small inputs, regex for large
+    if len(text) - pos > 100:
+        # Use regex for large inputs to avoid repeated character checks
+        match = _WS_RE.match(text, pos)
+        if match:
+            return match.end()
+        return len(text)
+    else:
+        # Use direct character scanning for small inputs
+        while pos < len(text):
+            if text[pos] not in ' \t\n\r':
+                return pos
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

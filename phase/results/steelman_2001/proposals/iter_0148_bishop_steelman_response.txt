@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion incorrectly describes using `text.find('\x00', pos)` to locate the next non-whitespace character after translation, which would return the index of the sentinel, not the position of the next non-whitespace character. This approach fails to properly track positions and would not work with the existing parsing logic that expects to advance through the text character-by-character. Additionally, it doesn't account for the fact that `str.translate` with a mapping to `'\x00'` would not allow distinguishing between whitespace and non-whitespace characters in a way that supports correct parsing.
+STEELMAN: A better version uses `str.translate` to map all whitespace characters to a single sentinel character (like `'\x00'`), then uses `str.find` to locate the first non-sentinel character, but instead of trying to compute a new position directly from `find`, we should iterate through the string from the current position until we find the first non-sentinel character, which allows us to correctly compute the new position and preserve parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to map all whitespace to a sentinel character
+    # and then find the next non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping all whitespace to '\x00'
+    trans_table = str.maketrans(''.join(_WS_CHARS), '\x00' * len(_WS_CHARS))
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-zero character in the translated string
+    new_pos = translated.find('\x00')
+    if new_pos == -1:
+        # All remaining characters are non-whitespace
+        return len(text)
+    # Return the position in the original string
+    return pos + new_pos
+>>>>>>> REPLACE
+```

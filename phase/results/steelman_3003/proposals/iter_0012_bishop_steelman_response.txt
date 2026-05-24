@@ -1,0 +1,111 @@
+CRITIQUE: The suggestion to replace the if-elif chain with a dictionary mapping escape characters to advance amounts is problematic because it fails to account for the variable-length nature of Unicode escape sequences (like \uXXXX), which require parsing 4 hex digits and potentially additional surrogate pair handling. Additionally, it doesn't consider that some escape sequences like \n or \t are single-character replacements, while others like \u1234 are multi-character expansions requiring complex logic. This naive approach would break the existing logic flow and fail to handle the full JSON escape specification correctly.
+
+STEELMAN: The steelman version would use a dictionary lookup to determine the number of characters to advance, but still maintain the existing logic for handling the actual escape sequence processing. Specifically, we'd create a mapping for the fixed-length escapes (\n, \t, etc.) to their advance amounts, and then handle variable-length escapes like \uXXXX with a dedicated function that returns the correct advance amount after parsing the hex digits, preserving all existing control flow and correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+=======
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            advance = _get_escape_advance(esc)
+            if advance == 0:  # This is a Unicode escape
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            elif advance > 0:  # Fixed-length escape
+                if esc == '"':
+                    out.append('"')
+                elif esc == "\\":
+                    out.append("\\")
+                elif esc == "/":
+                    out.append("/")
+                elif esc == "b":
+                    out.append("\b")
+                elif esc == "f":
+                    out.append("\f")
+                elif esc == "n":
+                    out.append("\n")
+                elif esc == "r":
+                    out.append("\r")
+                elif esc == "t":
+                    out.append("\t")
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {pos}")
+                pos = pos + advance
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            continue
+>>>>>>> REPLACE
+```

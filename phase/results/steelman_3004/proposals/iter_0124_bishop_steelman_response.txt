@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop in `_skip_ws` with a pre-computed skip table is unworkable because it assumes the entire input can be processed in one go, but JSON parsing is incremental and the skip table would need to be recomputed for each call. Additionally, it doesn't account for the fact that whitespace skipping is done in a streaming fashion and the skip table approach would require pre-processing the entire input, which defeats the purpose of an efficient incremental parser.
+
+STEELMAN: The steelman version of this idea is to implement a more efficient whitespace skipping mechanism that avoids the character-by-character loop by using a precomputed lookup table for the first few characters, or by using regex matching with a cached compiled pattern, while still maintaining the incremental parsing behavior. This preserves the performance benefits of avoiding loops while staying compatible with the streaming nature of the parser.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace for performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

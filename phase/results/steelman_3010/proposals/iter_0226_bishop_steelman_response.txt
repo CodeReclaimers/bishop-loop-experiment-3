@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual while-loop with `_WS_PATTERN.span(pos)` is problematic because `span()` returns the start and end of the match, but the current implementation needs to advance the position past whitespace, not just find where it ends. Using `span()` would require an extra step to extract the end position, and the regex engine's performance gains may be negated by the overhead of calling `span()` repeatedly. Additionally, this approach doesn't handle the case where the regex engine's internal state or backtracking behavior might differ from the explicit loop in terms of performance or correctness.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the compiled regex to find the next non-whitespace character, and then compute the number of whitespace characters skipped by comparing the match position with the input position. This preserves the intent of leveraging the regex engine for efficient whitespace skipping while maintaining correctness and avoiding unnecessary overhead from repeated `span()` calls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

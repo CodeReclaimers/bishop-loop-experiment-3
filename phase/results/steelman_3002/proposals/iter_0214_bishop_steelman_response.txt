@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a manual while-loop would eliminate regex overhead but fails to account for the fact that the current implementation uses a precompiled regex `_WS_RE = re.compile(r'\s*')` and calls `_skip_ws` in multiple places. Simply replacing the regex with a character-by-character loop could introduce performance regressions if not carefully implemented, especially since the loop would need to check for all whitespace characters manually and could be less efficient than the optimized regex. Additionally, the current `_skip_ws` function already handles multiple whitespace characters in a tight loop, so a naive replacement might not improve performance and could even hurt it.
+STEELMAN: The steelman version of the suggestion is to inline the whitespace-skipping logic directly into the functions that call `_skip_ws`, replacing the regex call with a tight while-loop that checks for the specific whitespace characters (`' \t\n\r'`) directly, thereby avoiding regex overhead while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

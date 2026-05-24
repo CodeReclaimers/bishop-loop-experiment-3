@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to remove all whitespace skipping entirely by pre-processing the input with a regex would break parsing of JSON with whitespace inside strings, array elements, or object values. It also fails to account for the fact that whitespace is not uniformly distributed and must be skipped at specific points to maintain correct parsing state. Additionally, this approach would not handle escaped strings or nested structures properly.
+
+STEELMAN: A better approach is to use the regex to pre-skip leading whitespace once at the start of parsing, but still perform localized whitespace skipping at critical junctures like after commas, colons, and braces/brackets to maintain proper parsing boundaries. This preserves performance gains while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Pre-skip leading whitespace
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Skip trailing whitespace
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

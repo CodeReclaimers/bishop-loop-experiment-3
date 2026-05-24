@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` or regex fails because it doesn't account for the fact that whitespace characters are defined as a set, not a contiguous range, so a simple `find` won't work. Additionally, `str.find` and regex engines are not necessarily faster than a tight loop with set membership for small inputs, and the overhead of regex compilation or repeated `find` calls could slow things down.
+STEELMAN: A better approach is to use `str.translate` and `str.maketrans` to efficiently skip whitespace by precomputing a translation table that maps all whitespace characters to a sentinel, then using `str.find` to locate the next non-whitespace character. This leverages optimized C-level string operations while preserving correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for efficient whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to a non-whitespace character
+    trans_table = str.maketrans({char: '\x00' for char in _WS_CHARS})
+    # Translate the text starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-null character
+    next_non_ws = translated.find('\x00')
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

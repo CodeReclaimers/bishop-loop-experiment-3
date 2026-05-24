@@ -1,0 +1,71 @@
+CRITIQUE: The suggestion to use a generator for building JSON objects is unworkable because generators cannot be directly assigned to dictionary keys; the core issue is that generators are lazy iterators, not data structures. Additionally, this approach would break the expected interface where `_parse_object` returns a concrete `dict`, not a generator. The suggestion also fails to address the actual performance bottlenecks like repeated whitespace skipping and inefficient string building.
+
+STEELMAN: The steelman version would involve using a more efficient incremental building strategy for the dictionary, such as pre-allocating the dictionary with known size when possible or using a list of key-value pairs that are then converted to a dict once at the end, avoiding repeated dictionary reconstruction during parsing.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # No rebuilding dict on each iteration
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return {}, pos + 1
+    # Collect key-value pairs first to avoid repeated dict rebuilding
+    pairs = []
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        pairs.append((key, value))
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return dict(pairs), pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

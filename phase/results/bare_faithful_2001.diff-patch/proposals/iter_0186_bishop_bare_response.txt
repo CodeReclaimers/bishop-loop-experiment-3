@@ -1,0 +1,72 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -134,12 +134,12 @@
+ def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+     if text[pos : pos + 4] == "true":
+-        return True, pos + 4
++        pos = text.find("true", pos)
++        return True, pos
+     if text[pos : pos + 5] == "false":
+-        return False, pos + 5
++        pos = text.find("false", pos)
++        return False, pos
+     raise JSONParseError(f"bad bool at {pos}")
+
+
+@@ -174,22 +174,22 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     start = pos
+     if text[pos] == "-":
+-        pos = pos + 1
++        pos += 1
+     if pos >= len(text):
+         raise JSONParseError(f"bad number at {pos}")
+     if text[pos] == "0":
+-        pos = pos + 1
++        pos += 1
+     elif text[pos] in _DIGIT_CHARS:
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++        pos = text.find(".", pos)
++        if pos == -1:
++            pos = text.find("e", pos)
++            if pos == -1:
++                pos = text.find("E", pos)
++        if pos == -1:
++            pos = len(text)
++        else:
++            pos = text.find("e", pos)
++            if pos == -1:
++                pos = text.find("E", pos)
++            if pos == -1:
++                pos = len(text)
++        pos = text.find("e", pos)
++        if pos == -1:
++            pos = text.find("E", pos)
++        if pos == -1:
++            pos = len(text)
+     else:
+         raise JSONParseError(f"bad number at {pos}")
+     is_float = False
+     if pos < len(text) and text[pos] == ".":
+         is_float = True
+-        pos = pos + 1
+-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number fractional at {pos}")
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
+     if pos < len(text) and text[pos] in ("e", "E"):
+         is_float = True
+-        pos = pos + 1
+-        if pos < len(text) and text[pos] in ("+", "-"):
+-            pos = pos + 1
+-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number exponent at {pos}")
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
+     s = text[start:pos]
+     if is_float:
+         return float(s), pos
+     return int(s), pos
+```

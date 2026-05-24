@@ -1,0 +1,107 @@
+CRITIQUE: The suggestion to replace nested if-based Unicode-escape handling with a single regex would fail because JSON escape sequences like `\uXXXX` can be part of surrogate pairs, requiring complex lookahead logic that a simple regex cannot handle without backtracking or multiple passes. Additionally, the proposed approach doesn't account for the fact that the current code already handles malformed escapes and invalid Unicode code points correctly, which a naive regex solution might miss or complicate.
+
+STEELMAN: A better approach would be to compile a regex that matches valid JSON escape sequences (including `\uXXXX` and surrogate pairs) and use it to skip over them in one go, while still maintaining the existing validation logic for malformed escapes and invalid Unicode. This preserves correctness and performance gains by reducing loop overhead, but keeps the detailed error handling and state management that the current code already implements.
+
+```python
+<<<<<<< SEARCH
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc in _ESCAPE_CHARS:
+                out.append(_ESCAPE_CHARS[esc])
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if c in _CONTROL_CHARS:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+=======
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    # Precompile a regex to match valid JSON escape sequences
+    _ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4}|u[0-9a-fA-F]{4}u[0-9a-fA-F]{4})')
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            match = _ESCAPE_PATTERN.match(text, pos)
+            if not match:
+                raise JSONParseError(f"bad escape at {pos}")
+            esc_str = match.group(0)
+            if esc_str[1] in _ESCAPE_CHARS:
+                out.append(_ESCAPE_CHARS[esc_str[1]])
+            elif esc_str[1] == 'u':
+                # Handle Unicode escape
+                hex4 = esc_str[2:6]
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    # Surrogate pair
+                    if pos + 11 >= n or text[pos + 6] != '\\' or text[pos + 7] != 'u':
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    hex4b = text[pos + 8:12]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 8}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 8}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 6
+            else:
+                raise JSONParseError(f"bad escape \\{esc_str[1]} at {pos}")
+            pos = pos + len(esc_str)
+            continue
+        if c in _CONTROL_CHARS:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+>>>>>>> REPLACE
+```

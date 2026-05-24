@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `str.find` directly on whitespace characters is flawed because `str.find` searches for a substring, not individual characters, so it can't efficiently locate the next non-whitespace character. Additionally, it would require constructing a multi-character search string, which defeats the purpose of O(1) lookup and would be slower than the current set-based approach. The suggestion also ignores that `str.find` has overhead from Python string creation and doesn't leverage the existing optimized `frozenset` lookup.
+
+STEELMAN: A better approach is to use `str.translate` or `str.rstrip` with a precomputed translation table to efficiently skip whitespace, or to leverage `str.find` with a single character lookup in a way that avoids repeated Python-level iteration. The core idea is to reduce Python loop overhead, but it must be implemented in a way that still leverages fast C-level string operations while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create a translation table that maps whitespace to None (removes them)
+    # Then use str.lstrip to skip leading whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

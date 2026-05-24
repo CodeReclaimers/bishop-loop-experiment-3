@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with non-blocking find calls would fail because it doesn't account for the fact that `str.find()` returns -1 when a character is not found, which would break the loop logic. Additionally, it would not handle the case where multiple consecutive whitespace characters need to be skipped, as `find()` only jumps to the first occurrence. Finally, it would likely introduce more overhead than the current approach due to repeated string slicing and method calls.
+
+STEELMAN: A better approach would be to use `str.find()` to locate the first non-whitespace character, but handle the case where no such character exists (i.e., end of string) by checking for -1 and falling back to a simple loop for the remaining portion. This preserves the performance benefit of jumping ahead while maintaining correctness for all edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() to jump to the next non-whitespace character
+    while pos < len(text):
+        next_ws = text.find(text[pos], pos)
+        if next_ws == -1:
+            # No more characters, so we're at the end
+            return pos
+        if text[pos] not in _WS_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

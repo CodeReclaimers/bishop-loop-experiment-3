@@ -1,0 +1,76 @@
+CRITIQUE: The suggestion to use fixed-size lookup tables for digit and whitespace characters doesn't align with the current implementation, which already uses `frozenset` for O(1) lookup. The suggestion seems to misunderstand the existing optimizations and proposes a change that would likely not improve performance or could even regress it. It also fails to address the actual bottleneck in number parsing, which is the regex matching and string conversion rather than character set lookups.
+
+STEELMAN: A better approach would be to replace the regex-based number parsing with a direct, optimized numeric parser that avoids regex overhead and uses fast integer/float conversion techniques. This would reduce the complexity of number parsing from O(n) to O(1) for valid numeric strings by directly scanning and converting digits without regex matching.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Direct numeric parsing without regex
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == "-":
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    if pos < len(text) and text[pos] == ".":
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < len(text) and text[pos] in "eE":
+        pos += 1
+        if pos < len(text) and text[pos] in "+-":
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Convert the parsed number
+    s = text[start:pos]
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

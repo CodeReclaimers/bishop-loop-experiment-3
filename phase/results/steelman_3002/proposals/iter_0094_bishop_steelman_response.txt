@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `text.find(' \t\n\r', pos)` is flawed because `find()` returns the index of the first occurrence of any character in the set, not the first non-whitespace character. This would incorrectly skip over whitespace characters that are not at the start, and would not properly handle the case where the string is all whitespace. Additionally, it doesn't account for the fact that the current implementation skips zero or more whitespace characters, not just one.
+STEELMAN: A better approach is to use `re.search(r'[^\s]', text, pos)` which finds the first non-whitespace character starting from `pos`, or returns `None` if none exist. This maintains the correct semantics of skipping zero or more whitespace characters, and leverages fast regex engine optimizations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.start()
+    return len(text)
+>>>>>>> REPLACE
+```

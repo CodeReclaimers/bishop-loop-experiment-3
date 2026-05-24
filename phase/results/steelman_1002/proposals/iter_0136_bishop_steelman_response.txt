@@ -1,0 +1,316 @@
+```python
+# CRITIQUE:
+# The suggestion to use a "custom iterator with a generator function" is unworkable because
+# it doesn't clearly define how the iterator would be used in the existing recursive descent
+# parsing logic, which relies heavily on random access and backtracking. A generator-based
+# approach would not support efficient forward traversal with position tracking in a
+# recursive descent parser without significant restructuring.
+#
+# STEELMAN:
+# The steelman version uses a stateful character iterator that wraps the input string and
+# provides efficient `peek()` and `advance()` methods, enabling fast character access while
+# preserving the existing recursive structure. This allows for optimized whitespace skipping,
+# character-by-character parsing, and maintains the same API and error handling behavior.
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use frozenset for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+class _CharIterator:
+    """A stateful character iterator for efficient parsing."""
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+        self._len = len(text)
+
+    def peek(self) -> str:
+        if self.pos >= self._len:
+            return ""
+        return self.text[self.pos]
+
+    def advance(self) -> str:
+        if self.pos >= self._len:
+            return ""
+        c = self.text[self.pos]
+        self.pos += 1
+        return c
+
+    def advance_n(self, n: int) -> None:
+        self.pos += n
+
+    def skip_ws(self) -> None:
+        while self.pos < self._len and self.text[self.pos] in _WS_CHARS:
+            self.pos += 1
+
+    def pos(self) -> int:
+        return self.pos
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    iterator = _CharIterator(text)
+    iterator.skip_ws()
+    if iterator.pos() >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(iterator)
+    iterator.pos = pos
+    iterator.skip_ws()
+    if iterator.pos() != len(text):
+        raise JSONParseError(f"trailing content at position {iterator.pos()}")
+    return value
+
+
+def _parse_value(iterator: _CharIterator) -> tuple[Any, int]:
+    pos = iterator.pos()
+    iterator.skip_ws()
+    if iterator.pos() >= len(iterator.text):
+        raise JSONParseError("unexpected end of input")
+    c = iterator.peek()
+    if c == "{":
+        return _parse_object(iterator)
+    if c == "[":
+        return _parse_array(iterator)
+    if c == '"':
+        return _parse_string(iterator)
+    if c == "t" or c == "f":
+        return _parse_bool(iterator)
+    if c == "n":
+        return _parse_null(iterator)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(iterator)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(iterator: _CharIterator) -> tuple[dict, int]:
+    pos = iterator.pos()
+    if iterator.peek() != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    iterator.advance()
+    out = {}
+    iterator.skip_ws()
+    if iterator.pos() < len(iterator.text) and iterator.peek() == "}":
+        return out, iterator.pos() + 1
+    while True:
+        iterator.skip_ws()
+        pos = iterator.pos()
+        if pos >= len(iterator.text) or iterator.peek() != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(iterator)
+        iterator.pos = pos
+        iterator.skip_ws()
+        pos = iterator.pos()
+        if pos >= len(iterator.text) or iterator.peek() != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        iterator.advance()
+        iterator.skip_ws()
+        value, pos = _parse_value(iterator)
+        iterator.pos = pos
+        out[key] = value
+        iterator.skip_ws()
+        pos = iterator.pos()
+        if pos >= len(iterator.text):
+            raise JSONParseError("unterminated object")
+        c = iterator.peek()
+        if c == ",":
+            iterator.advance()
+            continue
+        if c == "}":
+            return out, iterator.pos() + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(iterator: _CharIterator) -> tuple[list, int]:
+    pos = iterator.pos()
+    if iterator.peek() != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    iterator.advance()
+    out = []
+    iterator.skip_ws()
+    if iterator.pos() < len(iterator.text) and iterator.peek() == "]":
+        return out, iterator.pos() + 1
+    while True:
+        iterator.skip_ws()
+        value, pos = _parse_value(iterator)
+        iterator.pos = pos
+        out.append(value)
+        iterator.skip_ws()
+        pos = iterator.pos()
+        if pos >= len(iterator.text):
+            raise JSONParseError("unterminated array")
+        c = iterator.peek()
+        if c == ",":
+            iterator.advance()
+            continue
+        if c == "]":
+            return out, iterator.pos() + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(iterator: _CharIterator) -> tuple[str, int]:
+    pos = iterator.pos()
+    if iterator.peek() != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    iterator.advance()
+    out = []
+    while iterator.pos() < len(iterator.text):
+        c = iterator.peek()
+        if c == '"':
+            iterator.advance()
+            return "".join(out), iterator.pos()
+        if c == "\\":
+            iterator.advance()
+            if iterator.pos() >= len(iterator.text):
+                raise JSONParseError("unterminated string escape")
+            esc = iterator.peek()
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                iterator.advance()
+                if iterator.pos() + 4 >= len(iterator.text):
+                    raise JSONParseError(f"bad unicode escape at {iterator.pos()}")
+                hex4 = iterator.text[iterator.pos():iterator.pos() + 4]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {iterator.pos()}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if iterator.pos() + 5 >= len(iterator.text) or iterator.text[iterator.pos() + 5] != "\\" or iterator.pos() + 6 >= len(iterator.text) or iterator.text[iterator.pos() + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {iterator.pos()}")
+                    if iterator.pos() + 10 >= len(iterator.text):
+                        raise JSONParseError(f"bad low surrogate at {iterator.pos()}")
+                    hex4b = iterator.text[iterator.pos() + 7:iterator.pos() + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {iterator.pos() + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {iterator.pos() + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    iterator.advance_n(11)
+                    continue
+                out.append(chr(cp))
+                iterator.advance_n(4)
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {iterator.pos()}")
+            iterator.advance()
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {iterator.pos()}")
+        out.append(c)
+        iterator.advance()
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in _HEX_CHARS for c in s)
+
+
+def _parse_bool(iterator: _CharIterator) -> tuple[bool, int]:
+    pos = iterator.pos()
+    c = iterator.peek()
+    if c == "t":
+        if iterator.pos() + 4 <= len(iterator.text) and iterator.text[pos:pos + 4] == "true":
+            iterator.advance_n(4)
+            return True, iterator.pos()
+    elif c == "f":
+        if iterator.pos() + 5 <= len(iterator.text) and iterator.text[pos:pos + 5] == "false":
+            iterator.advance_n(5)
+            return False, iterator.pos()
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(iterator: _CharIterator) -> tuple[None, int]:
+    pos = iterator.pos()
+    if iterator.pos() + 4 <= len(iterator.text) and iterator.text[pos:pos + 4] == "null":
+        iterator.advance_n(4)
+        return None, iterator.pos()
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(iterator: _CharIterator) -> tuple[float | int, int]:
+    pos = iterator.pos()
+    start = pos
+    if pos < len(iterator.text) and iterator.peek() == "-":
+        iterator.advance()
+        pos += 1
+    if pos >= len(iterator.text):
+        raise JSONParseError(f"bad number at {pos}")
+    if iterator.peek() == "0":
+        iterator.advance()
+        pos += 1
+    elif iterator.peek() in _DIGIT_CHARS:
+        while pos < len(iterator.text) and iterator.peek() in _DIGIT_CHARS:
+            iterator.advance()
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < len(iterator.text) and iterator.peek() == ".":
+        is_float = True
+        iterator.advance()
+        pos += 1
+        if pos >= len(iterator.text) or iterator.peek() not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < len(iterator.text) and iterator.peek() in _DIGIT_CHARS:
+            iterator.advance()
+            pos += 1
+    if pos < len(iterator.text) and iterator.peek() in ("e", "E"):
+        is_float = True
+        iterator.advance()
+        pos += 1
+        if pos < len(iterator.text) and iterator.peek() in ("+", "-"):
+            iterator.advance()
+            pos += 1
+        if pos >= len(iterator.text) or iterator.peek() not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < len(iterator.text) and iterator.peek() in _DIGIT_CHARS:
+            iterator.advance()
+            pos += 1
+    s = iterator.text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+```

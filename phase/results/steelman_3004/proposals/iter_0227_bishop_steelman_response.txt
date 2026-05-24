@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to use a `skip_table` for whitespace skipping is flawed because it assumes all input characters can be indexed directly, which would require a massive lookup table (256 entries) and doesn't account for the fact that whitespace characters are sparse and irregularly distributed. It also fails to consider that the current `_skip_ws` function is already optimized via `frozenset` membership checks and the overhead of building and maintaining a skip table would likely outweigh any gains.
+
+STEELMAN: A better approach is to precompute a compact skip table using a bit vector or similar structure that only marks the positions of whitespace characters, allowing O(1) lookup without the memory overhead of a full 256-entry table. This avoids redundant character-by-character checks while maintaining reasonable memory usage and performance.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute a skip table for whitespace characters
+# Only 256 entries, but we mark only the whitespace chars
+_SKIP_TABLE = [False] * 256
+for char in _WS_CHARS:
+    _SKIP_TABLE[ord(char)] = True
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+>>>>>>> REPLACE
+```

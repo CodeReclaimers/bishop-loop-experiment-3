@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use regex for number parsing is problematic because it introduces a regex compilation cost that isn't amortized, and the regex approach may not be faster than optimized character-by-character scanning. Additionally, the suggested regex doesn't correctly handle all valid JSON number formats, particularly edge cases like leading zeros or malformed exponents, which would cause runtime errors or incorrect parsing. The approach also doesn't address the core performance bottlenecks in the existing code like repeated string concatenation or inefficient whitespace skipping.
+
+STEELMAN: The steelman version would implement a precompiled regex for number parsing that correctly handles all valid JSON number formats, including edge cases like leading zeros, and ensures that the regex matching is efficient by avoiding repeated compilation. It should be integrated carefully to avoid introducing new performance regressions while leveraging the speedup from bulk matching over character-by-character scanning.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

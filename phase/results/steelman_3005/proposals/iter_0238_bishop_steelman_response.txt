@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find('\t', pos)` for bulk skipping of tabs is flawed because it only handles tab characters and ignores other whitespace like spaces, newlines, and carriage returns. It also doesn't account for the fact that `find()` returns -1 when the character isn't found, which would cause incorrect behavior. Additionally, the approach assumes that skipping tabs is significantly faster than checking each character, which may not hold true in practice due to Python's optimized built-in functions.
+
+STEELMAN: A better approach would be to first check for a sequence of whitespace characters using a regex that matches one or more whitespace characters, and only fall back to the existing char-by-char loop for edge cases or when the regex doesn't match. This preserves the performance benefits of bulk skipping while maintaining correctness across all whitespace types.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex for bulk skip
+    global _WS_PATTERN
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to char-by-char scanning for edge cases
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is problematic because `str.find` has O(n*m) complexity in worst-case scenarios and doesn't handle the incremental nature of parsing well. It would require frequent substring operations and could lead to unnecessary overhead when skipping small amounts of whitespace. Additionally, it doesn't leverage the fact that whitespace characters are limited to a small set, making character-by-character scanning more efficient for the actual use case.
+STEELMAN: A better approach would be to use a hybrid strategy: scan large chunks of whitespace using `str.find` to locate the first non-whitespace character, but fall back to character-by-character scanning for small or edge cases where the overhead of `str.find` isn't justified. This preserves the performance benefit of bulk operations while maintaining correctness and avoiding the pitfalls of naive `str.find` usage.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: use str.find for large whitespace chunks, fallback to char-by-char
+    # Skip up to 100 characters at a time using find, then fallback to char-by-char for small chunks
+    while pos < len(text):
+        # Look ahead for the first non-whitespace character, but cap the search
+        next_non_ws = text.find(' \t\n\r', pos, pos + 100)
+        if next_non_ws == -1:
+            # No whitespace found in this chunk, scan the rest character-by-character
+            while pos < len(text):
+                if text[pos] not in ' \t\n\r':
+                    return pos
+                pos += 1
+            return pos
+        else:
+            # Found a non-whitespace character, return its position
+            return next_non_ws
+    return pos
+>>>>>>> REPLACE
+```

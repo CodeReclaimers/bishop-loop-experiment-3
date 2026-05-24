@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a pre-computed skip table is problematic because it would require building a table of size proportional to the input length, which is wasteful for small inputs and doesn't actually eliminate the overhead of regex matching since the table-building process itself is expensive. Additionally, the approach doesn't address the fact that whitespace skipping is already optimized with set membership checks, making the proposed optimization redundant.
+STEELMAN: A better approach would be to pre-compute a "skip table" that identifies the end of contiguous whitespace blocks by scanning ahead from each position, allowing bulk jumps instead of character-by-character skipping, but only when the skip distance exceeds a threshold to avoid overhead.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Pre-compute skip table for bulk whitespace skipping
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

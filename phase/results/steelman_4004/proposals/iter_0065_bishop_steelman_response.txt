@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `isspace()` would be suboptimal because it's not significantly faster than the existing set lookup and would introduce function call overhead. Additionally, `isspace()` is locale-dependent and may not match the precise whitespace definition needed for JSON parsing, potentially causing correctness issues. The suggestion ignores that the current implementation already uses O(1) set membership checks for whitespace characters.
+STEELMAN: A better approach would be to use a regex-based whitespace skip that leverages compiled regex patterns for efficient bulk skipping, while preserving the existing performance characteristics for the common case. This maintains the core idea of optimization but improves the implementation to skip multiple whitespace characters at once rather than one-by-one.
+
+```python
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using regex for bulk skipping
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

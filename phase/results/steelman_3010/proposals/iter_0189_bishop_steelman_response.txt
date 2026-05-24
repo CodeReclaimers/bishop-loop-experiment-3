@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the manual while-loop in `_skip_ws` with a regex match would be suboptimal because regex matching has overhead that makes it slower than direct character checks for small amounts of whitespace. Additionally, the regex approach would require re-parsing the entire whitespace string instead of incrementally advancing through it, potentially causing performance degradation in cases where whitespace is minimal or frequent. It also doesn't account for the fact that the current implementation is already optimized for O(1) membership testing and avoids unnecessary string operations.
+
+STEELMAN: A better approach would be to use the precompiled regex to skip whitespace by finding the next non-whitespace character directly, but only when there's a significant amount of whitespace to skip, and to fallback to the current method for small or infrequent whitespace. This preserves the intent of leveraging regex for performance while avoiding the pitfalls of naive replacement.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip large amounts of whitespace, fallback to manual for small cases
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        match = _WS_PATTERN.match(text, pos)
+        if match:
+            return match.end()
+    return pos
+>>>>>>> REPLACE
+```

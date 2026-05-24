@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex-based approach using `text.find` is flawed because `text.find` only returns the index of the *first* match, not the end of a contiguous whitespace sequence. Additionally, the regex pattern `[ \t\n\r]*` will match zero or more whitespace characters, but using `text.find` with it won't advance past all whitespace in one go — it would still require iteration or multiple calls to find successive matches. This naive approach would not actually improve performance or correctness.
+
+STEELMAN: A better approach is to use `re.match` or `re.search` with the precompiled `_WS_PATTERN` to find the longest contiguous match of whitespace starting at the given position, then advance the position by the length of that match. This preserves the intent of leveraging the C-optimized regex engine while correctly advancing through all whitespace in one operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

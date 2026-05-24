@@ -1,0 +1,35 @@
+CRITIQUE: Using `re.fullmatch` would break the current parsing strategy because the number pattern is designed to match a prefix of the input, not the entire string. This would cause issues with the current implementation that relies on matching the number at a specific position and then advancing the parser. Additionally, `fullmatch` would require the regex to be rewritten to match the entire number format, which could complicate the existing logic.
+
+STEELMAN: The steelman is to use `re.fullmatch` in a way that still respects the current parsing flow by ensuring the regex pattern is anchored and complete, but we can still use `match` with `fullmatch` only for validation at the end of parsing to ensure no partial matches occur. However, the most effective approach is to ensure that the regex pattern correctly captures the full number format and that we validate the match covers the entire number.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

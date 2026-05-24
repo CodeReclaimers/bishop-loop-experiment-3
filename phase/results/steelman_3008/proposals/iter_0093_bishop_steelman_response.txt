@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.find(''.join(_WS_CHARS), pos)` is flawed because it would require scanning forward through whitespace characters one by one, which doesn't eliminate the per-character loop; it just changes the implementation detail. Additionally, `str.find` would not correctly handle the case where the next non-whitespace character is at the very end of the string, as it would return `len(text)` and not advance past the whitespace properly.
+STEELMAN: A better approach would be to use `str.find` to locate the first non-whitespace character, then calculate how many whitespace characters were skipped and advance the position accordingly, preserving the performance benefits of avoiding per-character loops while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace in a single operation
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        # No more whitespace, so we're at the end
+        return len(text)
+    # Find the start of the next non-whitespace character
+    while pos < next_non_ws:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

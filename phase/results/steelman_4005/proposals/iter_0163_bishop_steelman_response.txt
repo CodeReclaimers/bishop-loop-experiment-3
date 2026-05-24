@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `try-except` for bounds checking is flawed because it relies on exception handling for normal control flow, which is both slower and less readable than explicit bounds checks. It would break the existing logic in functions like `_skip_ws` where the loop needs to distinguish between reaching the end of the string and encountering an invalid character. Additionally, it doesn't address the core performance bottleneck of repeated `pos < len(text)` checks in a tight loop.
+
+STEELMAN: A better approach is to refactor the tight loops to reduce redundant bounds checking by using a local variable for the length check, and only perform the bounds check once per iteration instead of checking `pos < len(text)` in every conditional. This avoids both the overhead of exception handling and the redundancy of repeated bounds checks while maintaining clarity and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by caching the length and checking once per iteration
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

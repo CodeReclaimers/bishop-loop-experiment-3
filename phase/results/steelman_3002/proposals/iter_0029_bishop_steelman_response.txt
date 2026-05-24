@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `_WS_RE.span(pos, 0)[1]` is flawed because `span()` with a zero-length match doesn't work as intended; it will always return `(pos, pos)` for zero-length matches, which doesn't advance the position. Additionally, the regex engine is not necessarily faster than a simple loop for skipping whitespace, especially when the whitespace is short, and it introduces overhead from regex compilation and state management.
+
+STEELMAN: A better approach is to use `re.match(_WS_RE, text, pos)` to find the longest match of whitespace starting at `pos`, and then advance the position by the match length. This leverages the regex engine efficiently without the pitfalls of `span()` misuse, and it correctly skips all consecutive whitespace in one go.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

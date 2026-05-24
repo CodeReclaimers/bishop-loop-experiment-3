@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character loop with a single regex call would break the parser's ability to correctly track position, since `_skip_ws` is expected to return the position after whitespace, not just match it. The regex approach would also be slower for small amounts of whitespace due to regex overhead, and could cause issues with the parser's error reporting since the regex would consume all whitespace without precise position tracking.
+
+STEELMAN: A better approach is to use the regex to efficiently skip whitespace while still maintaining precise position tracking by using `re.match` or `re.search` with a start position, and updating the position accordingly. This preserves the performance benefit of regex for large whitespace blocks while keeping the parser's behavior intact.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

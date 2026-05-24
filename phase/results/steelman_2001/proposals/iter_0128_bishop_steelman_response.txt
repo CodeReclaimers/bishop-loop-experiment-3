@@ -1,0 +1,111 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex match would break the incremental parsing model, since regex matching doesn't return the new position after the match — it only tells you whether a match occurred. This would require rewriting the entire parsing logic to handle regex results properly, which is not a simple drop-in optimization. Additionally, regex matching is slower than a tight loop for small amounts of whitespace, and could introduce performance regressions in cases with minimal whitespace.
+
+STEELMAN: The steelman version of the idea is to precompile a regex that matches one or more whitespace characters starting at a given position, and use it to efficiently skip whitespace by updating the position to the end of the match. This preserves the existing parsing logic while leveraging the performance of compiled regexes for the whitespace skipping, and should be done in a way that maintains the same return position semantics as the original function.
+
+```python
+<<<<<<< SEARCH
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed sets for O(1) lookups
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed sets for O(1) lookups
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+# Precompiled regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip whitespace in one C-level call
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

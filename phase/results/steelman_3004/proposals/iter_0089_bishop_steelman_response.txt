@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace regex with frozenset lookups is flawed because `_WS_PATTERN` is used in `_skip_ws` for skipping multiple whitespace characters, which requires a regex match to consume a sequence, not just a single character check. Additionally, `_NUMBER_PATTERN` is used for validation in `_parse_number`, and simply removing the regex would break the number parsing logic that relies on regex-based validation and parsing.
+STEELMAN: The steelman is to remove the regex patterns entirely and implement direct parsing logic for whitespace and number parsing using the precomputed frozensets, while maintaining the same performance characteristics and correctness. For whitespace, we should use the existing `_skip_ws` function but replace its regex-based approach with a loop over `_WS_CHARS`. For numbers, we should keep the current logic but ensure we don't use regex for parsing, instead relying on direct character-by-character checks and the precomputed sets.
+
+```python
+<<<<<<< SEARCH
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

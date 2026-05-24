@@ -1,0 +1,96 @@
+CRITIQUE: The suggestion to use regex for number pattern detection before parsing is unworkable because it would add unnecessary overhead from regex compilation and matching, while the current implementation already uses efficient character-by-character parsing. It also fails to address the core issue that number parsing is already quite fast, and the added complexity would likely slow down the common case. Additionally, regex-based approaches for number parsing are not necessarily faster than direct parsing and could introduce edge case bugs with complex number formats.
+
+STEELMAN: A better approach would be to use a hybrid strategy where we first use a fast regex to quickly identify the start and end of a number token, then apply the existing efficient character-by-character parsing to convert it. This preserves the performance of the existing method while reducing the number of times we need to do detailed parsing by pre-identifying number boundaries.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+# Precompile regex for number detection
+_NUMBER_RE = re.compile(r'[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos = pos + 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    # Use built-in conversion for better performance
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid number format at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to quickly find the end of the number
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    start = pos
+    pos = match.end()
+    s = text[start:pos]
+    # Use built-in conversion for better performance
+    try:
+        # Determine if it's a float by checking for decimal point or exponent
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid number format at {start}")
+>>>>>>> REPLACE
+```

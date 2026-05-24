@@ -1,0 +1,19 @@
+CRITIQUE: The suggested regex approach has several flaws: it uses `finditer` which scans forward from the current position but doesn't handle the case where there are no non-whitespace characters left (leading to an IndexError); it also doesn't properly account for the fact that `finditer` returns positions relative to the sliced string, not the original, causing incorrect positioning; and it unnecessarily re-scans the entire string segment rather than leveraging a more efficient incremental skip.
+STEELMAN: A better approach would use `re.match` or `re.search` with a pattern like `r"[ \t\n\r]*"` starting from the current position, and use the match's end position to advance the cursor, which avoids per-character iteration while correctly handling edge cases and maintaining proper position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(N) scan
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion incorrectly claims that using `int()` and `float()` directly is faster than the current approach, when in fact the regex matching and string validation already occurred. The `try-except` block added is redundant since the regex pattern already validates the number format, and adding exception handling would slow down the common case. The suggestion fails to recognize that the performance bottleneck is in the regex matching, not in the conversion step.
+
+STEELMAN: The core idea of optimizing number parsing is sound, but it should focus on eliminating unnecessary overhead from the regex matching and string operations. Instead of using `int()` or `float()` directly, we can optimize by leveraging the already-parsed string from the regex match, and perform direct numeric conversion without redundant validation or exception handling. The optimization should preserve the existing regex validation but streamline the conversion step.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    # The regex already ensures valid integer format, so direct conversion is safe
+    return int(s), pos
+>>>>>>> REPLACE
+```

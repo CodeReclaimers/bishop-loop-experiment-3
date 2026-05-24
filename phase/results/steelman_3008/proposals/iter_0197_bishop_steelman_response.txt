@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.find` on a concatenated whitespace string would fail because `str.find` only finds the first occurrence of any character in the set, not the longest contiguous block. It also doesn't handle the case where the input is all whitespace correctly, since `str.find` will return 0 for the first whitespace character, not the end of the input. Additionally, the performance benefit is not guaranteed for small whitespace blocks, and the fallback loop would still be needed.
+STEELMAN: A better approach would be to use a hybrid method that first checks for a long contiguous block of whitespace using `str.find` with a pre-built string, but falls back to the current loop for small inputs or when the block is too short to justify the overhead. This preserves the performance gain for large whitespace blocks while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: bulk skip for large blocks, fallback for small
+    # Pre-built whitespace string for str.find
+    ws_str = " \t\n\r"
+    # For small inputs, use the traditional loop
+    if pos + 16 > len(text):
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+    # For larger inputs, try to skip a large block at once
+    end_pos = text.find(ws_str, pos)
+    if end_pos == -1:
+        # No more whitespace, return end of text
+        return len(text)
+    # Skip to the first non-whitespace character
+    return end_pos
+>>>>>>> REPLACE
+```

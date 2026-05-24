@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex match would break the JSON whitespace handling because JSON allows only specific whitespace characters (space, tab, line feed, carriage return), but the regex `\s*` matches any Unicode whitespace, including non-JSON whitespace like form feeds, vertical tabs, or Unicode spaces. Additionally, the regex approach would not integrate cleanly with the existing parsing logic that relies on advancing position by one character at a time.
+STEELMAN: The steelman version would use the pre-compiled regex `_WS_RE` to skip whitespace, but it must ensure that only valid JSON whitespace characters are matched, which means using a more specific regex pattern like `^[ \t\n\r]*` or manually filtering the match to valid JSON whitespace. The key is to maintain correctness while improving performance by avoiding per-character loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

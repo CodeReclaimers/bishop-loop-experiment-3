@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion fails to account for the fact that `_WS_PATTERN` is defined as `r'[ \t\n\r]*'` which matches zero or more whitespace characters, so `search()` will always succeed and return the starting position, not the position after whitespace. This would cause incorrect parsing since it wouldn't advance past the whitespace. Additionally, the regex engine's performance benefits are negated if it's not used in a way that actually avoids character-by-character scanning.
+STEELMAN: A better approach is to use `re.match()` with the pattern `r'[ \t\n\r]+'` (one or more whitespace) starting from the current position to find the next non-whitespace character, and then advance the position accordingly. This preserves the intent of leveraging fast regex while ensuring correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `text.find` is flawed because `text.find` only locates the first non-whitespace character, not a contiguous sequence of whitespace. This approach would fail to properly skip over multiple whitespace characters and could incorrectly advance the position past the intended boundary. Additionally, it doesn't account for the fact that whitespace skipping is often part of a larger parsing loop, so the performance benefit of `find` is negated by the need to re-skip after other operations.
+
+STEELMAN: A better approach would be to use `text.find` to locate the first non-whitespace character, but still process the skipped characters in bulk when possible. This can be done by leveraging `text.find` to locate the next non-whitespace character, then using a more efficient method to skip that many characters, possibly by slicing or using `str.translate` or `re` for larger skips. However, the most practical improvement is to use `re.search` with a precompiled regex that matches one or more whitespace characters, which avoids the loop overhead while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,91 @@
+CRITIQUE: The suggestion fails to account for the fact that the current implementation carefully handles JSON-specific number formats like `0123` (leading zeros), `1e+2`, and `1.23e-4` which must be parsed correctly according to JSON spec. Using `int()` or `float()` directly on the constructed string `s` would not handle these cases properly and could lead to incorrect parsing or exceptions. Additionally, the current code avoids Python's built-in conversion for performance reasons, and simply replacing it with `int(s)` or `float(s)` would likely not improve performance and could introduce regressions.
+
+STEELMAN: The steelman is to replace the manual digit traversal with `int()` or `float()` calls, but only after ensuring the string `s` is properly formatted to match Python's accepted numeric syntax. This means stripping leading zeros (which are invalid in Python numeric literals), normalizing exponents, and handling edge cases like `0123` or `1.0e+0` carefully. This preserves the performance benefit of built-in conversion while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    # Normalize the string to be valid for int/float conversion
+    if not is_float and not s.startswith("0") or s == "0":
+        # For integers, no normalization needed unless it's a leading zero
+        if s.startswith("0") and len(s) > 1:
+            raise JSONParseError(f"leading zero in integer at {start}")
+        try:
+            return int(s), pos
+        except ValueError:
+            raise JSONParseError(f"invalid integer at {start}")
+    else:
+        # For floats or numbers with leading zeros, use built-in conversion
+        try:
+            return float(s), pos
+        except ValueError:
+            raise JSONParseError(f"invalid number at {start}")
+>>>>>>> REPLACE
+```

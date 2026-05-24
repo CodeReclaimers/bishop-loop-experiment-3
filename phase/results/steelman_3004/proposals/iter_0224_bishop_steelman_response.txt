@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a pre-computed `skip_table` would require building a table of size O(n) for every input string, which is wasteful and doesn't scale well. It also fails to account for the fact that whitespace skipping is often short-circuited and doesn't always traverse the entire string, so a full lookup table would be overkill. Additionally, it doesn't consider that the current `_skip_ws` is already quite fast due to the `frozenset` lookup and that the table would need to be built per-call, negating any performance gains.
+
+STEELMAN: A better approach is to precompute a skip table that only stores the index of the next non-whitespace character for each position, but build it once per input string and reuse it. This table can be constructed efficiently in O(n) time and then used to skip whitespace in O(1) time. The table should be built at the start of `parse`, and all `_skip_ws` calls should use it, while maintaining the original logic for correctness and handling edge cases.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

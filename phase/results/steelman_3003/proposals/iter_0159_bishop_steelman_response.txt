@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(ws_string, pos)` would skip all whitespace characters at once, but this breaks the JSON parsing semantics because it doesn't respect the fact that whitespace is defined as specific characters (`" \t\n\r"`), not arbitrary substrings. Additionally, `find` returns the index of the *first* occurrence of any whitespace character, not the index after all consecutive whitespace, so it would skip the wrong number of characters. This approach also doesn't account for the fact that `find` may return -1 if no whitespace is found, leading to incorrect behavior or exceptions.
+
+STEELMAN: A better approach is to use `text.find()` to locate the first non-whitespace character starting from `pos`, then advance the position to that index. This preserves the correct semantics of skipping *consecutive* whitespace characters while leveraging efficient C-level string search. The implementation should still check for valid whitespace characters and skip all of them in one pass, but using `find` to locate the first non-whitespace character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using text.find for efficiency
+    while pos < len(text):
+        next_non_ws = text.find(" \t\n\r", pos)
+        if next_non_ws == -1:
+            return len(text)
+        if text[next_non_ws] in _WS_CHARS:
+            pos = next_non_ws + 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

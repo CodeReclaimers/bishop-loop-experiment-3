@@ -1,0 +1,61 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a table-driven approach using `ws_table` is unworkable because it assumes a pre-computed lookup table that isn't defined anywhere in the code, and the idea of a single O(1) lookup per skip doesn't account for the fact that whitespace sequences can be arbitrarily long and need to be skipped entirely. This naive approach fails to consider that the current implementation already uses a tight loop over a precomputed set, which is efficient and clear.
+
+STEELMAN: A better approach would be to precompute a "skip-ahead" table that maps each starting index to the next non-whitespace character index, avoiding repeated character-by-character checks. This table can be built once at import time and used to jump directly to the next non-whitespace character, reducing the skip operation to a single lookup. This preserves the spirit of avoiding loops while being practical and efficient.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute skip-ahead table for whitespace
+def _build_ws_table(text: str) -> list[int]:
+    table = [0] * len(text)
+    pos = len(text) - 1
+    table[pos] = pos
+    while pos > 0:
+        pos -= 1
+        if text[pos] in _WS_CHARS:
+            table[pos] = table[pos + 1]
+        else:
+            table[pos] = pos
+    return table
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+>>>>>>> REPLACE
+```

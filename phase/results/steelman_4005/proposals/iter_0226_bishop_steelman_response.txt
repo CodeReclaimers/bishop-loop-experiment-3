@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use `str.translate` for skipping whitespace is unworkable because `str.translate` is designed for character replacement/transformation, not for skipping/advancing through a string. It would require creating a translation table that maps whitespace characters to empty strings, which doesn't align with the goal of advancing a position pointer. Additionally, `str.translate` would not be suitable for the current logic that needs to stop at the first non-whitespace character and return the new position.
+
+STEELMAN: A better approach would be to use `str.rstrip` or a more efficient loop that leverages `str.find` or `str.startswith` to locate the first non-whitespace character, or alternatively, use a precomputed translation table with `str.translate` in a way that preserves the position-tracking semantics, such as by using `str.translate` to replace whitespace with a sentinel character and then finding that sentinel to determine the next position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table to efficiently skip whitespace
+    # Create a translation table that maps whitespace characters to a sentinel
+    # character (e.g., '\x00') and then find the first non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Precompute translation table to map whitespace to a sentinel
+    trans_table = str.maketrans(' \t\n\r', '\x00\x00\x00\x00')
+    # Apply translation and find first non-whitespace
+    translated = text[pos:].translate(trans_table)
+    new_pos = pos
+    for c in translated:
+        if c != '\x00':
+            break
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

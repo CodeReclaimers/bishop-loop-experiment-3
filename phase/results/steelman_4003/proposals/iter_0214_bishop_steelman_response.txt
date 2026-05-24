@@ -1,0 +1,53 @@
+CRITIQUE: The suggestion to avoid regex for number parsing is sound in principle, but directly converting strings to float without validation risks parsing invalid inputs or missing edge cases like overflow, underflow, or malformed scientific notation. It also ignores that the current regex approach already validates the number format, so bypassing it could introduce bugs or security issues.
+
+STEELMAN: A better approach would be to use a hybrid strategy where we validate the number format using a fast, lightweight regex that only checks structure (not full syntax), then parse the validated string using direct float/int conversion for performance, while preserving error handling and edge case support.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number structure
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        try:
+            return float(s), pos
+        except ValueError:
+            raise JSONParseError(f"bad number at {pos}")
+    # For integers, use int() directly but ensure no unnecessary parsing
+    try:
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

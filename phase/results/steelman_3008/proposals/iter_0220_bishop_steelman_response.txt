@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion fails to account for the fact that `translate` with a table mapping whitespace characters to `None` removes them entirely, which breaks the ability to find the next non-whitespace character using `.find(' ')`. Additionally, it doesn't consider that the current implementation handles embedded null bytes and control characters correctly, which would be lost in a simple translate-based approach.
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\x00'`), then use `text[pos:].translate(table).find('\x00')` to locate the next non-whitespace character, allowing for efficient O(1) skipping while preserving the original logic flow.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute translation table for fast whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans({char: '\x00' for char in _WS_CHARS})
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

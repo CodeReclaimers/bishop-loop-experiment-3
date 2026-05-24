@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is unworkable because it would fundamentally change the parsing logic by removing whitespace characters entirely from the string, which breaks the ability to track positions and maintain correct parsing state. Additionally, the approach doesn't account for the fact that whitespace skipping needs to be incremental and position-aware, not a bulk operation that modifies the input string.
+
+STEELMAN: A better approach would be to use a compiled regex pattern with `re.search` or `re.match` to efficiently skip whitespace by finding the next non-whitespace character, avoiding repeated character-by-character checks while preserving position tracking. This maintains correctness by not modifying the input string and still achieves performance gains through optimized regex operations.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace by matching zero or more whitespace chars
+    # starting at the current position, then advance by the match length
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a single-pass approach is problematic because it fails to account for the complexity of JSON whitespace handling, which includes not just spaces and tabs but also newlines, carriage returns, and form feeds. Additionally, it doesn't address the fact that the current regex approach already uses a precompiled pattern, so the performance gains from avoiding regex might be minimal. The naive approach could also introduce bugs if not carefully implemented to handle all Unicode whitespace characters correctly.
+
+STEELMAN: A better approach would be to implement a fast, inlined whitespace skipping function that directly iterates through the string using a while loop, checking for common whitespace characters (space, tab, newline, etc.) without using regex. This function should be optimized to avoid branching and use efficient character lookups, possibly by leveraging the existing `_WS_RE` pattern or a simple lookup table for whitespace characters. The key is to maintain correctness while reducing the overhead of regex operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(_WS_RE.pattern, pos)` is flawed because `find()` cannot be used with regex patterns directly — it only supports literal strings. Additionally, using `text.find(_WS_RE.pattern, pos)` would not correctly handle the regex pattern matching, which includes character classes like `[ \t\n\r]`, and would likely skip incorrect portions of the input. The approach also fails to account for the fact that `find()` returns the start of a match, not the end, so it wouldn't correctly advance the position past the whitespace.
+
+STEELMAN: A better approach would be to use the precompiled regex `re.match()` or `re.search()` with the `pos` parameter to find the first non-whitespace character, then advance the position to the end of the matched whitespace sequence. This preserves the performance benefit of regex while maintaining correctness by leveraging the regex engine's optimized C implementation for skipping whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex engine for performance
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

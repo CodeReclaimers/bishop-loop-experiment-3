@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with multiple `text.find` calls is flawed because it would require up to four separate string searches per whitespace skip, which is inefficient. It also fails to handle the case where the input is entirely whitespace, since `find` returns -1 for not found, and the logic would need complex handling to detect this. Additionally, it doesn't leverage the existing precomputed character sets that allow O(1) lookup in the current implementation.
+
+STEELMAN: A better approach would be to use a single `text.find` call with a combined whitespace string, but still maintain the logic to return the correct position, avoiding repeated per-character checks while keeping the simplicity and correctness of the original approach. The key is to minimize the number of string operations while preserving performance gains.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using text.find for a single pass
+    next_non_ws = text.find(" \t\n\r", pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

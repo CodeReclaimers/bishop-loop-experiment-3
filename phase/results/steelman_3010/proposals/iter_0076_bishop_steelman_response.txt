@@ -1,0 +1,67 @@
+CRITIQUE: The suggestion to use a precomputed boolean mask `ws_mask` would require precomputing a mask for the entire input string, which is inefficient and unnecessary since the parser processes input incrementally. It also fails to account for the fact that the mask would need to be recomputed for each new input string, negating any performance gains. Additionally, it doesn't consider that whitespace skipping is typically a short operation, so the overhead of building the mask might outweigh the benefits.
+
+STEELMAN: The steelman version would precompute a lookup table for whitespace characters using a fixed-size array (e.g., 256 elements for ASCII), where each index corresponds to a character's ASCII value and stores a boolean indicating if it's whitespace. This avoids repeated hash lookups and is efficient for the common case of parsing short to medium-length strings.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed whitespace mask for ASCII characters (256 entries)
+_WS_MASK = [False] * 256
+for char in _WS_CHARS:
+    _WS_MASK[ord(char)] = True
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed mask for O(1) membership
+    while pos < len(text) and _WS_MASK[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,43 @@
+CRITIQUE: The suggestion fails to account for the fact that `_parse_value` is called from multiple contexts where whitespace may be present before the value, and removing the initial whitespace skip would cause parsing to break when the first character is not immediately at the expected position. Additionally, it doesn't consider that whitespace skipping is needed before each token in arrays and objects, not just at the start.
+STEELMAN: The steelman is to remove the initial `_skip_ws` call in `_parse_value`, but instead ensure that whitespace is skipped *before* each parsing step within the loop (e.g., before parsing keys in objects, or values in arrays), while still ensuring that whitespace is skipped at the beginning of each parsing context.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

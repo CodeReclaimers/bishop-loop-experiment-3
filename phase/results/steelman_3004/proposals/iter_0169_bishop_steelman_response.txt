@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the manual loop with `regex.search()` is flawed because it doesn't account for the fact that `regex.search()` finds the *first* match, not all consecutive whitespace characters starting at `pos`. This would skip only the first sequence of whitespace, not the entire contiguous block. Additionally, it ignores that the current implementation advances `pos` character-by-character and expects to return the position *after* the whitespace, which `search()` alone cannot directly provide without additional logic.
+
+STEELMAN: The steelman version would use `regex.match()` instead of `search()` to ensure we match from the exact position `pos`, and then advance `pos` by the length of the matched whitespace, which is equivalent to the current loop but much faster due to the optimized C implementation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

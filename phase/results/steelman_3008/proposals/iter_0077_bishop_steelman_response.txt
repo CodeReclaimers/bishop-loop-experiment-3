@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is flawed because `text.find` scans forward until it finds ANY character not in `_WS_CHARS`, but it doesn't account for the fact that the whitespace characters are defined as a set, and `find` would not be able to efficiently determine membership in that set. Additionally, the loop approach is already optimized for the case where most whitespace is skipped quickly, and a bulk skip might not be more efficient if the whitespace is short or scattered.
+
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character, but only after ensuring that the current character at `pos` is actually a whitespace character, so that the `find` call is only made when necessary. This preserves the performance benefits of bulk skipping while avoiding the overhead of unnecessary scanning when there's no leading whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip leading whitespace in bulk
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        pos = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+        if pos == -1:
+            pos = len(text)
+    return pos
+>>>>>>> REPLACE
+```

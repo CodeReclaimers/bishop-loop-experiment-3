@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace regex with direct character iteration is sound in principle, but the naive implementation would fail to handle Unicode whitespace characters properly, since the current `_skip_ws` function only checks for ASCII whitespace. Additionally, the suggestion doesn't account for performance trade-offs when the input has many consecutive whitespace characters, where regex-based approaches might be more efficient due to optimized C-level string operations.
+
+STEELMAN: The steelman version should implement a fast, direct character-by-character whitespace skip that handles all standard Unicode whitespace characters (like `\u00A0`, `\u2000`, etc.) while still avoiding regex overhead. It should use a lookup table or set for fast membership testing of whitespace characters, and maintain a simple index-based approach for performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    # Includes standard Unicode whitespace characters
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f\u000b\u000c\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the precomputed skip table with direct calls to `_skip_ws` would eliminate the performance benefits of the table-based approach, which was specifically designed to avoid repeated character-by-character whitespace scanning. The regex-based approach was likely chosen for its efficiency in handling large amounts of whitespace, and removing it would likely regress performance significantly. Additionally, the suggestion implies a misunderstanding of how `_skip_ws` works, since it's designed to skip one whitespace character at a time, not to efficiently skip large blocks of whitespace.
+
+STEELMAN: The core idea should be to optimize `_skip_ws` itself by replacing the character-by-character loop with a more efficient approach, such as using a regex to skip all consecutive whitespace at once, while still maintaining the existing logic for handling individual characters. This preserves the performance gains from the regex approach but makes the code cleaner and more maintainable.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use regex to skip all consecutive whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

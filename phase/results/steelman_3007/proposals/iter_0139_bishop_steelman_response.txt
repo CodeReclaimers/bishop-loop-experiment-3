@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `_WS_RE.span(pos)` would be problematic because regex matching is generally slower than direct set membership checks for simple whitespace skipping, and the regex engine would need to re-scan from the position each time, negating any performance gains. Additionally, the current implementation handles edge cases like unterminated strings or malformed JSON more gracefully than a regex-based approach would, since regex doesn't provide fine-grained error reporting.
+
+STEELMAN: A better approach would be to use the regex to find the end of the whitespace run, but only when there's a significant amount of whitespace to skip, and fall back to the current O(1) set-based loop for small or infrequent whitespace runs to avoid the overhead of regex compilation or matching for trivial cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large runs, fallback to set lookup for small runs
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        # Use regex to skip large runs of whitespace
+        match = _WS_RE.match(text, pos)
+        if match:
+            return match.end()
+    # Fallback to set-based lookup for small or non-matching cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

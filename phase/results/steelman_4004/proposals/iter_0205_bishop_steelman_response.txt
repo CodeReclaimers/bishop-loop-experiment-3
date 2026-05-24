@@ -1,0 +1,27 @@
+CRITIQUE: Using a regex to skip whitespace would be suboptimal because it introduces regex compilation overhead and doesn't leverage the fact that whitespace characters are already precomputed in a set for O(1) lookup. Additionally, regex matching is generally slower than direct character iteration for simple cases like this, especially when the regex engine has to backtrack or handle complex patterns.
+STEELMAN: The steelman is to use a compiled regex for skipping whitespace, but only when it can be shown to be faster than the existing loop — specifically, when the input has large runs of whitespace, and we can benchmark or profile to confirm the regex approach is actually beneficial.
+
+```python
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using a single loop
+import re
+
+# Precompile the regex for skipping whitespace
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, but only if it's more efficient
+    # For now, keep the loop-based approach as it's faster for small inputs
+    # This can be revisited with profiling
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

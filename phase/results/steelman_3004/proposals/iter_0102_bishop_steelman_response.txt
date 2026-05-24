@@ -1,0 +1,64 @@
+CRITIQUE: The suggestion to use a precomputed `ws_table` for O(1) whitespace skipping is problematic because it assumes the entire input can be preprocessed into a lookup table, which is infeasible for streaming or large inputs. It also fails to account for the fact that `_skip_ws` is called repeatedly in tight loops, and the table would need to be built per-call or per-input, negating performance gains. Additionally, the proposal doesn't address how to handle the `pos` parameter correctly in a table-based approach, which would break the current parser's state tracking.
+
+STEELMAN: A better approach is to build a single lookup table for whitespace characters once, then use it to skip whitespace in a single jump, but still maintain the current function call structure for clarity and correctness. The table can be used to jump to the next non-whitespace character directly, reducing loop overhead while keeping the parser's logic intact.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute a whitespace skip table for O(1) jumps
+def _build_ws_table(text: str) -> list[int]:
+    table = [0] * len(text)
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            table[i] = table[i + 1] if i + 1 < len(text) else len(text)
+        else:
+            table[i] = i
+    return table
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

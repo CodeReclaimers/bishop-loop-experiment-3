@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a simple pointer-increment loop is problematic because it fails to account for the fact that `_skip_ws` is called in multiple contexts where the current implementation's behavior (using a regex) may differ from a naive character-by-character loop. Specifically, the original `_skip_ws` function is not just a simple whitespace skipper—it's designed to skip all JSON whitespace characters, and a naive loop could miss edge cases or introduce performance regressions in tight loops. Additionally, the suggestion doesn't consider that the regex is precompiled, so replacing it with a loop might not yield the expected performance gains if the loop isn't optimized correctly.
+
+STEELMAN: The steelman version of the suggestion is to replace the regex-based whitespace skipping with an optimized character-by-character loop that still correctly skips exactly the same JSON whitespace characters (`' \t\n\r'`) but avoids the overhead of regex compilation and execution by using a direct membership check in a precomputed frozenset, while ensuring that the loop is inlined and optimized for performance. This preserves the performance benefits of avoiding regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

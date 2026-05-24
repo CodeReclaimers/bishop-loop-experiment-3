@@ -1,0 +1,121 @@
+CRITIQUE: The suggestion to build a skip table for whitespace would require pre-processing the entire input string, which is inefficient for large inputs and doesn't align with the streaming nature of parsing. It also introduces memory overhead proportional to input size and doesn't account for the fact that whitespace skipping is typically done in small, localized regions rather than across the entire string. Additionally, the skip table would need to be recomputed for each new input, negating any performance benefits.
+
+STEELMAN: A better approach would be to implement a single forward pass that computes a skip table for whitespace positions, but only for the regions of the string that are actually accessed during parsing. This can be done by precomputing a skip table for each position in the input string, where each entry stores the index of the next non-whitespace character, enabling O(1) lookup during parsing without requiring full pre-processing of the entire string.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Build skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_skip_table(text, skip_table, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, skip_table, pos)
+    pos = _skip_ws_skip_table(text, skip_table, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table for whitespace positions."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = pos
+        else:
+            skip_table[i] = pos
+            pos = i
+    return skip_table
+
+
+def _skip_ws_skip_table(text: str, skip_table: list[int], pos: int) -> int:
+    """Skip whitespace using precomputed skip table."""
+    if pos >= len(text):
+        return pos
+    return skip_table[pos]
+
+
+def _parse_value(text: str, skip_table: list[int], pos: int) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, skip_table, pos)
+    if c == "[":
+        return _parse_array(text, skip_table, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

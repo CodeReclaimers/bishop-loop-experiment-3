@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find()` for skipping whitespace and digits is problematic because `find()` returns the index of the first occurrence of a character, but the current logic needs to skip *all* consecutive whitespace or digit characters, not just stop at the first non-matching one. Additionally, the approach doesn't handle the complex parsing of numbers (like decimal points, exponents) correctly since it assumes a simple scan to the next non-digit character. This naive replacement would break the parser's ability to properly parse numbers and skip whitespace in all cases.
+STEELMAN: The steelman version would use `text.find()` to jump to the first non-whitespace or non-digit character, but in a way that correctly handles multi-character number parsing by scanning ahead to find the end of the number (including decimal points, exponents, etc.) and then extracting the substring in one step. The key is to still perform the validation logic correctly while reducing the per-character iteration overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to jump directly to the next non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

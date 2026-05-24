@@ -1,0 +1,166 @@
+CRITIQUE: The suggestion to use a 256-element lookup table assumes all input is ASCII or Latin-1 encoded, but JSON strings can contain arbitrary Unicode, making byte-level lookups invalid. It also ignores that the current set-based approach already provides O(1) average performance, so the proposed change likely won't improve performance and may even regress due to memory overhead and cache effects. Additionally, it fails to consider that Unicode handling in the parser (like in `_parse_string`) already processes characters beyond the ASCII range, so a byte-based lookup would break correctness.
+
+STEELMAN: The steelman version of the suggestion is to precompute lookup tables for the specific character sets used in the parser, but only for ASCII characters (0-127), since JSON is defined to be ASCII-compatible for control characters and basic structure. This allows for direct indexing into lookup tables while preserving correctness, and avoids the overhead of set membership checks. The approach should be applied to `_skip_ws`, `_parse_value`, `_parse_number`, and `_is_hex4` with byte-level lookups for ASCII characters, and should still fall back to set checks for non-ASCII cases or Unicode handling.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute lookup tables for ASCII characters (0-127) for performance
+_WS_TABLE = [True if chr(i) in _WS_CHARS else False for i in range(256)]
+_DIGIT_TABLE = [True if chr(i) in _DIGIT_CHARS else False for i in range(256)]
+_HEX_TABLE = [True if chr(i) in _HEX_CHARS else False for i in range(256)]
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with lookup table for performance
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or _DIGIT_TABLE[ord(c)]:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif _DIGIT_TABLE[ord(text[pos])]:
+        while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or not _DIGIT_TABLE[ord(text[pos])]:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or not _DIGIT_TABLE[ord(text[pos])]:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not _HEX_TABLE[ord(ch)]:
+            return False
+    return True
+>>>>>>> REPLACE
+```

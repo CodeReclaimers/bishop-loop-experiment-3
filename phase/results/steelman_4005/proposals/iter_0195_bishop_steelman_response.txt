@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to pre-process and remove whitespace from the input text is unworkable because it would require reconstructing the original positions for error reporting, which is essential for a proper JSON parser. Additionally, removing whitespace upfront would not eliminate the need for whitespace skipping during parsing, and could introduce performance regressions due to unnecessary string copying and memory allocation.
+
+STEELMAN: A better approach is to precompute a "whitespace map" or use a more efficient method to skip whitespace without fully removing it, such as leveraging a compiled regex pattern with `re.finditer` or using a sliding window technique that avoids repeated bounds checking while preserving position tracking for error reporting.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace for performance
+    # This avoids repeated bounds checking and is faster than manual loops
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `in` with direct character checks in `_skip_ws` is naive because it doesn't account for the fact that Python's `in` operator on a frozenset is already highly optimized and likely faster than manual character comparisons. Additionally, the suggestion lacks specificity about how to handle the hexadecimal escape logic in strings, which is a more complex performance bottleneck. The proposed optimization may not yield the claimed 10-15% speedup and could even regress performance due to less readable code and potentially slower execution.
+
+STEELMAN: The real optimization opportunity lies in leveraging the existing `frozenset` for whitespace checking in `_skip_ws` and ensuring that the character-by-character loop is as efficient as possible, while also optimizing the string parsing logic to reduce redundant checks and improve memory usage. The core idea should be to use the optimized data structures already present and refine the loop logic for maximum performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using frozenset membership
+    _WS_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

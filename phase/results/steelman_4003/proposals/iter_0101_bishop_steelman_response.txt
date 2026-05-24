@@ -1,0 +1,55 @@
+CRITIQUE: The suggestion to avoid "unnecessary string concatenation" is misleading because the current implementation already uses efficient list-building (`out.append()`) for string parsing, not concatenation. The core issue isn't string concatenation but rather the use of regex matching for numbers, which introduces overhead from pattern compilation and matching. Additionally, the suggestion doesn't address the fact that `int()` and `float()` conversions are already being used directly, so further optimization would require more sophisticated parsing logic or avoiding conversion entirely.
+
+STEELMAN: A more effective optimization would involve implementing a custom numeric parser that directly processes digits without relying on regex or built-in `int()`/`float()` functions, which can be slower due to error checking and type conversion overhead. This custom parser could handle integer and floating-point parsing in one pass, reducing the number of intermediate string operations and avoiding regex overhead while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == '-':
+        pos += 1
+        if pos >= len(text):
+            raise JSONParseError(f"bad number at {start}")
+    # Parse integer part
+    if text[pos] == '0':
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent part
+    if pos < len(text) and text[pos] in 'eE':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Extract number string
+    s = text[start:pos]
+    if not s:
+        raise JSONParseError(f"bad number at {start}")
+    # Parse based on presence of decimal point or exponent
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

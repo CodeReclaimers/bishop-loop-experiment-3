@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to rely on IndexError handling for bounds checking is problematic because it introduces implicit control flow that's hard to reason about and debug. It also doesn't actually eliminate bounds checking in the critical loop — the `pos < n` check is still needed in the `while pos < n` condition, and the IndexError-based approach may not be faster than explicit bounds checking due to exception overhead. Additionally, the suggestion doesn't address the fact that the code already uses explicit bounds checking in many places, making this change potentially redundant or even harmful.
+
+STEELMAN: The strongest version of this idea is to refine the existing `_skip_ws` function to use a try-except block to handle the IndexError when accessing `text[pos]`, but only for the inner loop where we repeatedly access `text[pos]`. This avoids redundant `pos < len(text)` checks by letting the IndexError bubble up and be caught, but we must ensure that the loop condition is still properly bounded to avoid infinite loops or other edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while True:
+            if text[pos] not in _WS_CHARS:
+                break
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

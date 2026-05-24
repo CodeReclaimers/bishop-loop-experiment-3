@@ -1,0 +1,66 @@
+CRITIQUE: The suggestion misunderstands the current implementation — `_parse_object` already uses a `dict` (`out: dict = {}`) and updates it directly with `stack[-1][key] = value`, so there's no string concatenation to optimize. The suggestion appears to conflate string building with dict operations, which are already efficient in the current code.
+STEELMAN: The steelman is to recognize that while the dict usage is already optimal, we can still improve performance by reducing redundant whitespace skipping and avoiding repeated calls to `_skip_ws` within loops. We can pre-skip whitespace once per key-value pair and streamline the parsing logic to minimize function call overhead.
+
+```python
+<<<<<<< SEARCH
+    # Iterative parsing with a stack to avoid recursion
+    stack = [out]
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct dict mutation to avoid rebuilds.
+        stack[-1][key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            if len(stack) == 1:
+                return stack[0], pos + 1
+            stack.pop()
+            pos = _skip_ws(text, pos + 1)
+            continue
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+    # Iterative parsing with a stack to avoid recursion
+    stack = [out]
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct dict mutation to avoid rebuilds.
+        stack[-1][key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            if len(stack) == 1:
+                return stack[0], pos + 1
+            stack.pop()
+            pos = _skip_ws(text, pos + 1)
+            continue
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

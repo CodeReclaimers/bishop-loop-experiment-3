@@ -1,0 +1,89 @@
+CRITIQUE: The suggestion fails to account for the fact that JSON whitespace is not just simple space characters—it includes tabs, newlines, and carriage returns, and must be handled precisely at each parsing boundary. Replacing all whitespace with a single character would break the parser's ability to correctly identify where tokens begin and end, especially in cases like `{"key": "value"}` where the parser must distinguish between whitespace and actual structural delimiters. Additionally, the approach doesn't consider that the parser needs to maintain position tracking for error reporting, which would become ambiguous if all whitespace is collapsed.
+
+STEELMAN: A better approach would be to preprocess the input string to replace all sequences of whitespace with a single sentinel character (e.g., `'\x00'`) that is not a valid JSON character, then modify the parser to skip over this sentinel character instead of repeatedly checking individual whitespace characters. This maintains the correct parsing behavior while reducing the overhead of repeated whitespace checks, and can be implemented with a single regex substitution and minimal changes to the parser logic.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]+')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Preprocess: replace all whitespace with a sentinel character
+    text = _WS_PATTERN.sub('\x00', text)
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip over the sentinel whitespace character
+    while pos < len(text) and text[pos] == '\x00':
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

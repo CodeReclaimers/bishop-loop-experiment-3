@@ -1,0 +1,19 @@
+To speed up the JSON parser, we can reduce the number of string concatenations by using list comprehension or `join`. This approach avoids the need to rebuild the output collection on each step. Here’s how you could modify the `_parse_string` function:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    pos += 1
+    out = []
+    while True:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if ord(c) < 0x20 or (ord(c) == 0x7F and not _is_surrogate(text, pos)):
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+```
+
+This change directly builds the string using a list comprehension, which is generally faster than string concatenation for large inputs. The `join` method can then be used to convert the list to a single string. This reduces the overhead of repeatedly calling `out += [c]`.

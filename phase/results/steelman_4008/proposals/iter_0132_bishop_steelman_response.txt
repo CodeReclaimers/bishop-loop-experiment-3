@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text[pos:].lstrip()` would not work correctly because `lstrip()` removes ALL leading whitespace characters, but the parser needs to advance the position pointer by exactly the number of whitespace characters skipped, not just any arbitrary amount. Additionally, `lstrip()` is not necessarily faster than a manual loop for small amounts of whitespace, and it could introduce performance regressions in cases where only a few characters need skipping.
+STEELMAN: A better approach would be to use a hybrid method that checks for a few characters manually first, then falls back to `str.find()` or a more efficient bulk skip for larger whitespace blocks, while still maintaining precise position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning for small amounts of whitespace
+    # and fall back to efficient bulk skip for larger blocks
+    while pos < len(text):
+        c = text[pos]
+        if c not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

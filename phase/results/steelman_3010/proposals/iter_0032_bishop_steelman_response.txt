@@ -1,0 +1,55 @@
+CRITIQUE: The suggestion to replace the `all(c in _HEX_CHARS for c in s)` check with a set lookup like `s in _VALID_HEX4` is flawed because it doesn't account for the fact that `_VALID_HEX4` would need to contain all 65,536 possible 4-character hexadecimal strings (0000 to FFFF), which is infeasible in terms of memory and precomputation. Additionally, this approach would not handle the actual validation of Unicode code points correctly, especially for surrogate pairs, since it only checks if the hex string is valid, not whether it represents a valid Unicode scalar value or surrogate pair.
+
+STEELMAN: The steelman version of the suggestion is to precompute a set of valid 4-character hex strings that represent valid Unicode scalar values (excluding surrogate code points), and perform an O(1) lookup during Unicode escape processing. This avoids repeated character-by-character checks while still correctly validating that the hex string represents a valid Unicode scalar value. The key is to avoid including surrogate code points in the set, as they are not valid Unicode scalar values on their own.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed set of valid 4-character hex strings representing Unicode scalar values
+# (excluding surrogate code points 0xD800-0xDFFF)
+_VALID_HEX4 = frozenset(
+    format(i, '04x') for i in range(0x10000)
+    if not (0xD800 <= i <= 0xDFFF)
+)
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+```

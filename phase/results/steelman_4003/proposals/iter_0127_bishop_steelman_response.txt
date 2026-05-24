@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use a generator expression for parsing numbers is unclear and potentially harmful because it doesn't specify how the generator would be used in place of direct conversion, and replacing `int()` or `float()` with a generator expression would likely introduce overhead and complexity without performance gains. It also fails to address the actual bottleneck in number parsing, which is the regex matching and string-to-number conversion, not the choice between `int()` and `float()`.
+
+STEELMAN: The steelman is to optimize number parsing by precomputing whether a matched number string is an integer or float, and using `int()` or `float()` accordingly, avoiding unnecessary type checks or conversions, while preserving the existing regex-based number matching for correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Precompute if it's an integer or float to avoid overhead
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.find` with a translation table is unworkable because `str.translate` with a mapping to a sentinel character would require precomputing a full translation table for all ASCII characters, which is inefficient and doesn't align with the performance goal. Additionally, `str.find` would not correctly handle the case where whitespace characters are interspersed with non-whitespace content, as it would skip past all whitespace at once, potentially skipping past the end of the input or misaligning the parser's position.
+
+STEELMAN: A better approach is to use `str.translate` with a mapping that replaces all whitespace characters with a single sentinel character (e.g., `'\x00'`), then use `str.find` to locate the first non-sentinel character. This allows Python’s C implementation to efficiently skip large blocks of whitespace, while still preserving the correct position tracking for the parser.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for bulk whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to sentinel
+    trans_table = str.maketrans(_WS_CHARS, '\x00' * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    next_pos = translated.find('\x00')
+    if next_pos == -1:
+        # All remaining characters are non-whitespace
+        return len(text)
+    # Return original position adjusted by the offset
+    return pos + next_pos
+>>>>>>> REPLACE
+```

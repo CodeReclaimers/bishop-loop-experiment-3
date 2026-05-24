@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the explicit loop in `_skip_ws` with a regex span lookup would not work correctly because `_WS_RE.span(pos)` returns the span of the *first* match of the regex pattern starting at `pos`, which is just the whitespace sequence beginning at `pos`, not the position after that sequence. This would result in skipping only the first whitespace character instead of all leading whitespace. Additionally, the regex approach would be slower than the current O(k) loop in practice due to regex overhead, especially for small amounts of whitespace.
+
+STEELMAN: The steelman version would use the regex to efficiently skip whitespace by matching the pattern from the current position and advancing the index by the match length, rather than trying to use `.span()` incorrectly. This preserves the core idea of leveraging precompiled regex for performance while avoiding the pitfalls of incorrect usage.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

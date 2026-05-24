@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to precompute a `next_non_ws` array is flawed because it would require O(n) space and O(n) preprocessing time for every input, which is wasteful for small inputs or inputs with few whitespace characters. It also doesn't account for the fact that whitespace skipping is often short and localized, making the overhead of building such an array not worth it. Additionally, the approach assumes a fixed-size array, which breaks down with dynamic inputs.
+
+STEELMAN: A better approach is to compute the `next_non_ws` array lazily or on-demand for each input, or more practically, use a hybrid method that caches the result for repeated or long inputs, while still maintaining the O(1) lookup per call for the core optimization. This preserves the intent of avoiding per-character checks while being more efficient in practice.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute next_non_ws for the current text if not already done
+    if not hasattr(_skip_ws, 'next_non_ws') or _skip_ws._last_text is not text:
+        _skip_ws.next_non_ws = _build_next_non_ws(text)
+        _skip_ws._last_text = text
+    return _skip_ws.next_non_ws[pos]
+
+def _build_next_non_ws(text: str) -> list[int]:
+    n = len(text)
+    next_non_ws = [0] * n
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            if pos + 1 < n:
+                next_non_ws[pos] = next_non_ws[pos + 1]
+            else:
+                next_non_ws[pos] = n
+        else:
+            next_non_ws[pos] = pos
+        pos -= 1
+    # Adjust the array so that it points to the next non-whitespace character
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            if pos + 1 < n:
+                next_non_ws[pos] = next_non_ws[pos + 1]
+            else:
+                next_non_ws[pos] = n
+        else:
+            next_non_ws[pos] = pos
+        pos -= 1
+    return next_non_ws
+>>>>>>> REPLACE
+```

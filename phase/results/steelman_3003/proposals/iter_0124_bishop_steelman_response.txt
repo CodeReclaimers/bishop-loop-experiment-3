@@ -1,0 +1,19 @@
+CRITIQUE: The suggested approach using `text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))` is fundamentally flawed because it creates a generator expression that iterates through the entire remaining string to find the first non-whitespace character, which defeats the purpose of optimization. It also incorrectly uses `next()` on a generator that yields characters, not indices, and would fail with a TypeError. Additionally, this approach doesn't leverage the precomputed `_WS_CHARS` frozenset for O(1) lookup and instead resorts to Python-level iteration.
+
+STEELMAN: A better approach would use `text.find()` with a custom function that efficiently skips whitespace by leveraging the precomputed `_WS_CHARS` set, or more realistically, replace the loop with a direct `text.find()` call that searches for the first non-whitespace character, avoiding Python-level iteration while maintaining the O(1) lookup behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

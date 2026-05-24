@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find_first_not_of(' \t\n\r\f\v', pos)` is unworkable because Python strings don't have a `find_first_not_of` method — this is a C++ string method. Additionally, the proposed approach would not handle Unicode whitespace characters properly, since the standard whitespace set includes more than just the ASCII whitespace characters listed. This naive approach would break compatibility with valid JSON that contains Unicode whitespace.
+
+STEELMAN: The steelman version would replace the current `_skip_ws` implementation with a regex-based approach using `re.search` to find the first non-whitespace character, which preserves all standard whitespace handling including Unicode, leverages optimized C-level regex matching, and avoids the Python-level loop overhead while maintaining full compatibility.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

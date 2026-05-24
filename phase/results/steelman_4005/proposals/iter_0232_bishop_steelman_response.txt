@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `re.compile(r'\s*')` for whitespace skipping is problematic because `\s` matches Unicode whitespace characters beyond just space, tab, newline, and carriage return, which violates the JSON specification that only allows those four ASCII whitespace characters. Additionally, using a regex for this purpose would introduce overhead from regex engine interpretation and backtracking, negating any performance benefits. The lazy quantifier approach also doesn't align with the current implementation's direct character-by-character scanning strategy.
+
+STEELMAN: A better approach would be to refine the existing `_skip_ws` function to leverage the precomputed `_WS_CHARS` frozenset more efficiently, possibly by using a more optimized loop or by integrating a compiled regex that only matches the specific ASCII whitespace characters used in JSON, while still avoiding the overhead of full regex matching for each character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

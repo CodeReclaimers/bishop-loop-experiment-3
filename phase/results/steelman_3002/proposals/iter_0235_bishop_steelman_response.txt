@@ -1,0 +1,101 @@
+CRITIQUE: The suggestion references a `_skip_ws_with_table` function that does not exist in the provided code, making the optimization impossible to implement as described. Additionally, the suggestion fails to acknowledge that the current `_skip_ws` implementation already uses direct character comparisons instead of table lookups, so the proposed change would be redundant and potentially less readable.
+
+STEELMAN: The core idea is sound — inline whitespace skipping in hot paths like `_parse_object` and `_parse_array` can reduce function call overhead. However, since the current implementation already avoids table lookups in `_skip_ws`, the optimization should focus on reducing redundant calls to `_skip_ws` by inlining the logic where it's called most frequently, particularly within loops that parse object and array elements.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use dict.update() to avoid rebuilding the dict each iteration.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    # Inline whitespace skipping to avoid function call overhead
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        # Inline whitespace skipping
+        while pos < len(text):
+            c = text[pos]
+            if c in ' \t\n\r':
+                pos += 1
+            else:
+                break
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        # Inline whitespace skipping
+        while pos < len(text):
+            c = text[pos]
+            if c in ' \t\n\r':
+                pos += 1
+            else:
+                break
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        # Inline whitespace skipping
+        while pos < len(text):
+            c = text[pos]
+            if c in ' \t\n\r':
+                pos += 1
+            else:
+                break
+        value, pos = _parse_value(text, pos)
+        # Use dict.update() to avoid rebuilding the dict each iteration.
+        out[key] = value
+        # Inline whitespace skipping
+        while pos < len(text):
+            c = text[pos]
+            if c in ' \t\n\r':
+                pos += 1
+            else:
+                break
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

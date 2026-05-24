@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to replace the regex with `text.find(' \t\n\r', pos)` is flawed because `text.find()` returns the index of the *first* whitespace character, not all consecutive whitespace characters, so it would only skip one character instead of skipping all leading whitespace. Additionally, the proposed approach doesn't account for the fact that `text.find()` with a multi-character string is not supported in Python — it only accepts a single character or substring, and the current code needs to skip *multiple* consecutive whitespace characters.
+STEELMAN: A better approach is to implement a direct loop inside `_skip_ws` that checks each character one-by-one using a set lookup, which avoids regex overhead while correctly skipping all consecutive whitespace characters. This maintains the performance benefits of avoiding regex without introducing incorrect behavior.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

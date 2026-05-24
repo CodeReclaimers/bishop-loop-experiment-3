@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop would eliminate the function call overhead but introduces a major flaw: it removes the ability to handle the case where the input is exhausted during whitespace skipping, since the inlined loop would not check bounds before incrementing `pos`. Additionally, it would require duplicating the whitespace logic in multiple places, violating DRY principles and making the code harder to maintain.
+STEELMAN: The steelman is to inline the whitespace skipping logic directly into the calling functions, but preserve proper bounds checking and error handling, while still reducing the overhead of repeated function calls by inlining the core loop logic in a controlled way.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

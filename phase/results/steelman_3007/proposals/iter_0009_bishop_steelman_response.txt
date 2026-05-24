@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use a C-level `find_first_not_of` function is unworkable because Python strings don't have such a method — this would require a C extension or external library. Additionally, the proposed replacement doesn't account for the fact that the current `_skip_ws` function handles Unicode whitespace or custom whitespace sets, which are explicitly defined in `_WS_CHARS`. The suggestion also ignores that the performance benefit of avoiding Python loops is already achieved by using set membership checks instead of character-by-character iteration.
+
+STEELMAN: A better approach is to leverage Python's built-in `str.lstrip()` method or a compiled regex like `_WS_RE` to efficiently skip whitespace, which preserves the existing logic while improving performance. This maintains compatibility with the current whitespace definitions and avoids the need for C-level functions or external dependencies.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it creates a large string of all whitespace characters which is inefficient and doesn't handle the case where the next non-whitespace character is at position `pos` itself. Additionally, it assumes that `find` will be faster than a simple loop, which is not necessarily true for short whitespace runs, and could introduce overhead from string construction.
+STEELMAN: A better approach is to use `text.find()` to find the first non-whitespace character, but only when we expect a long run of whitespace. If `find` returns `pos` (meaning the current character is not whitespace), we can immediately return `pos`. Otherwise, we can use a loop for short runs or fall back to `find` with a more intelligent heuristic based on the input size or typical whitespace patterns.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    # but optimize for long runs of whitespace using find
+    if pos >= len(text):
+        return pos
+    # If current character is not whitespace, return immediately
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # For longer runs, use find to skip ahead
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # If find returns pos, then the character at pos is not whitespace
+    # which should not happen due to the check above, but just in case:
+    if next_non_ws == pos:
+        return pos
+    # Skip to the first non-whitespace character
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

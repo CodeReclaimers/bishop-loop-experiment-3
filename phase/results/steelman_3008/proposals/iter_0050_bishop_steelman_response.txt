@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace and digit character skipping is unworkable because `str.translate` is designed for character replacement, not for skipping/eliminating characters. Using it would require building a translation table that maps all whitespace and digit characters to a placeholder, which would then need to be post-processed to remove those placeholders — defeating the purpose of the optimization. Additionally, the current code uses set membership checks for specific character classes, and `str.translate` cannot be used to selectively skip characters in a stream without consuming them.
+
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace and digit characters to a single sentinel character (like `'\0'`), then use `str.translate` to perform a single pass over the string to mark all such characters. After translation, we can then iterate through the result to skip over the sentinel characters, effectively skipping all whitespace and digits in one pass. This preserves the performance benefit of avoiding Python loops while working within the constraints of `str.translate`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to skip whitespace in one pass
+    if pos >= len(text):
+        return pos
+    # Create translation table to mark whitespace chars with '\0'
+    trans_table = str.maketrans("".join(_WS_CHARS), "\0" * len(_WS_CHARS))
+    # Translate the rest of the string starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-\0 character
+    i = 0
+    while i < len(translated) and translated[i] == '\0':
+        i += 1
+    return pos + i
+>>>>>>> REPLACE
+```

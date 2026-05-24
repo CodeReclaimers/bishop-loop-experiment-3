@@ -1,0 +1,22 @@
+CRITIQUE: The suggested regex approach fails to handle the case where the input is all whitespace, because `re.search(r'\S', text[pos:])` would return `None` and cause an AttributeError when `.start()` is called. Additionally, it doesn't preserve the original behavior of skipping only the minimum required whitespace, which could break parsing logic that relies on precise position tracking. The regex also doesn't account for the fact that `_skip_ws` is used in multiple contexts where partial whitespace skipping is needed.
+
+STEELMAN: A better approach would be to use a compiled regex that finds the next non-whitespace character, but handle the edge case where no such character exists (i.e., end of string) by returning the length of the string. This preserves the original semantics of skipping only necessary whitespace while using regex for efficiency, and maintains proper position tracking throughout parsing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency, but handle end-of-string case
+    if pos >= len(text):
+        return pos
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

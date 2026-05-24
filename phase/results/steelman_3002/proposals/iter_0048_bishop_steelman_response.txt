@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace `c in ' \t\n\r'` with byte-code comparisons is flawed because it doesn't correctly handle the logic—comparing `c <= 0x20` and then excluding specific codes is incorrect and would skip valid whitespace like space (0x20) or tab (0x09) if not handled carefully. It also ignores that the original code works with Unicode strings, not bytes, so direct byte comparisons won't work without encoding conversion.
+
+STEELMAN: A better approach is to precompute a set of valid whitespace byte values (0x09, 0x0A, 0x0C, 0x0D, and 0x20) and use a fast lookup mechanism like `ord(c) in whitespace_set` or a direct byte comparison after ensuring the input is handled as bytes, while maintaining the same performance characteristics and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use a set of valid whitespace ordinals for fast lookup
+    _WHITESPACE_ORDS = frozenset((0x09, 0x0A, 0x0C, 0x0D, 0x20))  # tab, newline, form feed, carriage return, space
+    while pos < len(text):
+        c = text[pos]
+        if ord(c) in _WHITESPACE_ORDS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

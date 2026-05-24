@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use `str.translate` with a translation table would not work correctly because it would replace all whitespace characters with a single placeholder, losing the ability to accurately track the position after skipping whitespace. Additionally, it doesn't address the core issue that the parser needs to know where the next non-whitespace character is, not just skip over it blindly.
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace characters to a single sentinel character (like a space), then use `str.translate` to efficiently skip whitespace while preserving the original string for accurate position tracking. The key is to use `str.translate` only for the skipping operation and then manually advance the position pointer to the correct location.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table for efficient whitespace skipping
+    # Create a translation table that maps all whitespace characters to a single sentinel
+    # This allows us to skip whitespace in one C-level call
+    if pos >= len(text):
+        return pos
+    # Build translation table mapping all whitespace to a single sentinel
+    trans_table = str.maketrans({ch: " " for ch in _WS_CHARS})
+    # Translate the rest of the string starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find where the first non-sentinel character appears
+    new_pos = pos
+    for ch in translated:
+        if ch != " ":
+            break
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex match would break the parser's ability to track the correct position after skipping whitespace, because `match()` only returns the match object without updating the position pointer correctly in the context of a streaming parser. Additionally, it would introduce unnecessary overhead from regex compilation and matching for a simple operation that's already optimized with a direct set lookup.
+
+STEELMAN: A better approach is to use the regex `match()` to skip whitespace but still maintain the position tracking logic by using `match().end()` to advance the position, allowing the C-level regex engine to handle the skipping efficiently while preserving correct parsing state.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

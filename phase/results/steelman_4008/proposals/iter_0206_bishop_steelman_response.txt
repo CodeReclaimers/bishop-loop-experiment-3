@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to replace `WS_RE` with a hybrid `str.find`/character scanning approach is problematic because `str.find` would still require full string traversal to locate the next non-whitespace character, negating any benefit from avoiding regex overhead. Additionally, the approach doesn't address the core issue that whitespace skipping is called repeatedly and deeply in the parsing stack, where the performance bottleneck lies in the repeated scanning of small whitespace chunks rather than large blocks. The naive hybrid approach also introduces complexity without clear performance gains.
+
+STEELMAN: A better hybrid approach would use `str.find` to skip large blocks of whitespace efficiently, but only after a threshold is crossed, and fall back to direct character scanning for small skips. This avoids regex overhead while maintaining performance for typical JSON inputs with minimal whitespace. The key is to measure the skip size and apply the most efficient method dynamically.
+
+```python
+<<<<<<< SEARCH
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+=======
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: use str.find for large blocks, direct scan for small
+    # Threshold for switching to str.find
+    THRESHOLD = 16
+    if pos + THRESHOLD < len(text):
+        # Use str.find to skip large blocks of whitespace
+        next_non_ws = text.find('[^ \t\n\r]', pos)
+        if next_non_ws == -1:
+            return len(text)
+        return next_non_ws
+    else:
+        # Fall back to direct character scanning for small skips
+        while pos < len(text):
+            if text[pos] not in ' \t\n\r':
+                return pos
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

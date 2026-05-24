@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace the compiled regex with a simple while-loop checking specific whitespace byte codes (9, 10, 13) is flawed because it ignores that JSON whitespace includes space (ASCII 32), which is not covered by the proposed byte codes. Additionally, this approach would likely be slower than the existing regex due to repeated character comparisons in a tight loop, and it doesn't account for the performance benefits of regex's optimized engine for skipping large blocks of whitespace.
+
+STEELMAN: The steelman version of the suggestion is to eliminate the compiled regex and instead use a fast inlined character check for whitespace using a frozenset of all JSON whitespace characters (space, tab, line feed, carriage return), which maintains performance while being more accurate and avoiding regex overhead.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

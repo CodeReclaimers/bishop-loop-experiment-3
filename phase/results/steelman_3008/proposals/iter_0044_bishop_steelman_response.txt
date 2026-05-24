@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find(lambda c: c not in _WS_CHARS, pos)` is fundamentally flawed because `str.find()` does not accept a lambda function — it only accepts a substring or character. This would immediately cause a `TypeError` at runtime. Additionally, even if a workaround were found, the approach would be inefficient since `find()` would need to scan character-by-character for each position, negating the benefit of a single C-level jump.
+
+STEELMAN: A better approach is to use `str.find()` with a precomputed string of all whitespace characters, but in a way that avoids repeated membership checks. The idea is to find the first non-whitespace character by searching for the first occurrence of any character not in `_WS_CHARS`, which can be efficiently done by leveraging `str.find()` with a string of all whitespace characters, or by using `str.translate()` or `str.rstrip()` for performance. However, since the original code uses a while loop for simplicity and correctness, a more practical steelman would be to use `str.lstrip()` or a more optimized loop that still avoids Python-level set membership checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.lstrip to skip whitespace efficiently
+    # This avoids repeated set membership checks in a Python loop
+    stripped = text[pos:].lstrip()
+    return pos + (len(text) - len(stripped))
+>>>>>>> REPLACE
+```

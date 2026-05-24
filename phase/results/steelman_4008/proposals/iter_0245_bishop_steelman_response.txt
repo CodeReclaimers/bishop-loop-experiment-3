@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `str.find` with a sliding window is fundamentally flawed because `str.find` still needs to examine characters sequentially to find the next non-whitespace, making it no faster than the current per-character loop. Additionally, the "O(1) on average" claim is misleading since `str.find` is still O(n) in the worst case, and the sliding window approach doesn't address the core issue of inefficient whitespace handling in a recursive descent parser. The suggestion also ignores that the current `_skip_ws` function is already quite efficient for small inputs and only becomes a bottleneck in very large contiguous whitespace blocks.
+STEELMAN: A better approach would be to replace the character-by-character loop in `_skip_ws` with a single `str.find` call that scans for the first non-whitespace character, using a set of whitespace characters for fast lookup. This maintains the core idea of avoiding per-character iteration while being more efficient for large contiguous whitespace blocks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip large blocks of whitespace efficiently
+    whitespace_chars = ' \t\n\r'
+    next_non_ws = text.find(lambda c: c not in whitespace_chars, pos)
+    return next_non_ws if next_non_ws != -1 else len(text)
+>>>>>>> REPLACE
+```

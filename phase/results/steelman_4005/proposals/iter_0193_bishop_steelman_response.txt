@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a character-by-character loop is problematic because it fails to consider that the current implementation already uses an efficient O(1) lookup via `frozenset` membership checks. Reverting to a naive loop would eliminate the performance benefit of precomputed sets and could introduce redundant operations. Additionally, the suggestion doesn't account for the fact that the existing `_skip_ws` function is already optimized to avoid repeated bounds checking and uses a try/except pattern to prevent redundant conditionals.
+
+STEELMAN: The steelman version of the suggestion is to improve the existing `_skip_ws` function by making it even more efficient—perhaps by using a more optimized loop structure that minimizes bounds checking, or by leveraging the existing `frozenset` for membership checks while avoiding the overhead of regex. The core idea is to refine the current O(1) approach rather than abandon it, ensuring that whitespace skipping remains fast and robust.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized loop using precomputed set for O(1) membership checks
+    # Avoids repeated bounds checking by leveraging try/except
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

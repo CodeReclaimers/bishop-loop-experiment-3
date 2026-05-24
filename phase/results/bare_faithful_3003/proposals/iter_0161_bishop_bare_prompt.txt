@@ -1,0 +1,343 @@
+You are implementing an optimization idea suggested by another developer.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed lookup tables for performance
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+_UNICODE_SURROGATE_HIGH_START = 0xD800
+_UNICODE_SURROGATE_HIGH_END = 0xDBFF
+_UNICODE_SURROGATE_LOW_START = 0xDC00
+_UNICODE_SURROGATE_LOW_END = 0xDFFF
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos += 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos += 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc in _ESCAPE_MAP:
+                out.append(_ESCAPE_MAP[esc])
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if _UNICODE_SURROGATE_HIGH_START <= cp <= _UNICODE_SURROGATE_HIGH_END:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (_UNICODE_SURROGATE_LOW_START <= cp2 <= _UNICODE_SURROGATE_LOW_END):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - _UNICODE_SURROGATE_HIGH_START) << 10) + (cp2 - _UNICODE_SURROGATE_LOW_START)
+                    out.append(chr(cp))
+                    pos += 11
+                    continue
+                out.append(chr(cp))
+                pos += 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos += 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(ch in _HEX_CHARS for ch in s)
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+
+```
+
+The suggestion to implement:
+
+"""
+We need to suggest a change: replace per-call per-character whitespace skipping with a translation table or use regex? But need to keep correct. The issue: _skip_ws uses loop; could replace with a single translation table to remove whitespace early, but then need to track positions? Or use str.find to locate next non-ws? Or use built-in .lstrip? But that discards positions. Better: replace _skip_ws with a while loop is fine but we could use a precomputed table to skip whitespace without per-character checks? Actually _skip_ws is okay. The main bottleneck is repeated creation of out dict and string concatenation. Could replace out = dict(out); out[k] = v with direct dict assignment out[k]=v, but that's already. Hmm.
+
+We could replace the recursive parsing of numbers with a built-in float conversion after scanning digits? But numbers already parsed.
+
+Maybe replace _skip_ws with a single translation table for whitespace removal at top level, but need to keep position. Could use a simple while that uses while text[pos] in _WS_CHARS: pos+=1 is fine.
+
+Better: replace the per-call _skip_ws with a global translation table applied to the entire string, but maintain original positions using a map? Too complex.
+
+Simplest: replace the per-call whitespace skipping with a single call to str.find to locate next non-whitespace: pos = text.find(next_char, pos) where next_char is expected token. But we need to support multiple patterns.
+
+Probably the best change: replace the per-call _skip_ws with a translation table removal only at top level? But that loses positions.
+
+Better suggestion: replace the recursive _parse_value's repeated whitespace skipping with a single translation table applied to the input string, then parse without position tracking? That seems risky.
+
+Maybe the biggest speed is string concatenation for object/array building. Replace out = dict(out); out[k]=v with out[k]=v directly, and use list comprehension? But that's already minimal.
+
+Actually the biggest is _parse_number scanning digits with explicit loops; we could replace with built-in float conversion after extracting substring. But we already do that.
+
+I'll suggest: replace the per-call whitespace skipping function _skip_ws with a single translation operation that removes all whitespace at once, but then adjust position tracking using a precomputed whitespace offset array? Too heavy.
+
+Better: replace the per-call _skip_ws with a built-in string method .lstrip for the whole string at start, then parse without tracking position? No.
+
+Let's propose: replace the per-call _skip_ws with a translation table applied to the entire string at the beginning, producing a whitespace-stripped string, and then parse using original indices via a map? Too complex.
+
+Maybe the best: replace the per-call _skip_ws with a while loop that uses while pos < len(text) and text[pos] in _WS_CHARS: pos+=1 is fine; no change.
+
+Hmm.
+
+We need a specific change: replace the per-call whitespace skipping with a precomputed translation table for the whole string, but then use a simple index based on original string? Not feasible.
+
+Better: replace the per-call _skip_ws with a direct check using str.find to locate next non-whitespace character, e.g., pos = text.find('{', pos) etc., but that's what we do.
+
+I think the best is to replace the per-call _skip_ws with a single translation table for whitespace removal at the top level, but preserve original positions via a list of whitespace indices? Too complex.
+
+Given constraints, I'll suggest: replace the per-call whitespace skipping with a global translation table that strips all whitespace, then parse the stripped string, and adjust positions using a precomputed list of whitespace lengths. That's a change: at parse start, compute whitespace offset map, then use it to skip.
+
+But that's heavy.
+
+Maybe simpler: replace the per-call _skip_ws with a single call to str.find to locate next non-whitespace: pos = text.find('{', pos) etc. That's specific.
+
+I'll output: replace the per-call _skip_ws function with a single translation operation that removes all whitespace at once, and adjust position tracking using a precomputed list of whitespace lengths. But that's code.
+
+I'll output: replace the per-call whitespace-skipping logic with a precomputed translation table that strips whitespace, allowing the parser to operate on a whitespace‑free string and skip positions via a simple index, which avoids repeated Python‑level character checks. That's 2-3 sentences.
+
+Let's do: Replace the per-call `_skip_ws` with a global translation table that removes all whitespace, and maintain a parallel list of whitespace lengths to translate positions. This eliminates the per‑character loop in `_skip_ws` and reduces overhead. Also, keep position tracking by adding the stored offset each time.
+
+That's okay.
+"""
+
+Your task: produce one or more SEARCH/REPLACE blocks that implement EXACTLY
+this suggestion. Do not improve, substitute, combine with other ideas, or
+'fix' the suggestion. Edit only the code that needs to change to implement
+the suggestion — leave everything else alone.
+
+Use SEARCH/REPLACE blocks. Each block specifies an exact substring of the
+current file to find, and the substring to replace it with. The format is:
+
+    <<<<<<< SEARCH
+    <exact text copied from the current file, character-for-character>
+    =======
+    <replacement text>
+    >>>>>>> REPLACE
+
+Rules:
+  - The SEARCH text must match the current file EXACTLY (whitespace, case,
+    punctuation, quotes). Copy it verbatim from the source shown above.
+  - The SEARCH text must appear in the file exactly ONCE. If a function body
+    you want to change has duplicated lines, include enough surrounding lines
+    to make the match unique.
+  - Keep each block focused on one localized change. Use multiple blocks if
+    the suggestion requires edits in several places.
+  - You do not need line numbers. You do not need a unified-diff format.
+  - Wrap all SEARCH/REPLACE blocks in a single ```python ... ``` fenced block
+    so the harness can extract them.
+  - Do NOT output the full rewritten file. Do NOT output prose explanations.
+
+Example (your blocks must target the actual file shown above):
+
+```python
+<<<<<<< SEARCH
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+=======
+_DIGIT_CHARS = frozenset("0123456789")
+>>>>>>> REPLACE
+```

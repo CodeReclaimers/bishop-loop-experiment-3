@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use regex for number parsing is problematic because it doesn't address the core issue of parsing numbers efficiently — the current implementation already uses a regex pattern `_NUMBER_PATTERN` to match numbers, but then manually extracts the matched string and converts it using `int()` or `float()`. This approach still requires string manipulation and doesn't avoid the overhead of regex matching or the cost of string-to-number conversion. Additionally, regex-based number parsing may not be faster than direct parsing, especially for simple cases like integers, and could introduce performance regressions due to regex engine overhead.
+
+STEELMAN: A better approach would be to leverage the existing regex pattern to match the full number, then extract the matched substring and directly convert it to a number using `int()` or `float()` — which is already what the code does. However, we can optimize further by ensuring the regex is compiled once and reused efficiently, and by avoiding redundant checks or string operations during number parsing. The key is to maintain the existing regex-based approach but ensure it's as efficient as possible, using the matched substring directly without unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

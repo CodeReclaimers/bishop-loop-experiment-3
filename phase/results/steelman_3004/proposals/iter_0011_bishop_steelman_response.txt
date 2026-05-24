@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call is problematic because `re.search()` finds the *first* match, not the *longest* contiguous sequence of whitespace starting at the given position. This would skip only the first whitespace character instead of all leading whitespace. Additionally, the regex approach doesn't integrate cleanly with the existing parsing loop structure, which expects to advance the position incrementally and check for errors at each step.
+
+STEELMAN: A better approach is to use `re.match()` at the current position to skip all leading whitespace in one operation, while still maintaining the incremental parsing flow. This preserves the performance benefit of regex-based skipping but correctly handles the full contiguous sequence from the current position. The change should be made in `_skip_ws` to use `re.match()` and return the end position of the matched whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

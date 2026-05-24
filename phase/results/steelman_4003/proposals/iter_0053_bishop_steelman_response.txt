@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to use regex for parsing numbers is problematic because it ignores the fact that regex matching is slower than direct character-by-character parsing for simple cases like integers. It also fails to consider that the current implementation already uses a precompiled regex for number validation, which is already quite efficient. Additionally, regex-based parsing would add overhead from regex engine setup and backtracking that isn't needed for well-formed JSON numbers.
+
+STEELMAN: The steelman version of this suggestion is to leverage the existing precompiled regex pattern `_NUMBER_PATTERN` more effectively by using it to match and extract the full number string, then pass that to `int()` or `float()` for conversion, avoiding redundant parsing logic while keeping the performance benefits of regex for initial validation.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion using the matched string
+    try:
+        if "." in s or "e" in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

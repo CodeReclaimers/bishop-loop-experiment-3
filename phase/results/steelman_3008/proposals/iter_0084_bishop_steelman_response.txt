@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` is flawed because `str.find` only finds the first occurrence of a character, not the first character *not* in the set, so it can't directly skip over runs of whitespace. Additionally, `str.find` would need to be called repeatedly or with a custom predicate, which could be less efficient than the current approach for small whitespace runs.
+
+STEELMAN: A better approach would be to use `str.translate` with a translation table to map all whitespace characters to a single sentinel character, then use `str.find` to locate the first non-sentinel character. This allows skipping large whitespace regions in one operation while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace runs
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to a sentinel
+    trans_table = str.maketrans({ch: '\x00' for ch in _WS_CHARS})
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    new_pos = translated.find('\x00')
+    if new_pos == -1:
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

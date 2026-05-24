@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `text.find` is flawed because `text.find` only returns the index of the first occurrence of a character, not the first character not in a set. This approach would require repeatedly calling `find` for each whitespace character, which would be inefficient. Additionally, it doesn't account for the fact that `find` may not be faster than a simple loop for small whitespace runs, and it could break when dealing with very large contiguous whitespace sections due to potential performance cliffs in string search algorithms.
+
+STEELMAN: The steelman version of the suggestion would use a hybrid approach: for small whitespace runs (e.g., < 10 characters), continue using the current loop-based method for better cache locality and simplicity. For larger runs, use `text.find` to locate the first non-whitespace character, which leverages optimized C-level string search for large skips while maintaining correctness and performance across all input sizes.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: small runs with loop, large runs with find
+    if pos + 10 < len(text):
+        # For larger runs, use find to skip whitespace efficiently
+        first_non_ws = text.find(lambda c: c not in _WS_CHARS, pos)
+        return first_non_ws if first_non_ws != -1 else len(text)
+    else:
+        # For smaller runs, use the simple loop for better cache locality
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

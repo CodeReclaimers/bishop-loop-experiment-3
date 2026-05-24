@@ -1,0 +1,61 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace removal is problematic because it would eliminate all whitespace from the input string, making it impossible to parse JSON correctly — for example, distinguishing between `{"a":1}` and `{"a": 1}`. Additionally, `str.translate` is not suitable for handling escaped characters or maintaining the structure needed for parsing nested objects and arrays.
+
+STEELMAN: A better approach would be to use `str.translate` to pre-process the input string by removing whitespace only in a way that preserves the ability to parse JSON structure, such as by using a translation table that maps whitespace to a placeholder character, then carefully reconstructing the string or using a different strategy to skip whitespace without losing structural information.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

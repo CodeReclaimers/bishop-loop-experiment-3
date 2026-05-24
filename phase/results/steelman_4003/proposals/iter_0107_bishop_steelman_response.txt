@@ -1,0 +1,47 @@
+CRITIQUE: The suggestion to eliminate regex entirely for number parsing is problematic because it ignores the need for precise validation of JSON number format, which includes specific rules about leading zeros, exponent notation, and decimal points. Simply calling `int()` or `float()` would accept invalid inputs like `0123` (leading zero) or `1.2.3` (multiple decimals) that are not valid JSON numbers. It also doesn't address the performance bottleneck of parsing numbers character-by-character in a loop, which is the real issue.
+
+STEELMAN: The steelman version of the suggestion is to retain regex validation for number format correctness but optimize the parsing by using `int()` and `float()` directly on validated substrings, rather than relying on regex match groups. This preserves correctness while leveraging Python's optimized built-in conversion functions, which are faster than manual parsing of the matched string.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,50 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is flawed because `text.find` would need to be called repeatedly in a loop to skip multiple whitespace characters, defeating the purpose of the optimization. Additionally, `text.find` would not handle the case where the input is all whitespace correctly, potentially causing incorrect behavior or infinite loops. It also doesn't consider that `text.find` is not necessarily faster than a simple loop for small amounts of whitespace.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by using `text.find` to locate the first non-whitespace character, but only after ensuring that the current position is not already at a non-whitespace character. This avoids the per-character loop while maintaining correctness and performance, especially for large amounts of leading whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace in bulk, reducing loop overhead
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        # No space found, check for other whitespace chars
+        next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\r', pos)
+                if next_non_ws == -1:
+                    return pos  # No whitespace found, return current pos
+                else:
+                    # Found \r, check if it's part of our whitespace set
+                    if text[next_non_ws] in _WS_CHARS:
+                        return next_non_ws
+                    else:
+                        return pos
+            else:
+                if text[next_non_ws] in _WS_CHARS:
+                    return next_non_ws
+                else:
+                    return pos
+        else:
+            if text[next_non_ws] in _WS_CHARS:
+                return next_non_ws
+            else:
+                return pos
+    else:
+        if text[next_non_ws] in _WS_CHARS:
+            return next_non_ws
+        else:
+            return pos
+>>>>>>> REPLACE
+```

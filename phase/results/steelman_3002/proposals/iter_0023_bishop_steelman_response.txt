@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex match fails because `_WS_RE.match(text, pos).end()` would only match the first contiguous sequence of whitespace characters starting at `pos`, but it doesn't account for the fact that the current implementation skips over whitespace *and* handles potential errors or misalignment. Additionally, regex matching is not necessarily faster than a tight loop for simple character checks, especially when the loop is already optimized.
+
+STEELMAN: The steelman version of the suggestion would be to use `re.match(_WS_RE, text, pos).end()` to efficiently skip all leading whitespace, but we must ensure that the regex is properly compiled and that we handle edge cases like invalid inputs gracefully without sacrificing performance or correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

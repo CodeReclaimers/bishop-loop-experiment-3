@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace loop with `re.match()` is problematic because it would require the regex engine to process the entire input from the current position, potentially matching far more text than needed. This approach doesn't leverage the fact that whitespace is typically short and predictable, and would introduce regex compilation overhead for each call. Additionally, the regex would need to be recompiled on every call, negating any performance gains.
+
+STEELMAN: A better approach would be to precompile a regex that matches one or more whitespace characters, and use it to skip whitespace efficiently by matching from the current position. This avoids repeated loop overhead while maintaining the performance characteristics of the existing code, and the regex can be compiled once at module load time.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile the regex for skipping whitespace to avoid repeated compilation cost
+_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

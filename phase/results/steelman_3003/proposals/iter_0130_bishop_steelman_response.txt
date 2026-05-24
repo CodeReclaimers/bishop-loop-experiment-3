@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character loop with a regex match would fail because `_WS_RE.find` (or similar regex methods) would not advance the position correctly in all cases, especially when the input has no whitespace at all or when the regex engine's behavior conflicts with the expected sequential scanning. Additionally, the regex approach could be slower than the current O(1) lookup for small amounts of whitespace due to regex compilation and matching overhead.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with the precomputed regex to find the next non-whitespace character, but still process the matched portion incrementally to maintain performance while ensuring correctness. The key is to avoid the inner loop by leveraging regex for large whitespace sections but still handling the index updates correctly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large sections, fall back to frozenset for small ones
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

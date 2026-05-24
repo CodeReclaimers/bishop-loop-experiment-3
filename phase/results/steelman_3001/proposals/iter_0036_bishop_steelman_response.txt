@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to replace `out = out + [v]` with `out.append(v)` is actually correct in principle but the current code already uses `out.append(v)` in `_parse_array`, so the suggestion seems to misidentify the problem. The real issue in the current implementation is not list concatenation but rather the inefficient whitespace skipping and character-by-character number parsing, which are much more performance-critical.
+STEELMAN: The steelman version of this suggestion would be to acknowledge that while the current code does use `append()` and is already O(1) per operation, we can still optimize by pre-allocating the list size when the array length is known, or by using more efficient parsing techniques for numbers and whitespace handling, which would provide greater performance gains than just changing the list building method.
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Pre-allocate list size to reduce reallocations
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Pre-allocate list size to reduce reallocations
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

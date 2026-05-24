@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use a frozenset for whitespace checking is already implemented in the code via `_WS_CHARS = frozenset(" \t\n\r")`, so the suggestion doesn't add anything new. Additionally, the suggestion implies that the current `in` operator usage is a bottleneck, but the existing code already uses `text[pos] in _WS_CHARS` which is already O(1) due to the frozenset. The suggestion fails to recognize that the current implementation is already optimized for this operation.
+
+STEELMAN: The suggestion can be strengthened by recognizing that while `_WS_CHARS` is already a frozenset, the current `_skip_ws` function still uses a loop that checks `text[pos] in _WS_CHARS` character-by-character. A more efficient approach would be to use a regex-based skip function that leverages `_WS_PATTERN` to skip all consecutive whitespace at once, reducing the number of individual character checks and improving performance for large amounts of whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk skipping
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

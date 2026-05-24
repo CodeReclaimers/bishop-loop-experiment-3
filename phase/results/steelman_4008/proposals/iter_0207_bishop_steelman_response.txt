@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion to switch between `str.find` and direct character scanning based on string length is problematic because `str.find` has O(n) complexity and doesn't provide a meaningful performance benefit over a simple loop for small inputs. It also introduces complexity without clear gains, especially since the current `_skip_ws` function already avoids regex and uses a direct loop. The hybrid approach may cause performance degradation due to branch misprediction and overhead from conditional logic.
+STEELMAN: A better approach is to enhance the existing `_skip_ws` function to use a more efficient character scanning strategy, such as leveraging `str.find` only when a large block of whitespace is expected, and fall back to direct scanning for small or irregular whitespace patterns. This maintains the simplicity of the current approach while improving performance for large inputs by reducing the number of individual character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: direct scanning for small inputs, str.find for large
+    # Skip whitespace efficiently by using str.find when we expect large blocks
+    # but falling back to direct scanning for small or irregular inputs
+    if pos + 10 < len(text):  # Only use str.find if we have enough text
+        # Find the first non-whitespace character
+        next_non_ws = text.find(' ', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\r', pos)
+        if next_non_ws == -1:
+            return len(text)
+        return next_non_ws
+    else:
+        # Fall back to direct scanning for small inputs
+        while pos < len(text):
+            if text[pos] not in ' \t\n\r':
+                return pos
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

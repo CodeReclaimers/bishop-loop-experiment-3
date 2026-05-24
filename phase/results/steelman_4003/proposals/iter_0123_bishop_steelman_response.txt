@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to avoid regex for number parsing is misguided because the current implementation already uses regex validation to ensure the number format is correct before passing it to `int()`/`float()`. Removing the regex would eliminate format validation and lead to unhandled exceptions or incorrect parsing of malformed input. Additionally, the regex ensures we correctly identify the full number token, which `int()`/`float()` alone cannot do reliably without prior validation.
+
+STEELMAN: The steelman version of the suggestion is to keep the regex validation for format checking, but optimize the number conversion by using `int()` and `float()` directly on the matched substring, avoiding unnecessary string operations and leveraging Python's optimized built-in conversion functions.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

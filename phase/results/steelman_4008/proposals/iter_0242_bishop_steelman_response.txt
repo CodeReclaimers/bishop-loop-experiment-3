@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to use a hybrid regex/character scanning approach is problematic because it doesn't address the core issue that the current `_skip_ws` function already avoids regex entirely. The suggestion implies using regex for large whitespace segments, but the current implementation is already optimized to avoid regex overhead by using a direct loop. This hybrid approach would add complexity without clear performance gains, and the "fast path" logic would likely be slower due to branch misprediction and additional overhead.
+
+STEELMAN: The steelman version would optimize `_skip_ws` by implementing a fast path that scans large contiguous whitespace segments using a direct loop, falling back to character-by-character scanning only when needed, while still avoiding regex entirely to maintain performance benefits.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for large contiguous whitespace segments
+    while pos < len(text):
+        c = text[pos]
+        if c not in ' \t\n\r':
+            return pos
+        # Fast forward by 8 characters at a time if possible
+        pos += 1
+        if pos < len(text) and text[pos] in ' \t\n\r':
+            pos += 1
+            if pos < len(text) and text[pos] in ' \t\n\r':
+                pos += 1
+                if pos < len(text) and text[pos] in ' \t\n\r':
+                    pos += 1
+                    if pos < len(text) and text[pos] in ' \t\n\r':
+                        pos += 1
+                        if pos < len(text) and text[pos] in ' \t\n\r':
+                            pos += 1
+                            if pos < len(text) and text[pos] in ' \t\n\r':
+                                pos += 1
+                                if pos < len(text) and text[pos] in ' \t\n\r':
+                                    pos += 1
+                                    # Continue with normal scanning for remaining whitespace
+                                    while pos < len(text):
+                                        if text[pos] not in ' \t\n\r':
+                                            return pos
+                                        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

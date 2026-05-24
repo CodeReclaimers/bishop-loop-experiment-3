@@ -1,0 +1,81 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Replace regex with simple while-loop for whitespace skipping
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Binary search for the next non-whitespace character
+    whitespace_positions = []
+    for i, char in enumerate(text):
+        if char in ' \t\n\r':
+            whitespace_positions.append(i)
+    
+    # Binary search for the first whitespace position >= pos
+    left, right = 0, len(whitespace_positions) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if whitespace_positions[mid] < pos:
+            left = mid + 1
+        else:
+            right = mid - 1
+    
+    # Skip all whitespace characters starting from left
+    skip_pos = left
+    while skip_pos < len(whitespace_positions) and whitespace_positions[skip_pos] == pos:
+        pos = whitespace_positions[skip_pos] + 1
+        skip_pos += 1
+    
+    # Return the position after skipping whitespace
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+>>>>>>> REPLACE
+```
+
+Wait, I need to reconsider this. The suggestion wants to replace the linear scan with binary search, but I'm still doing a linear scan in the end. Let me re-read the suggestion more carefully.
+
+The suggestion says to pre-compute whitespace positions and then use binary search to find the next non-whitespace character. But looking at the code more carefully, the `_skip_ws` function is called many times and we don't want to precompute all whitespace positions every time. 
+
+Let me revise this to implement the idea properly:
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Replace regex with simple while-loop for whitespace skipping
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute whitespace positions for the entire text
+    if not hasattr(_skip_ws, 'whitespace_positions'):
+        whitespace_positions = []
+        for i, char in enumerate(text):
+            if char in ' \t\n\r':
+                whitespace_positions.append(i)
+        _skip_ws.whitespace_positions = whitespace_positions
+    
+    # Binary search for the first whitespace position >= pos
+    whitespace_positions = _skip_ws.whitespace_positions
+    left, right = 0, len(whitespace_positions) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if whitespace_positions[mid] < pos:
+            left = mid + 1
+        else:
+            right = mid - 1
+    
+    # Skip all whitespace characters starting from left
+    while left < len(whitespace_positions) and whitespace_positions[left] == pos:
+        pos = pos + 1
+        left += 1
+    
+    # Continue with normal skipping for non-whitespace
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+>>>>>>> REPLACE
+```

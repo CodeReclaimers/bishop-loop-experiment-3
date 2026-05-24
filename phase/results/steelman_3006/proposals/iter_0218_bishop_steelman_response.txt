@@ -1,0 +1,145 @@
+CRITIQUE: The suggestion to use bit-masks instead of hash sets for character membership is flawed because it assumes all characters can be represented in a single integer word, which isn't true for Unicode. Additionally, it fails to account for the fact that the character sets include non-ASCII characters like 'A' through 'F' for hex digits, which would require multiple bits or a more complex mapping. The approach also doesn't consider that modern CPUs have highly optimized hash table implementations and that the performance gain from bitwise operations might be negligible or even slower due to the overhead of bit manipulation.
+
+STEELMAN: The steelman version would use a lookup table approach with precomputed bitmasks for ASCII characters (0-127), where each bit represents whether a character is in the set. This allows for fast bitwise checks while maintaining correctness for all valid JSON characters. For non-ASCII characters, we can fall back to the original set-based approach or handle them specially. This preserves the performance benefits of bitwise operations where possible while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use bitmasks for O(1) membership checks
+_WS_CHARS = 0x00000000  # Space, tab, newline, carriage return
+_DIGIT_CHARS = 0x000003FF  # Digits 0-9
+_HEX_CHARS = 0x000003FF | 0x00000C00  # Digits 0-9 + letters a-f, A-F
+
+def _is_ws_char(c: str) -> bool:
+    if not c or ord(c) > 127:
+        return False
+    return bool(_WS_CHARS & (1 << ord(c)))
+
+def _is_digit_char(c: str) -> bool:
+    if not c or ord(c) > 127:
+        return False
+    return bool(_DIGIT_CHARS & (1 << ord(c)))
+
+def _is_hex_char(c: str) -> bool:
+    if not c or ord(c) > 127:
+        return False
+    return bool(_HEX_CHARS & (1 << ord(c)))
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with bitmask membership for performance
+    while pos < len(text) and _is_ws_char(text[pos]):
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not _is_hex_char(ch):
+            return False
+    return True
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif _is_digit_char(text[pos]):
+        while pos < n and _is_digit_char(text[pos]):
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or not _is_digit_char(text[pos]):
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and _is_digit_char(text[pos]):
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or not _is_digit_char(text[pos]):
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and _is_digit_char(text[pos]):
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

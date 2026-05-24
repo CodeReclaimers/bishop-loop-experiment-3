@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character `_skip_ws` loop with `text.find` is flawed because `find` only returns the position of the first non-whitespace character, not the end of a run of whitespace, so it wouldn't skip all whitespace in one go. Additionally, replacing manual digit scanning with `int/float` conversion would break handling of malformed numbers like "123abc" or "1.2.3", which the current code correctly rejects.
+
+STEELMAN: The steelman is to optimize `_skip_ws` by using `text.find` to locate the first non-whitespace character, but still ensure the full whitespace run is skipped by advancing the position correctly. For `_parse_number`, we should extract the numeric substring and use `int()`/`float()` with proper error handling to catch malformed inputs, preserving correctness while gaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip runs of whitespace in one C-level operation
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

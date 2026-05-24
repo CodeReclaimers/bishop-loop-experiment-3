@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use a precompiled regex for skipping whitespace is unworkable because it would require matching one or more whitespace characters, which contradicts the existing `_skip_ws` function's purpose of advancing through whitespace one character at a time. Additionally, the regex approach would be slower than the current O(1) set membership testing, as regex engines are not optimized for simple character class matching and would introduce overhead from regex compilation and state management.
+
+STEELMAN: A better approach is to precompile a regex that matches the longest possible sequence of whitespace characters starting at a given position, and use it to advance the parser's position efficiently. This preserves the core idea of leveraging regex optimization while maintaining correctness by still advancing the parser position correctly and avoiding repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile regex for skipping whitespace to avoid repeated compilation cost
+_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

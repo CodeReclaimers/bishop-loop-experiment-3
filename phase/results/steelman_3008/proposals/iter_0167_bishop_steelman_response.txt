@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `str.translate` with `str.find` won't work because `str.translate` removes characters rather than skipping them, so the original text structure is lost and you can't reliably find the next non-whitespace character after translation. Additionally, building a translation table for whitespace characters would require creating a mapping that deletes all whitespace, which doesn't help with locating the next non-whitespace character efficiently.
+STEELMAN: A better approach would be to use `str.translate` to replace all whitespace with a single sentinel character (like `'\0'`), then use `str.find` to locate the first non-sentinel character. This allows skipping whitespace in a single pass while preserving the original string structure for later parsing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with sentinel character and str.find for O(n) whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table that maps all whitespace to a sentinel character
+    trans_table = str.maketrans(_WS_CHARS, '\0' * len(_WS_CHARS))
+    # Translate the substring starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    next_non_ws = translated.find('\0')
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

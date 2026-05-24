@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` only returns the first occurrence of any whitespace character, not the position after a contiguous run of whitespace. This would still require character-by-character processing to skip the full whitespace sequence. Additionally, `find()` is not guaranteed to be faster than a while loop for short whitespace runs, and it could be slower due to string construction overhead.
+STEELMAN: A better approach would be to use `str.translate()` and `str.maketrans()` to efficiently replace all whitespace characters with a sentinel character, then use `str.find()` to locate the first non-sentinel character. This allows skipping entire whitespace chunks in one operation while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with a sentinel
+    trans_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    new_pos = translated.find(" ")
+    if new_pos == -1:
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

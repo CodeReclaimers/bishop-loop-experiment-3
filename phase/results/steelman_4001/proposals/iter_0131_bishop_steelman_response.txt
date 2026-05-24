@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to use a regex for whitespace skipping would be suboptimal because it introduces regex compilation overhead and doesn't actually eliminate the per-character loop in the main parsing logic. Additionally, regex matching for whitespace may not be faster than the existing O(1) set membership checks, especially since whitespace skipping is a frequent operation. The approach also risks making the parser less predictable in performance due to regex engine behavior.
+
+STEELMAN: A better approach would be to precompile a regex that matches one or more consecutive whitespace characters and use it to skip whitespace in bulk, while still maintaining the existing O(1) lookup for individual character checks. This would reduce the number of iterations in the skip loop without sacrificing performance or correctness.
+
+```python
+<<<<<<< SEARCH
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_WS_RE = re.compile(r'[ \t\n\r]+')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    # Use regex to skip multiple whitespace characters at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

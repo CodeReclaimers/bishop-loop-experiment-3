@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to use a pre-computed mask array for whitespace checking is unworkable because Unicode has over 1.1 million code points, making a full boolean array impractical in terms of memory usage and initialization time. Additionally, the approach fails to account for the fact that the current set-based lookup is already highly optimized and the performance bottleneck is likely elsewhere in the parsing logic.
+STEELMAN: A practical steelman would use a smaller, optimized lookup table that only covers the ASCII range (0-127), since all whitespace characters in JSON are ASCII. This maintains O(1) lookup while keeping memory usage reasonable and avoiding the overhead of set lookups.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Pre-computed ASCII mask for whitespace characters (0-127)
+_WS_MASK = [False] * 128
+for char in _WS_CHARS:
+    _WS_MASK[ord(char)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with pre-computed ASCII mask for performance
+    while pos < len(text) and _WS_MASK[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

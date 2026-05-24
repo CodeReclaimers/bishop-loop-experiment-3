@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a single regex match is flawed because `_WS_PATTERN.find(text, pos)` only finds the *start* of a whitespace sequence, not its end, and would incorrectly advance the position by the length of the matched whitespace rather than the number of whitespace characters. Additionally, it doesn't handle the case where the regex matches zero characters (e.g., at the end of the string) and would not integrate properly with the existing parsing logic.
+
+STEELMAN: A better approach is to use `re.match` or `re.search` with the precompiled pattern to skip all whitespace at once, but correctly compute the new position as the end of the match. This preserves the intent of using regex for efficiency while ensuring correctness by advancing the position by the matched length.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

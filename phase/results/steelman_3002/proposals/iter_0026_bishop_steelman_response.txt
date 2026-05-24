@@ -1,0 +1,27 @@
+CRITIQUE: The suggested implementation has several issues: first, it uses `ord(text[pos]) <= 31` which incorrectly includes all control characters (0-31) rather than just whitespace, and then excludes only tab (9), newline (10), and carriage return (13). This would skip non-whitespace control characters like null (0), form feed (12), etc. Second, it fails to account for the fact that `ord(' ')` is 32, so the condition `ord(text[pos]) <= 31` excludes space, which is actually a valid whitespace character in JSON. This would cause the parser to misinterpret input.
+STEELMAN: The steelman version should correctly identify JSON whitespace characters (space, tab, newline, carriage return) using direct ordinal comparisons without set lookups. It should check for `ord(text[pos]) == 32 or ord(text[pos]) in (9, 10, 13)` or equivalently, `ord(text[pos]) in (9, 10, 13, 32)` to ensure only valid whitespace is skipped.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        # ord(' ') == 32, ord('\t') == 9, ord('\n') == 10, ord('\r') == 13
+        if ord(c) == 32 or ord(c) in (9, 10, 13):
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

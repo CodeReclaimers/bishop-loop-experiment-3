@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex-based approach is flawed because it doesn't address the core performance issue—`_skip_ws` is called repeatedly at every parsing level, and regex matching has overhead that can be slower than simple loop unrolling. Additionally, the proposed regex pattern `r'^[ \t\n\r]*'` would only match at the start of a string, not within the middle of text, making it unsuitable for skipping whitespace in the middle of input. This approach also introduces regex compilation cost and doesn't leverage the existing optimized character set lookups.
+
+STEELMAN: A better approach would be to precompile a regex that matches one or more whitespace characters anywhere in the text, not just at the beginning. This regex could be used in a loop to skip multiple whitespace characters at once, replacing the character-by-character loop while still being efficient and correct. The regex should match the full set of whitespace characters and be reused across calls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompiled regex to skip one or more whitespace characters
+    global _WS_RE
+    try:
+        _WS_RE
+    except NameError:
+        _WS_RE = re.compile(r'[ \t\n\r]+')
+    
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

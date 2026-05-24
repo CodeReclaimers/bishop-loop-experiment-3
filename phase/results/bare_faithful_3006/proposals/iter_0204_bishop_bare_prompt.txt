@@ -1,0 +1,373 @@
+You are implementing an optimization idea suggested by another developer.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a single find call to jump directly to the next non-whitespace character
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = {}
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out = []
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos += 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\":
+            pos += 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos += 11
+                    continue
+                out.append(chr(cp))
+                pos += 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos += 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+
+```
+
+The suggestion to implement:
+
+"""
+We are given a JSON parser and several rejected optimizations. The key issue in the rejections is that the parser sometimes fails to handle strings correctly, particularly with escape sequences and control characters.
+
+The most common rejection is about "unexpected end of input" on strings like '"J"' or '"C5Jau2R": -689.041, which suggests that the parser is not correctly handling the end of the string when there is a string value.
+
+Looking at the code, the `_parse_value` function for strings uses a loop that reads characters and handles escapes. The problem in the rejected attempts is that the `_skip_ws` function for strings might be causing issues? But note: the string parsing is done in `_parse_string` which is not shown in the excerpts.
+
+However, note that the rejection says: "unexpected end of input on '"J"'" meaning that after reading the string quote, the next character is 'J' and then the string ends. The parser should read the whole string and then the closing quote.
+
+But the issue might be that the `_skip_ws` function is being used in the string parsing? Actually, the string parsing in `_parse_string` (which is not in the excerpts) is responsible for reading the string.
+
+Wait, the excerpts show the string parsing part:
+
+```
+        if c == '"':
+            return _parse_string(text, pos)
+```
+
+and then later in `_parse_string` (which is not in the excerpts) we have:
+
+```
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                ... 
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos += 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+```
+
+The problem in the rejections is that the parser is raising "unexpected end of input" when it should be at the closing quote. But note: the function `_parse_value` returns the value and the position after the closing quote. So the issue might be that the string parser is not correctly advancing to the closing quote.
+
+However, the rejected attempts (like the ones that failed) might have been due to a different issue: the string parser might be too slow or has a bug.
+
+But the task is to suggest a specific change that is faster and correct.
+
+Looking at the code, the main performance issue is that the string parser does a lot of work per character, and the escape sequences are handled with conditionals. However, the most expensive part might be the `_is_hex4` function which is called for each escape. But note: the `find` in `_skip_ws` is efficient.
+
+But the rejections are about correctness, not performance. We are to fix correctness to get performance.
+
+Wait, the problem says: "to make it faster while keeping it correct". So we need a change that fixes a correctness issue that was causing the parser to fail (which then allowed a performance improvement) without introducing new errors.
+
+The most common failure is when the parser encounters a string that ends with a control character (like '\n') and the string is not properly closed. The error is "unescaped control character at {pos}" which is raised by the string parser. But the rejection says "unexpected end of input", which is a different error.
+
+Actually, the error "unexpected end of input" is raised in `_parse_value` when it doesn't find a closing quote. So the string parser must return the position at the closing quote, and then the outer `_parse_value` moves to the next character.
+
+But if the string parser fails to read the closing quote, it would be at the end of the string and then the outer function would see no more input and raise "unexpected end of input".
+
+So the problem is that the string parser is not correctly reading the closing quote? Actually, the string parser is supposed to read until the next quote. But in the code, the string parser (which is not shown) must be designed to return the position of the closing quote.
+
+However, the rejections mention that the error is raised at the closing quote position. So the issue is that the string parser is not advancing to the closing quote? Or it is advancing too far?
+
+But the rejections are about "unexpected end of input", meaning the parser thinks the string ended without the closing quote.
+
+The current code for string parsing (in the full function) does:
+
+```
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+```
+"""
+
+Your task: produce one or more SEARCH/REPLACE blocks that implement EXACTLY
+this suggestion. Do not improve, substitute, combine with other ideas, or
+'fix' the suggestion. Edit only the code that needs to change to implement
+the suggestion — leave everything else alone.
+
+Use SEARCH/REPLACE blocks. Each block specifies an exact substring of the
+current file to find, and the substring to replace it with. The format is:
+
+    <<<<<<< SEARCH
+    <exact text copied from the current file, character-for-character>
+    =======
+    <replacement text>
+    >>>>>>> REPLACE
+
+Rules:
+  - The SEARCH text must match the current file EXACTLY (whitespace, case,
+    punctuation, quotes). Copy it verbatim from the source shown above.
+  - The SEARCH text must appear in the file exactly ONCE. If a function body
+    you want to change has duplicated lines, include enough surrounding lines
+    to make the match unique.
+  - Keep each block focused on one localized change. Use multiple blocks if
+    the suggestion requires edits in several places.
+  - You do not need line numbers. You do not need a unified-diff format.
+  - Wrap all SEARCH/REPLACE blocks in a single ```python ... ``` fenced block
+    so the harness can extract them.
+  - Do NOT output the full rewritten file. Do NOT output prose explanations.
+
+Example (your blocks must target the actual file shown above):
+
+```python
+<<<<<<< SEARCH
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+=======
+_DIGIT_CHARS = frozenset("0123456789")
+>>>>>>> REPLACE
+```

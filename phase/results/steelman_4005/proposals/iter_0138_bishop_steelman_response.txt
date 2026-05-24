@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to rely on IndexError for bounds checking is problematic because it converts explicit bounds checks into implicit exceptions, which can severely degrade performance due to exception overhead. It also makes the code harder to reason about and debug, since the control flow becomes less explicit. Additionally, this approach doesn't address the core issue of redundant bounds checking in a clean way and could introduce subtle bugs if not handled carefully.
+
+STEELMAN: The steelman version of the suggestion is to optimize loops by reducing redundant bounds checks in a controlled way—specifically, by precomputing the length once and using that to avoid repeated calls to `len()` and bounds checks in tight loops, while still maintaining explicit control flow and avoiding exceptions for control flow.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by precomputing the length and using it to avoid repeated len() calls
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

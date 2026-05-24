@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `str.find` for large blocks of whitespace is unworkable because `str.find` is not inherently faster than character-by-character scanning for small skips, and it would require complex logic to detect when to switch between methods. It also doesn't address the core issue of redundant whitespace handling at every recursive level, which dominates performance. The fallback to character-by-character scanning for shorter strings is naive since the current implementation already does this, and the hybrid approach adds unnecessary complexity without clear performance gains.
+
+STEELMAN: A better approach is to optimize `_skip_ws` by using a hybrid method that leverages `str.find` to skip large contiguous blocks of whitespace (e.g., using `text.find(' \t\n\r', pos)`), but only when the block is sufficiently large (say, > 10 characters), and fall back to the current character-by-character scanning for smaller blocks or when the next non-whitespace character is found quickly. This preserves the existing structure while reducing overhead in common cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: use str.find for large blocks of whitespace
+    # and character-by-character scanning for small skips
+    while pos < len(text):
+        # Skip large blocks efficiently
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            # No more whitespace, return end of string
+            return len(text)
+        if next_non_ws > pos:
+            # Skip the whitespace
+            pos = next_non_ws
+        # Check if we found a non-whitespace character
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

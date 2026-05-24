@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple loop using `_WS_CHARS` is flawed because it doesn't address the actual performance bottleneck — the repeated membership checks in a tight loop. While it avoids regex compilation, it still performs O(n) work per whitespace sequence, which is inefficient for large amounts of whitespace. The suggestion also ignores that the current implementation already uses a frozenset for O(1) lookups, so the proposed change would not improve performance and could even regress it due to less efficient loop control.
+
+STEELMAN: The steelman version would retain the core idea of avoiding regex compilation and function call overhead, but it should leverage the existing precomputed `_WS_CHARS` frozenset in a tight loop while ensuring the loop terminates efficiently without redundant checks. It should also consider using a more efficient forward scanning approach that can skip multiple whitespace characters at once, such as using `str.find()` or a more optimized skip mechanism that minimizes the number of individual character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using the precomputed frozenset for O(1) lookups
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

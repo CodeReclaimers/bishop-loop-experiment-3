@@ -1,0 +1,63 @@
+CRITIQUE: The suggestion to use `str.translate` with a translation table mapping whitespace to nulls is flawed because it would require reconstructing the string after translation, which negates performance gains. Additionally, `str.translate` is not suitable for skipping characters in a stream; it's designed for character replacement, not position advancement. It also fails to consider that the whitespace skipping is part of a streaming parser that needs to return the new position, not a modified string.
+
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace characters to a single placeholder character (like space), then use `str.translate` to efficiently skip leading whitespace by finding the first non-placeholder character. This still avoids Python loops but maintains the correct position tracking by leveraging `str.find` on the translated string.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed translation table for whitespace skipping
+# Maps all whitespace chars to a single placeholder (space)
+_WS_TRANSLATE_TABLE = str.maketrans({char: ' ' for char in _WS_CHARS})
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for efficient whitespace skipping
+    # This avoids Python loops and regex overhead
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    new_pos = pos + len(translated) - len(translated.lstrip(' '))
+    return new_pos
+>>>>>>> REPLACE
+```

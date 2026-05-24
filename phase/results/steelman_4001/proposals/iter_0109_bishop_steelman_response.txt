@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace `re.match` with `re.scan` or character-by-character scanning is unworkable because `re.scan` doesn't exist in Python's `re` module; the correct function is `re.finditer` or `re.findall`, which still involve regex overhead. Additionally, manually scanning digits and building numbers character-by-character would likely be slower than the optimized built-in `float()`/`int()` conversion, especially without proper optimization like using `int()`'s built-in string parsing or lookup tables.
+STEELMAN: The steelman is to optimize number parsing by using a hybrid approach: first identify the number token with a minimal regex that matches the structure (e.g., optional sign, digits, decimal point, exponent), then use Python's built-in `int()` or `float()` conversion for the actual parsing, which is faster than character-by-character parsing due to C-level optimizations in the standard library.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

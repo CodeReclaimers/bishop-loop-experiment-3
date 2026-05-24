@@ -1,0 +1,111 @@
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    
+    # Stack-based parsing
+    stack = [out]
+    key = None
+    expect_key = True
+    
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        
+        c = text[pos]
+        if expect_key and c == '"':
+            key, pos = _parse_string(text, pos)
+            expect_key = False
+        elif not expect_key and c == ':':
+            pos = pos + 1
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            stack[-1][key] = value
+            expect_key = True
+        elif expect_key and c == '}':
+            return stack[-1], pos + 1
+        elif not expect_key and c == ',':
+            pos = pos + 1
+        elif expect_key and c == ',':
+            pos = pos + 1
+        elif expect_key and c == '}':
+            return stack[-1], pos + 1
+        elif not expect_key and c == '}':
+            # Pop from stack
+            if len(stack) > 1:
+                stack.pop()
+                expect_key = False
+            else:
+                return stack[-1], pos + 1
+        elif not expect_key and c == '[':
+            # Handle nested array
+            arr, pos = _parse_array(text, pos)
+            stack[-1][key] = arr
+            expect_key = True
+        elif not expect_key and c == '{':
+            # Handle nested object
+            obj, pos = _parse_object(text, pos)
+            stack[-1][key] = obj
+            expect_key = True
+        else:
+            # Handle value
+            if c == '[':
+                arr, pos = _parse_array(text, pos)
+                stack[-1][key] = arr
+            elif c == '{':
+                obj, pos = _parse_object(text, pos)
+                stack[-1][key] = obj
+            else:
+                value, pos = _parse_value(text, pos)
+                stack[-1][key] = value
+            expect_key = True
+        
+        # Handle stack management for nested objects
+        if pos < len(text) and text[pos] == '{':
+            stack.append({})
+            expect_key = True
+        elif pos < len(text) and text[pos] == '}':
+            if len(stack) > 1:
+                stack.pop()
+            else:
+                return stack[-1], pos + 1
+>>>>>>> REPLACE
+```

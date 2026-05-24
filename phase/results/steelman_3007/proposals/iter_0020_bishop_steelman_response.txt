@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion fails to account for the fact that `re.match()` only matches from the beginning of the string and doesn't advance the position correctly when used in a loop. Additionally, it doesn't consider that the regex engine would still need to process each character in the whitespace block, so there's no actual O(1) work per block. Finally, the proposed use of `len(_WS_RE.match(text[pos:]))` would not correctly compute the new position since `match()` returns a match object, not the length.
+
+STEELMAN: A better approach would be to use `re.match()` to find the longest contiguous whitespace prefix starting at `pos`, then advance `pos` by the length of the match. This leverages the fast C-level regex engine while correctly updating the position. The key is to use `match().end()` to get the new position, not `len()`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) work per block
+    match = _WS_RE.match(text[pos:])
+    if match:
+        return pos + match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to eliminate `_WS_PATTERN` is flawed because it ignores the fact that `_skip_ws` is called in multiple places throughout the parser, and removing the regex would require rewriting all those call sites to use the frozenset-based approach. Additionally, the current implementation of `_skip_ws` only skips one whitespace character at a time, which is inefficient for large amounts of consecutive whitespace. This naive removal would likely degrade performance in cases with significant whitespace.
+
+STEELMAN: The steelman is to remove the unused `_WS_PATTERN` and its compiled regex, but also improve `_skip_ws` to efficiently skip multiple consecutive whitespace characters using the frozenset, thereby eliminating the regex overhead while maintaining performance gains from the optimized membership checks.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

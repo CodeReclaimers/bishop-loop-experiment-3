@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to optimize `_skip_ws` with a single loop is naive because it fails to address the core performance bottleneck: the repeated membership checks against `_WS_CHARS` in a tight loop. Additionally, it doesn't consider that the current implementation already uses an efficient inline while loop, and any optimization must be benchmarked to ensure it actually improves performance rather than degrading it due to unnecessary complexity or branch misprediction.
+
+STEELMAN: The strongest version of the suggestion would be to replace the current `_skip_ws` implementation with a more efficient approach using `str.find` or `str.translate` to skip large chunks of whitespace at once, or to use a compiled regex for skipping whitespace, which could significantly reduce the number of individual character comparisons and improve cache locality.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a compiled regex for efficient whitespace skipping
+    import re
+    _WS_PATTERN = re.compile(r'^\s*')
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

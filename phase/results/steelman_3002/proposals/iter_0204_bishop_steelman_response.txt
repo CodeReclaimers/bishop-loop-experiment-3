@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace the regex with a direct loop is flawed because it ignores the fact that `_skip_ws` is called repeatedly in tight parsing loops, and the current implementation using `re.compile(r'\s*')` is not actually used in `_skip_ws` — that function uses a manual character-by-character loop already. The suggestion would result in a redundant change that doesn't address any real performance bottleneck.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by replacing its current manual loop with a more efficient character-by-character check that avoids redundant conditionals and uses a frozenset for constant-time membership testing, aligning with the performance goals of the existing codebase.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use a 256-element lookup table assumes all characters are ASCII, but JSON strings may contain Unicode characters with code points above 127, making the table indexing invalid. Additionally, it fails to consider that the performance benefit of avoiding hash lookups is minimal for small sets like `_WS_CHARS`, and the memory overhead of a 256-byte table is not justified. It also ignores that Python's `set` membership tests are already highly optimized and likely faster than table indexing for such small data structures.
+STEELMAN: The steelman version would use a precomputed 256-element boolean array indexed by Unicode code point for each character class, ensuring correctness with Unicode support by using `ord(c)` for indexing, and only applying this optimization where it provides a measurable performance benefit, such as in tight loops like `_skip_ws`.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precomputed lookup tables for performance
+_WS_TABLE = [False] * 256
+for ch in _WS_CHARS:
+    _WS_TABLE[ord(ch)] = True
+
+_DIGIT_TABLE = [False] * 256
+for ch in _DIGIT_CHARS:
+    _DIGIT_TABLE[ord(ch)] = True
+
+_HEX_TABLE = [False] * 256
+for ch in _HEX_CHARS:
+    _HEX_TABLE[ord(ch)] = True
+>>>>>>> REPLACE
+```

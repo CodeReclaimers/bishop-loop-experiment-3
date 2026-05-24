@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.translate` on the entire remaining string is flawed because it would skip all whitespace characters, not just the ones defined in `_WS_CHARS`, and would not preserve the incremental parsing behavior needed for error reporting. Additionally, it doesn't account for the fact that `str.translate` is not necessarily faster than a simple loop for small inputs, and the proposed method of calculating `pos` afterward is overly complex and error-prone.
+
+STEELMAN: A better approach would be to use a precomputed translation table that maps only the whitespace characters to a placeholder (e.g., `None`), then use `str.translate` to efficiently skip leading whitespace while still maintaining correctness and performance. The position can be calculated by counting the number of characters removed from the beginning of the translated string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table to efficiently skip whitespace
+    # Create a translation table that maps whitespace characters to None (removes them)
+    trans_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Skip leading whitespace by translating and counting
+    remaining = text[pos:]
+    translated = remaining.translate(trans_table)
+    return pos + len(remaining) - len(translated)
+>>>>>>> REPLACE
+```

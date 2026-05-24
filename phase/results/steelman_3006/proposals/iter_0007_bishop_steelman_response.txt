@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace substring slicing with character-by-character loops would introduce significant complexity and potential bugs, especially in `_parse_bool` where it's unclear how to properly advance the index without risking off-by-one errors or incorrect parsing of overlapping literals. In `_parse_number`, streaming digits directly while building the result would complicate the logic and could break existing behavior for number validation and error reporting.
+
+STEELMAN: A better approach is to use character-by-character checking with careful index management in `_parse_bool` to avoid string slicing, and to collect digits into a buffer while parsing numbers in `_parse_number`, only converting to float/int at the end. This preserves correctness while reducing allocations and avoids the naive loop-based approach that could introduce subtle bugs.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    # Check 'true'
+    if pos + 3 < len(text) and text[pos] == 't' and text[pos+1] == 'r' and text[pos+2] == 'u' and text[pos+3] == 'e':
+        return True, pos + 4
+    # Check 'false'
+    if pos + 4 < len(text) and text[pos] == 'f' and text[pos+1] == 'a' and text[pos+2] == 'l' and text[pos+3] == 's' and text[pos+4] == 'e':
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+>>>>>>> REPLACE
+```

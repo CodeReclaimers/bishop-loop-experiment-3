@@ -1,0 +1,146 @@
+CRITIQUE: The suggestion to remove all whitespace with a regex substitution before parsing is fundamentally flawed because it would break the JSON parser's ability to correctly identify token boundaries. For example, `"123"` and `"456"` would become `"123456"` making it impossible to distinguish where one number ends and another begins. Additionally, this approach would not handle the case where whitespace appears inside strings or escape sequences, which would corrupt the parsing logic.
+STEELMAN: A better approach is to precompute a regex that matches and removes whitespace only at the top level of the document, not within strings or escape sequences. This can be achieved by using a regex that skips over quoted strings and escape sequences, allowing only whitespace outside of them to be removed. This preserves token boundaries while still eliminating runtime whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance. Key optimizations include:
+- Using regex for whitespace skipping
+- Precomputing digit and whitespace character sets for O(1) lookup
+- Avoiding repeated dict/list rebuilds
+- Using efficient string building with join
+- Optimized number parsing with direct conversion
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance. Key optimizations include:
+- Using regex for whitespace skipping
+- Precomputing digit and whitespace character sets for O(1) lookup
+- Avoiding repeated dict/list rebuilds
+- Using efficient string building with join
+- Optimized number parsing with direct conversion
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Preprocess to remove whitespace outside of strings and escape sequences
+    text = _remove_whitespace(text)
+    pos = 0
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _remove_whitespace(text: str) -> str:
+    # Remove whitespace only outside of strings and escape sequences
+    # This regex matches strings, escape sequences, and non-whitespace characters
+    # and replaces all whitespace not inside strings with nothing
+    def replace_whitespace(match):
+        # If match is a string or escape sequence, return as-is
+        # Otherwise, return empty string to remove whitespace
+        return "" if match.group(0) in " \t\n\r" else match.group(0)
+    
+    # This regex matches strings, escape sequences, and non-whitespace
+    # but is more complex to avoid removing whitespace inside strings
+    # So we'll use a more precise approach:
+    # We'll build a regex that skips over quoted strings and escape sequences
+    # and only removes whitespace that is outside of them
+    result = []
+    pos = 0
+    while pos < len(text):
+        if text[pos] == '"':
+            # Match a string literal
+            start = pos
+            pos += 1
+            while pos < len(text):
+                if text[pos] == '"':
+                    result.append(text[start:pos+1])
+                    pos += 1
+                    break
+                elif text[pos] == '\\':
+                    result.append(text[start:pos+2])
+                    pos += 2
+                else:
+                    result.append(text[start:pos+1])
+                    pos += 1
+        elif text[pos] in " \t\n\r":
+            # Skip whitespace
+            pos += 1
+        else:
+            result.append(text[pos])
+            pos += 1
+    return "".join(result)
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

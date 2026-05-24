@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to "check if the string contains a decimal point or an exponent before attempting to parse it as a float" is naive because it doesn't account for the fact that `int()` and `float()` in Python are already highly optimized built-in functions. The overhead of checking for decimal points or exponents manually would likely be slower than just calling the appropriate conversion function directly. Additionally, this approach fails to consider that many valid JSON numbers like `"123.0"` or `"1e5"` are valid both as integers and floats, so a simple heuristic would misclassify them.
+
+STEELMAN: A better approach would be to leverage the existing regex pattern that already validates the number format, and then use direct conversion with `int()` or `float()` based on the structure of the matched string. Since we already have a validated match, we can safely use the built-in converters without the overhead of re-parsing or complex conditionals, while still avoiding unnecessary conversions by relying on the pattern to tell us what kind of number we're dealing with.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion using the validated string
+    # The regex already ensures correct format, so we can safely convert
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

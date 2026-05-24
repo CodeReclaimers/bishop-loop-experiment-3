@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to strip leading/trailing whitespace is naive because it doesn't account for the fact that the parser needs to handle embedded whitespace within JSON structures, and stripping it would break the parsing logic. Additionally, it fails to address the core performance bottleneck which is the repeated `_skip_ws` calls during recursive parsing, not just at the start. The approach also doesn't consider that the input might be a very large string where even a single `strip()` call could be expensive.
+STEELMAN: A better approach is to preprocess only the initial whitespace at the start of parsing, not the entire input. This can be done efficiently by finding the first non-whitespace character and starting parsing from that position, while still allowing `_skip_ws` to handle internal whitespace during recursive descent. This preserves the correctness of the parser while reducing redundant calls to `_skip_ws` at the top level.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

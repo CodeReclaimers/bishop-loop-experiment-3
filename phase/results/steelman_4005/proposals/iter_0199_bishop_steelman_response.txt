@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `IndexError` handling for skipping whitespace is flawed because it relies on exception handling for normal control flow, which is inefficient and violates the principle of "Easier to Ask for Forgiveness than Permission" (EAFP) when the exception is expected to occur frequently. Additionally, the proposed approach doesn't actually reduce the time complexity to O(1) as claimed; it still requires iterating through characters, just with exception overhead. The suggestion also fails to consider that `IndexError` is not a cheap operation and that the performance gain from avoiding bounds checks is negligible compared to the cost of exception handling.
+
+STEELMAN: The steelman version of this suggestion is to optimize the whitespace skipping loop by using a more efficient approach that minimizes bounds checking overhead while avoiding exception handling for control flow. This can be achieved by using a while loop that checks `pos < len(text)` once at the beginning and then proceeds without further bounds checks, or by precomputing a sentinel character or using a bounded loop with early termination.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by checking bounds once per iteration
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

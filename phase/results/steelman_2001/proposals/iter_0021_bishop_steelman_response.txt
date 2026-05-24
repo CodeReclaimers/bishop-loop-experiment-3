@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `text.find` with a set lookup is fundamentally flawed because `text.find` only finds the first occurrence of a substring, not the first non-matching character. Additionally, it would require constructing a string from `_WS_CHARS` which is inefficient and doesn't leverage the O(1) set membership already used elsewhere. The approach would also fail for large runs of whitespace since `find` isn't designed for this use case.
+STEELMAN: A better approach would be to use `str.translate` with a translation table to efficiently skip whitespace by converting all whitespace characters to a single sentinel character, then use `str.find` to locate that sentinel. This leverages the C-level efficiency of string operations while properly handling the set-based lookup.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with a sentinel
+    whitespace_table = str.maketrans(''.join(_WS_CHARS), ' ' * len(_WS_CHARS))
+    # Translate the text starting from pos
+    translated = text[pos:].translate(whitespace_table)
+    # Find first non-sentinel character
+    new_pos = translated.find(' ')
+    if new_pos == -1:
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

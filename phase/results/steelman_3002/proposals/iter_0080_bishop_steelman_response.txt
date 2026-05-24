@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_RE.span(pos)` is problematic because `re.span()` returns the span of the *entire match*, not just the whitespace portion, and the regex `r'\s*'` will match zero or more whitespace characters starting at `pos`, which could incorrectly skip beyond the intended boundary. Additionally, the regex engine may not be faster than a tight loop for small amounts of whitespace, and it introduces overhead from regex compilation and state management.
+
+STEELMAN: A better approach is to use `_WS_RE.match(text, pos)` to find the first contiguous sequence of whitespace characters starting at `pos`, then return the end position of that match. This preserves the intent of using regex for fast skipping while ensuring correctness by leveraging the regex engine's optimized scanning without the overhead of span computation or incorrect behavior from greedy matching.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

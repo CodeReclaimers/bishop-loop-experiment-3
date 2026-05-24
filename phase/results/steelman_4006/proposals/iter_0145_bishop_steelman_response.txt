@@ -1,0 +1,53 @@
+CRITIQUE: The suggestion to use `re.compile(r'\s+', re.DOTALL)` for whitespace skipping is problematic because `re.DOTALL` doesn't actually help with skipping whitespace — it changes how `.` matches newlines, which is irrelevant here. Additionally, regex-based skipping would likely be slower than the current manual loop due to regex overhead and the fact that the current implementation is already optimized for common cases like space, tab, newline, and carriage return.
+
+STEELMAN: A better approach would be to precompile a regex like `re.compile(r'\s*')` (without `re.DOTALL`) and use `ws_re.match(text, pos)` to skip whitespace, which would eliminate the manual loop and improve readability while maintaining performance.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using regex
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

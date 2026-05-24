@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to "use a loop that avoids redundant bounds checking and leveraging the fact that text[pos] will raise IndexError" is problematic because it doesn't address the actual performance bottleneck in whitespace skipping, which is the repeated character membership checks. Additionally, it fails to consider that IndexError exceptions are expensive and can slow down parsing significantly compared to explicit bounds checking. The suggestion also omits the crucial optimization of precomputing character sets for O(1) lookups that's already implemented.
+
+STEELMAN: The steelman version would preserve the existing approach of using precomputed frozensets for O(1) membership checks, but improve the whitespace skipping loop by using a more efficient pattern that minimizes the number of bounds checks while still maintaining clarity and correctness. The key insight is to optimize the loop structure to reduce overhead without changing the fundamental approach of using set membership for character validation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized whitespace skipping using precomputed character sets
+    # Avoids repeated bounds checking by using the fact that text[pos] raises
+    # IndexError when pos >= len(text), but we still need to check bounds
+    # to avoid the expensive exception handling
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

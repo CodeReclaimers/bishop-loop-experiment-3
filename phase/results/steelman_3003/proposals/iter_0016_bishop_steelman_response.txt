@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_RE.sub` is fundamentally flawed because `re.sub` is designed for pattern replacement, not position advancement. Using it would require constructing a replacement string (even if empty), which is inefficient and semantically incorrect for a skip operation. Additionally, `re.sub` doesn't directly return the final position; it returns the modified string, so the intended performance benefit of skipping the Python loop is lost.
+
+STEELMAN: A better approach is to use the compiled regex's `match` or `search` method to find the next non-whitespace character position. This leverages the optimized C-level regex engine to advance the position in one step, while still returning the correct integer index for the parser to continue processing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

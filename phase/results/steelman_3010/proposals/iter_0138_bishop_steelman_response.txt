@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual while-loop with `regex.search()` would not work correctly because the regex is compiled to match zero or more whitespace characters (`[ \t\n\r]*`), which would match the empty string at the starting position and return the same index, failing to advance past whitespace. Additionally, it doesn't account for the fact that the regex engine might not be as fast as the optimized set membership test for individual characters in tight loops.
+STEELMAN: A better approach is to use `regex.search()` to find the first non-whitespace character, but only after ensuring that the regex is correctly anchored to avoid matching empty strings and to properly handle the position advancement. This preserves the intent of leveraging fast regex search while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, leveraging fast vectorized search
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

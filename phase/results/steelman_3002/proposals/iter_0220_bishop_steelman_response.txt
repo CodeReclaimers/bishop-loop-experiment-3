@@ -1,0 +1,88 @@
+CRITIQUE: The suggestion to use binary search on a pre-computed list of whitespace indices is fundamentally flawed because it doesn't account for the fact that whitespace skipping is not a one-time operation but happens repeatedly during parsing at various positions. Binary search would require maintaining and updating this list dynamically, which adds complexity and overhead. Additionally, the O(log n) improvement is theoretical and may not outweigh the cost of building and maintaining the index list, especially for small to medium inputs where linear scanning is faster due to cache locality.
+
+STEELMAN: A better approach would be to precompute a "whitespace skip table" that maps each position in the input string to the next non-whitespace character index. This table can be built once at the start of parsing and then used for O(1) lookups, avoiding repeated scanning while keeping the implementation simple and cache-friendly.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Build a skip table for whitespace positions
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, skip_table, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, skip_table, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a table mapping each index to the next non-whitespace index."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n
+    for i in range(n - 1, -1, -1):
+        c = text[i]
+        if c in ' \t\n\r':
+            skip_table[i] = pos
+        else:
+            skip_table[i] = pos = i + 1
+    return skip_table
+
+
+def _skip_ws_with_table(text: str, skip_table: list[int], pos: int) -> int:
+    """Skip whitespace using precomputed skip table."""
+    if pos >= len(text):
+        return pos
+    return skip_table[pos]
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

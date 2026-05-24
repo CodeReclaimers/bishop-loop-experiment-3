@@ -1,0 +1,42 @@
+One potential optimization is to use a more efficient way to skip whitespace characters in the `parse` function. Instead of iterating through each character until a non-whitespace character is found, we can use an index to keep track of the position in the string and directly check if the current character is a whitespace character. This can be done by using Python's built-in `ord()` function to get the ASCII value of the character at the current position, which allows us to compare it with the ASCII values of whitespace characters efficiently.
+
+Here's an example implementation:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and ord(text[pos]) in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 46-63)
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and ord(text[pos]) in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+```
+
+This change will improve the performance of the `parse` function by reducing the number of character comparisons needed. The `ord()` function is used to get the ASCII value of each character, which allows us to quickly determine if a character is a whitespace character without having to iterate through all possible ASCII values.

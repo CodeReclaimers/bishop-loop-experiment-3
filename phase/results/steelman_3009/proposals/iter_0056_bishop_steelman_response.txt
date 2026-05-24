@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `bytes.translate` with `str.find` is unworkable because it fundamentally misunderstands how `str.find` works on translated strings — after translating whitespace to nulls, `str.find` won't behave as expected since null bytes are not equivalent to skipping whitespace in the original string. Additionally, the approach fails to account for the fact that `str.translate` returns a new string, which would require re-parsing the original text to locate the correct position, breaking the intended semantics of an in-place skip operation.
+
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (e.g., null byte), apply `str.translate` to the input string, and then use `str.find` to locate the next non-sentinel character, maintaining the original position tracking by mapping back from the translated index to the original string index. This preserves performance gains while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a translation table to replace whitespace with null bytes for fast skipping
+    if pos >= len(text):
+        return pos
+    # Precompute translation table to map whitespace to null bytes
+    _ws_translate_table = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+    # Translate the string starting from current position
+    translated = text[pos:].translate(_ws_translate_table)
+    # Find the first non-null byte in the translated string
+    next_non_ws = translated.find("\x00")
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    # Return the position in the original string
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to "use a more efficient loop with direct indexing" is too vague and misses the actual performance bottleneck in whitespace skipping. The current `_skip_ws` function already uses direct indexing and a set lookup, which is already quite efficient. The real issue isn't the loop itself but rather the repeated calls to `_skip_ws` throughout the parser, which could benefit more from eliminating redundant whitespace checks or using a streaming approach. A naive replacement with a different loop structure won't yield meaningful gains without addressing these deeper issues.
+
+STEELMAN: The steelman version of this suggestion is to optimize `_skip_ws` by using a more efficient inner loop that minimizes Python bytecode overhead, such as using a `while` loop with a precomputed character set and avoiding repeated `text[pos]` lookups. Additionally, we can reduce the number of calls to `_skip_ws` by batching whitespace skipping where possible, especially in contexts where whitespace is known to be present in predictable patterns.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop with reduced bytecode overhead
+    while pos < len(text):
+        c = text[pos]
+        if c not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `str.translate` with a translation table mapping whitespace to nulls is flawed because it doesn't actually skip whitespace in one operation — the `translate` method would require a separate step to filter out the nulls, and the resulting string would still need to be scanned to find the first non-null character. Additionally, `translate` is not a C-level operation that skips whitespace; it's still a Python-level operation that processes the string, so the performance benefit is not as significant as claimed. The approach also introduces complexity in handling the return value and position tracking.
+
+STEELMAN: A better version would precompute a translation table that maps all whitespace characters to a single sentinel character (e.g., a null byte), then use `str.translate` to replace all whitespace with that sentinel. After translation, scan the result to find the first non-sentinel character's index, which gives the new position. This still leverages `translate`'s performance for bulk operations while maintaining correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to nulls
+    trans_table = str.maketrans(''.join(_WS_CHARS), '\x00' * len(_WS_CHARS))
+    # Translate the substring and find first non-null character
+    translated = text[pos:].translate(trans_table)
+    new_pos = pos
+    for char in translated:
+        if char != '\x00':
+            break
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

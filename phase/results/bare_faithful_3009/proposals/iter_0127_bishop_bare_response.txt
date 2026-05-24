@@ -1,0 +1,70 @@
+```python
+<<<<<<< SEARCH
+# Compiled regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _build_ws_jump_array(text: str) -> list[int]:
+    n = len(text)
+    jump = [0] * n
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            if pos == n - 1:
+                jump[pos] = n
+            else:
+                jump[pos] = jump[pos + 1]
+        else:
+            if pos == n - 1:
+                jump[pos] = n
+            else:
+                jump[pos] = pos + 1
+        pos -= 1
+    return jump
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    jump = _build_ws_jump_array(text)
+    pos = 0
+    pos = jump[pos]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = jump[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    jump = _build_ws_jump_array(text)
+    return jump[pos]
+>>>>>>> REPLACE
+```

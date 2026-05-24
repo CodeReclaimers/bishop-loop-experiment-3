@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the per-character whitespace loop with a single `text.find` call is problematic because `text.find` will not correctly handle the case where whitespace characters are interspersed with other characters in a way that requires scanning each character individually. Additionally, the approach fails to account for the fact that `_skip_ws` is called in many places throughout the parser, and changing its behavior could break assumptions about position advancement or lead to incorrect parsing if the optimization is not consistently applied.
+
+STEELMAN: A better version of the suggestion would use a more efficient whitespace skipping mechanism that still scans for whitespace characters but uses a compiled regex or a more optimized lookup method (like `str.translate` or a precomputed set-based lookup) to avoid the per-character Python loop, while ensuring all calls to `_skip_ws` remain consistent and correct.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find with a precomputed string of whitespace characters
+    # to skip whitespace efficiently in one go
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace regex with an iterator for whitespace skipping is naive because it fails to address the core performance bottleneck: the repeated calls to `_skip_ws` throughout the parser. Simply switching from regex to a manual loop doesn't eliminate the overhead of repeatedly scanning whitespace, and the suggestion doesn't propose a more fundamental optimization like pre-scanning or using a tokenizer. Additionally, the current `_skip_ws` function is already implemented as a character-by-character loop, so the proposed change would be redundant and not significantly improve performance.
+
+STEELMAN: The strongest version of this suggestion would be to implement a proper tokenizer or parser iterator that pre-scans the input text once and caches positions of significant tokens (like start/end of values, commas, braces, etc.) rather than repeatedly calling `_skip_ws`. This approach would eliminate redundant whitespace scanning and reduce function call overhead by using a stateful iterator to advance through the input, making the core parsing logic more efficient.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

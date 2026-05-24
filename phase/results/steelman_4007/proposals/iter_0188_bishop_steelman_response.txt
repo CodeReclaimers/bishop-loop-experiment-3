@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use "a smaller regex pattern that matches only whitespace characters" is fundamentally flawed because it misunderstands the performance bottleneck — the current implementation already uses O(1) set membership checks for whitespace via `_WS_CHARS`. Additionally, regex matching would introduce overhead from regex compilation and state management, which would likely slow down the parser rather than speed it up. The suggestion also fails to address the actual inefficiencies like repeated string concatenation and redundant whitespace checks at every parsing level.
+
+STEELMAN: A better approach is to optimize the existing `_skip_ws` function by using a more efficient loop structure that avoids repeated index checks and leverages Python's built-in string methods where possible. Specifically, we can precompute the maximum valid index and use a tighter loop with fewer conditionals, or consider using `str.lstrip()` or `str.find()` for bulk skipping when appropriate, while still maintaining the core logic of character-by-character checking for correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

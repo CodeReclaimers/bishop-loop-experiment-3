@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion fails to account for the fact that the current `_skip_ws` function uses a regex pattern that matches zero or more whitespace characters, which can advance the position by more than one character. A simple loop checking `text[pos] in _WS_CHARS` would only advance by one character at a time, potentially missing whitespace and causing incorrect parsing. Additionally, it doesn't consider that the regex approach may be faster in practice due to optimized C-level regex engines, especially on longer whitespace sequences.
+
+STEELMAN: The steelman version would replace the regex-based `_skip_ws` with a manual loop that advances the position while the current character is in `_WS_CHARS`, but it must ensure that the loop correctly advances the index by as many valid whitespace characters as possible, not just one step at a time. This preserves the performance benefits of avoiding regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    return match.end() if match else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

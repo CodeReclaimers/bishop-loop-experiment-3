@@ -1,0 +1,95 @@
+CRITIQUE: The suggestion to use a byte stream instead of string parsing is problematic because Python strings are already optimized for UTF-8 handling, and converting to bytes would add unnecessary complexity. The performance gains from avoiding string immutability are minimal since the parser already uses efficient string operations, and the UTF-8 decoding overhead would likely negate any benefits. Additionally, the current implementation already avoids creating intermediate strings in most cases, so the byte stream approach wouldn't address the actual bottlenecks.
+
+STEELMAN: A better approach would be to accept bytes input directly and process it using byte-level operations where possible, while still maintaining UTF-8 decoding for string content. This allows leveraging the efficiency of byte operations for parsing control characters and whitespace, while preserving the correctness of Unicode handling for strings. The implementation should detect input type and handle both bytes and string inputs gracefully, with bytes being processed more efficiently.
+
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any, Union
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+def parse(text: Union[str, bytes]) -> Any:
+    if isinstance(text, bytes):
+        text = text.decode('utf-8')
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string or bytes")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

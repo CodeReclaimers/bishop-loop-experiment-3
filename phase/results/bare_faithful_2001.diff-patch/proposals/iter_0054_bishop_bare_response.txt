@@ -1,0 +1,91 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -217,13 +217,46 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     start = pos
+     if text[pos] == "-":
+-        pos = pos + 1
++        pos = pos + 1
+     if pos >= len(text):
+         raise JSONParseError(f"bad number at {pos}")
+     if text[pos] == "0":
+-        pos = pos + 1
++        pos = pos + 1
+     elif text[pos] in _DIGIT_CHARS:
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++        while pos < len(text) and text[pos] in _DIGIT_CHARS:
++            pos = pos + 1
+     else:
+         raise JSONParseError(f"bad number at {pos}")
+     is_float = False
+     if pos < len(text) and text[pos] == ".":
+         is_float = True
+-        pos = pos + 1
+-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number fractional at {pos}")
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++        pos = pos + 1
++        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
++            raise JSONParseError(f"bad number fractional at {pos}")
++        while pos < len(text) and text[pos] in _DIGIT_CHARS:
++            pos = pos + 1
+     if pos < len(text) and text[pos] in ("e", "E"):
+         is_float = True
+-        pos = pos + 1
+-        if pos < len(text) and text[pos] in ("+", "-"):
+-            pos = pos + 1
+-        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number exponent at {pos}")
+-        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
+-    s = text[start:pos]
+-    if is_float:
+-        return float(s), pos
+-    return int(s), pos
++        pos = pos + 1
++        if pos < len(text) and text[pos] in ("+", "-"):
++            pos = pos + 1
++        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
++            raise JSONParseError(f"bad number exponent at {pos}")
++        while pos < len(text) and text[pos] in _DIGIT_CHARS:
++            pos = pos + 1
++    # On-the-fly conversion
++    num = 0
++    sign = 1
++    i = start
++    if text[i] == "-":
++        sign = -1
++        i += 1
++    while i < pos and text[i] in _DIGIT_CHARS:
++        num = num * 10 + (ord(text[i]) - ord('0'))
++        i += 1
++    if is_float:
++        # Handle fractional part
++        if i < pos and text[i] == '.':
++            i += 1
++            frac = 0.0
++            div = 1.0
++            while i < pos and text[i] in _DIGIT_CHARS:
++                frac = frac * 10.0 + (ord(text[i]) - ord('0'))
++                div *= 10.0
++                i += 1
++            num += frac / div
++        # Handle exponent
++        if i < pos and text[i] in ("e", "E"):
++            i += 1
++            exp_sign = 1
++            if i < pos and text[i] in ("+", "-"):
++                if text[i] == "-":
++                    exp_sign = -1
++                i += 1
++            exp = 0
++            while i < pos and text[i] in _DIGIT_CHARS:
++                exp = exp * 10 + (ord(text[i]) - ord('0'))
++                i += 1
++            num *= 10 ** (exp_sign * exp)
++        return sign * num, pos
++    return sign * num, pos
+```

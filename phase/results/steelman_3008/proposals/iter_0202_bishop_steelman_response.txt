@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` searches for a substring, not individual characters, so it won't correctly skip whitespace characters that are not contiguous. It also fails to handle the case where the entire remaining string is whitespace, as `find()` would return the end position but not distinguish between "all whitespace" and "no whitespace". Additionally, it doesn't account for the fact that `find()` is not necessarily faster than a simple loop for small whitespace blocks.
+STEELMAN: A better approach is to use `text.find()` with a set of whitespace characters by constructing a regex or using a loop with `str.translate` to efficiently skip all whitespace in one pass, or to use a hybrid method that uses `find()` for large blocks and falls back to a character-by-character loop for small ones, preserving the performance benefits while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace efficiently by finding the first non-whitespace character
+    # Use text.find() to skip large blocks of whitespace in one operation
+    while pos < len(text):
+        # Find the first non-whitespace character starting at pos
+        next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+        if next_non_ws == -1:
+            # All remaining characters are whitespace
+            return len(text)
+        if next_non_ws > pos:
+            # Found a non-whitespace character, skip to it
+            return next_non_ws
+        # Current character is whitespace, move to next
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

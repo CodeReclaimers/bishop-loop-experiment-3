@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace `_skip_ws` calls with `str.find` would break the recursive descent parsing structure because `_skip_ws` is called in multiple contexts where whitespace handling is intertwined with token parsing logic. The proposed change doesn't account for the fact that `_skip_ws` is used not just at the start of tokens but also between key-value pairs, array elements, and other structured components, which could cause incorrect parsing if whitespace is skipped too aggressively. Additionally, `str.find` returns -1 when the substring isn't found, but the current code assumes that skipping whitespace will always succeed and move forward.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by replacing the per-character loop with a single `str.find` call that jumps directly to the next non-whitespace character, but only when called from contexts where we're sure we're not in the middle of a token or nested structure. We can still keep the current logic in place for most cases, but use a more efficient `str.find`-based approach in the main parsing loop where we expect to skip large chunks of whitespace between tokens.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

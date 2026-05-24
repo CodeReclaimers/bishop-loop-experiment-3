@@ -1,0 +1,73 @@
+CRITIQUE: The suggestion to use `re.compile(r'[\s]+')` and `search().end()` is flawed because it assumes the regex will always find whitespace starting at `pos`, but if there's no whitespace, `search()` returns `None`, causing an AttributeError. Additionally, it doesn't handle the case where the input is exhausted properly, and it skips more than just whitespace (e.g., it could match a single character and then advance by that amount instead of skipping all consecutive whitespace). The regex approach also introduces overhead from regex compilation and matching, which may not be faster than the existing optimized loop.
+
+STEELMAN: A better version would precompile a regex like `r'^\s*'` to match zero or more whitespace characters at the start of the string, and use `match()` instead of `search()` to ensure it starts at the given position. This avoids the `None` issue, correctly skips all consecutive whitespace, and keeps the performance benefits of C-level regex while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+=======
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_WS_RE = re.compile(r'^\s*')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

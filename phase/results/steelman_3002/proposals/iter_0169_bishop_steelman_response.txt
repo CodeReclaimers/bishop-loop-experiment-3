@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the character-by-character while loop with a single regex match fails because `re.search()` only finds the first match, not all consecutive whitespace characters. This would incorrectly skip only the first whitespace character instead of the entire whitespace sequence, breaking parsing for inputs with multiple consecutive whitespace characters. Additionally, the regex approach doesn't properly handle the case where there's no whitespace at all, which should return `pos` unchanged rather than advancing to `len(text)`.
+
+STEELMAN: The steelman version should use `re.match()` instead of `re.search()` to ensure we match from the exact starting position, and handle the case where no match is found by returning the original `pos`. This preserves the intent of skipping all whitespace at once while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

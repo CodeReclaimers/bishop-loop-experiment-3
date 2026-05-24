@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to preprocess text and replace escape sequences is unworkable because it would require modifying the input string in-place, which is impossible since strings are immutable in Python. Additionally, this approach would not reduce `ord()` calls significantly since most characters still need to be checked for validity, and the preprocessing step itself would add overhead from string copying and transformation. The approach also doesn't address the core performance bottleneck of repeated whitespace skipping or character comparisons.
+
+STEELMAN: A better approach would be to optimize the whitespace skipping function by using a lookup table for whitespace characters, and to avoid repeated `ord()` calls by precomputing character properties once per character. The escape sequence handling can be optimized by using a single lookup table for common escape sequences, and by batching character comparisons to reduce the number of individual checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    # Precompute whitespace set for performance
+    _WHITESPACE_SET = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_SET:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,52 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace removal before `_skip_ws` is unworkable because it would fundamentally alter the parsing logic by pre-processing the input string, which breaks the incremental parsing model used throughout the code. It would also introduce unnecessary overhead from creating translation tables and could interfere with error reporting, since the original positions would be lost after translation. Additionally, the approach doesn't account for the fact that whitespace skipping is done in a streaming fashion, not as a batch operation.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (like a space), then use that to efficiently skip whitespace by repeatedly advancing past the sentinel. This preserves the streaming parsing model while reducing the number of individual character checks in `_skip_ws` by leveraging fast string operations.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+# Translation table to map whitespace to a sentinel character for fast skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "    ")
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+```

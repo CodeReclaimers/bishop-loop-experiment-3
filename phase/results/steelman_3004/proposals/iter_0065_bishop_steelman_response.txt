@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a precomputed lookup table is problematic because it assumes all whitespace sequences are processed in isolation, but JSON parsing requires context-aware skipping that must handle nested structures and varying input patterns. A simple lookup table approach would not account for the dynamic nature of parsing where whitespace can appear in arbitrary positions within complex structures. Additionally, the proposal doesn't address how the table would be built or maintained efficiently across different input sizes or parsing contexts.
+
+STEELMAN: The steelman version would involve precomputing a lookup table that maps each input position to the next non-whitespace character index, but this table should be built dynamically during parsing initialization or at least on a per-input basis to handle varying input patterns. The table should be passed through the parsing stack to ensure all parsing functions use the same precomputed skip information, avoiding redundant scanning while maintaining correctness across nested structures.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    ws_table = _build_ws_table(text)
+    pos = _skip_ws(text, 0, ws_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, ws_table)
+    pos = _skip_ws(text, pos, ws_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+>>>>>>> REPLACE
+```

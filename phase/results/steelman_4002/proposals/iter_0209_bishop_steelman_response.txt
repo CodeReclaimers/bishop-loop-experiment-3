@@ -1,0 +1,85 @@
+CRITIQUE: The suggestion incorrectly describes replacing recursion with a stack for object parsing, but the current implementation already uses an iterative approach with explicit stack management in `_parse_object`. The described stack usage doesn't match the existing code structure and would likely break the parsing logic. Additionally, the suggestion fails to address the main performance bottlenecks like character-by-character number parsing and string building operations.
+
+STEELMAN: The core idea of optimizing parsing through better stack usage is sound, but should focus on improving the existing iterative approach by eliminating redundant whitespace checks and optimizing number parsing. The suggestion should enhance the current stack-based object/array parsing to reduce function call overhead while preserving the existing control flow and correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+
+    # Iterative parsing with a stack to avoid recursion
+    stack = [out]
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct dict mutation to avoid rebuilds.
+        stack[-1][key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            if len(stack) == 1:
+                return stack[0], pos + 1
+            stack.pop()
+            pos = _skip_ws(text, pos + 1)
+            continue
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+
+    # Iterative parsing with a stack to avoid recursion
+    stack = [out]
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct dict mutation to avoid rebuilds.
+        stack[-1][key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            if len(stack) == 1:
+                return stack[0], pos + 1
+            stack.pop()
+            pos = _skip_ws(text, pos + 1)
+            continue
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

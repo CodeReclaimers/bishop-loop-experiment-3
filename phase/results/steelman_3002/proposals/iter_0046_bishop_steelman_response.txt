@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the regex with a simple while-loop is problematic because it fails to correctly handle all JSON whitespace characters. The proposed loop only checks `ord(c) < 32` and specific byte values (32, 9, 10, 13) but omits the fact that JSON allows tab (`\t`, ord 9), line feed (`\n`, ord 10), carriage return (`\r`, ord 13), and space (` `, ord 32) as whitespace, which are already handled in the current `_skip_ws` function. Additionally, it ignores the possibility of invalid control characters that should raise errors, as the new approach would silently skip them.
+
+STEELMAN: The steelman version of the suggestion should preserve the correct handling of JSON whitespace by maintaining the existing character-by-character loop logic but optimizing it to avoid regex overhead while still ensuring correctness. It should use direct character comparisons like the current implementation, but avoid the regex overhead by removing the `re.compile` and `_WS_RE` usage entirely, replacing it with a fast, explicit loop that checks for valid whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

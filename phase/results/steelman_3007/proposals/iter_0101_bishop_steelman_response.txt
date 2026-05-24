@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to process text in 8-character chunks is flawed because it assumes that whitespace characters are uniformly distributed and that checking 8 characters at once will reliably detect non-whitespace. This approach fails when the first 7 characters are whitespace and the 8th is non-whitespace, as it would still need to process each character individually in that case. Additionally, it introduces complexity without clear performance gains, since the loop overhead is minimal compared to the set membership checks.
+
+STEELMAN: A better approach would be to use a regex-based skip that processes large chunks of whitespace efficiently while still maintaining the O(1) set lookup for individual character checks. This can be achieved by leveraging the pre-compiled `_WS_RE` regex to skip large blocks of whitespace, falling back to character-by-character processing only when necessary for precise position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large chunks, falling back to set lookup for precision
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to character-by-character for precision when regex doesn't match
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

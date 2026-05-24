@@ -1,0 +1,106 @@
+CRITIQUE: The suggestion to "iterate through characters without resorting to regex" is vacuous since the current implementation already avoids regex entirely and uses character-by-character scanning. It doesn't address the actual performance bottlenecks like repeated string concatenation, inefficient parsing loops, or redundant whitespace checks. The claim of "reducing time complexity from linear to quadratic" is also incorrect — the existing number parsing is already linear in the number of digits.
+
+STEELMAN: The suggestion should focus on optimizing the number parsing algorithm by using a more efficient approach than the current character-by-character digit accumulation. The steelman is to implement a single-pass number parsing method that builds the number directly without intermediate string operations, using mathematical operations to accumulate the value, and avoiding the overhead of repeated substring slicing and conversion.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+        int_part = 0
+    else:
+        int_part = 0
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            int_part = int_part * 10 + int(text[pos])
+            pos += 1
+    
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        frac_part = 0
+        frac_digits = 0
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            frac_part = frac_part * 10 + int(text[pos])
+            frac_digits += 1
+            pos += 1
+        # Convert fractional part to float
+        fractional = frac_part / (10 ** frac_digits)
+        number = int_part + fractional
+    else:
+        number = int_part
+    
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        exp_sign = 1
+        if pos < n and text[pos] in ("+", "-"):
+            if text[pos] == "-":
+                exp_sign = -1
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        exp = 0
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            exp = exp * 10 + int(text[pos])
+            pos += 1
+        number *= (10 ** (exp_sign * exp))
+    
+    if is_float:
+        return number, pos
+    else:
+        return int(number), pos
+>>>>>>> REPLACE
+```

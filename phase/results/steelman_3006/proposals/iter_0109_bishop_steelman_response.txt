@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.translate` with `find` assumes that all whitespace characters can be uniformly replaced by a single character (like space or null) and that `find` will locate the first non-whitespace character. This fails because `str.translate` cannot map different characters to different replacements, and `find` won't work correctly if the translation doesn't produce a unique sentinel. Additionally, the approach doesn't handle the case where the input is entirely whitespace, as it would require special handling for the `find` result.
+
+STEELMAN: A better approach is to build a translation table that maps all whitespace characters to a single sentinel character (e.g., a space), then use `str.translate` to replace them, followed by `str.lstrip()` to skip leading sentinels, and finally `str.find` to locate the first non-sentinel character. This preserves the intent of reducing Python-level iteration while correctly handling all edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a sentinel to replace whitespace, then lstrip and find
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping all whitespace to a single sentinel
+    ws_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate and strip leading sentinels
+    stripped = text[pos:].translate(ws_table).lstrip(" ")
+    # Find first non-sentinel character
+    new_pos = len(text) - len(stripped)
+    # If the entire string was whitespace, return original pos + len(text)
+    if new_pos == len(text):
+        return len(text)
+    # Otherwise, return original pos + new_pos
+    return pos + new_pos
+>>>>>>> REPLACE
+```

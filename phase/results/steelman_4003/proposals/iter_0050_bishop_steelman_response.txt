@@ -1,0 +1,55 @@
+CRITIQUE: The suggestion to use generator expressions for parsing arrays is unworkable because it would fundamentally break the expected API contract—functions like `_parse_array` currently return a `list` and are called by other parsing functions that expect to mutate or index into the result. Replacing the list with a generator would break all downstream code that assumes list behavior. Additionally, generators don't provide the same performance benefits here since the entire array must still be consumed and materialized to return a valid JSON structure.
+
+STEELMAN: The steelman is to refactor `_parse_array` to use a generator internally for parsing elements, but still return a list to maintain compatibility. This preserves the memory efficiency of avoiding intermediate lists during parsing while ensuring the API remains unchanged. The generator can be consumed into a list at the end, allowing the parser to benefit from reduced memory overhead during parsing without breaking existing code.
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return [], pos + 1
+    def _parse_array_elements():
+        while True:
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            yield value
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated array")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                continue
+            if c == "]":
+                return
+            raise JSONParseError(f"expected ',' or ']' at {pos}")
+    out = list(_parse_array_elements())
+    return out, pos
+>>>>>>> REPLACE
+```

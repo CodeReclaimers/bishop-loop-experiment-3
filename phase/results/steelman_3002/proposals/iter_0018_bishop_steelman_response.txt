@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to convert the input string to a bytearray and use `text[pos]` on it is flawed because it fails to account for the fact that Python's bytearray indexing still incurs overhead from bounds checking and type conversion. Additionally, the core issue isn't just character lookups — the parser's logic relies on string slicing and substring operations that would break if the input were converted to a bytearray. Finally, the performance benefit of direct byte reads is negated by the fact that the parser does not actually perform any byte-level operations; it still needs to interpret characters and control flow based on character values.
+STEELMAN: A better approach is to convert the string to a bytearray once at the start of parsing, but to maintain the existing logic by using a wrapper or helper function that abstracts the bytearray access while preserving the exact same character access semantics. This allows the parser to continue using `text[pos]` calls, but with a more efficient underlying representation that avoids repeated string indexing overhead, while still supporting all necessary slicing and character operations.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    text_bytes = bytearray(text)
+    pos = _skip_ws(text_bytes, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text_bytes, pos)
+    pos = _skip_ws(text_bytes, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

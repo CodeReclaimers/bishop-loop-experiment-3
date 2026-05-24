@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.translate` with a mapping to null bytes won't work because it fundamentally changes the semantics of skipping whitespace. The `translate` method would skip all whitespace characters at once, but the current implementation needs to advance the position character-by-character to properly parse the JSON structure. Additionally, `str.translate` is not guaranteed to be faster than a simple loop in all cases, especially for small inputs or when the set of whitespace characters is small.
+STEELMAN: A better approach would be to use `str.rstrip` or `str.lstrip` with the whitespace set, or precompute a translation table for `str.translate` that maps all whitespace characters to a single sentinel character (like a space), then use `str.find` to locate the first non-sentinel character. This preserves the performance benefits while maintaining correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table for performance
+    # Map all whitespace characters to a single sentinel character
+    trans_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Create a new string with whitespace replaced by space
+    # and find the first non-space character
+    stripped = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    new_pos = stripped.find(" ")
+    if new_pos == -1:
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

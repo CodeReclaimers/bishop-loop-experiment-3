@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use a precompiled regex for whitespace skipping is problematic because the current `_skip_ws` function already avoids regex overhead by using direct character scanning. Replacing this with regex would likely introduce overhead from regex engine setup and state management, especially since the regex would be called repeatedly in tight loops. Additionally, the regex approach could be slower for short inputs where the overhead of regex matching exceeds the cost of simple character checks.
+
+STEELMAN: The steelman version of this idea is to optimize the existing character-by-character scanning in `_skip_ws` by using a more efficient lookup mechanism — specifically, using a frozenset for whitespace characters to enable O(1) membership testing instead of repeated string indexing and comparisons, while still maintaining the direct loop approach for simplicity and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning with frozenset for O(1) lookup
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        if text[pos] not in _WHITESPACE_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

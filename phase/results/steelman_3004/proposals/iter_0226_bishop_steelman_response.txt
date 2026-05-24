@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the while loop with `_WS_PATTERN.match(text, pos).start()` is flawed because `re.match()` only matches at the beginning of the string, not from an arbitrary position. Additionally, the regex would need to be modified to handle the case where there's no whitespace to skip, and the performance benefit isn't guaranteed since regex engines still have overhead compared to simple character checks in tight loops.
+
+STEELMAN: A better approach would be to use `re.search()` with a pattern that matches one or more whitespace characters starting from the given position, then advance the position by the match length. However, since the current implementation uses a simple loop with a precomputed set for O(1) lookups, we should optimize by using `re.match()` with a pattern that matches the whitespace sequence from the current position, but only if there's actual whitespace to skip, avoiding the overhead of repeated character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

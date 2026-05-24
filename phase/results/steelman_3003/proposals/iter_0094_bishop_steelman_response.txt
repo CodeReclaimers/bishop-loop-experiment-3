@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the iterative loop with a single regex search has a critical flaw: it doesn't account for the fact that the current implementation needs to return the *next* valid position after whitespace, not just find the end of a whitespace sequence. Using `search()` would only locate the next non-whitespace character but wouldn't handle the case where the input is entirely whitespace or when the regex engine's behavior differs from the manual loop in edge cases. Additionally, it could introduce performance regression for small amounts of whitespace due to regex overhead.
+
+STEELMAN: A better approach is to use `re.match()` on the precompiled regex to skip whitespace, which will match zero or more whitespace characters starting at the current position, and then advance the position by the matched length. This preserves the performance benefits of regex while maintaining correctness and avoiding the overhead of `search()` or complex state tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

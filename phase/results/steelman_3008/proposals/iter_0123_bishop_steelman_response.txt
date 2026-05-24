@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.search(r'[\s]+', text, pos)` would be inefficient because regex engines are not optimized for skipping whitespace — they're designed for pattern matching, not simple character skipping. It would also introduce significant overhead from Python's regex machinery and fail to handle the specific case where the input is all whitespace, as it would match zero-length strings or require complex handling of edge cases. Additionally, the regex approach would not integrate well with the existing parser's streaming nature, as it would need to reprocess the text from the current position rather than incrementally advancing.
+
+STEELMAN: A better approach is to use a hybrid method: for short runs of whitespace, continue using the current while loop; for longer runs, use a C-level optimization like `text.find()` or `str.lstrip()` to skip large blocks of whitespace, or even a precompiled regex with a more targeted pattern that only matches the whitespace characters and avoids the overhead of full regex engines.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

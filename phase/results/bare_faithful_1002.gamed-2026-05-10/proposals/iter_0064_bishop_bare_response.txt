@@ -1,0 +1,271 @@
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    lexer = _Lexer(text)
+    value = _parse_value_with_lexer(lexer)
+    if lexer.pos != len(text):
+        raise JSONParseError(f"trailing content at position {lexer.pos}")
+    return value
+
+
+class _Lexer:
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+
+    def peek(self) -> str:
+        if self.pos >= len(self.text):
+            return ""
+        return self.text[self.pos]
+
+    def advance(self) -> str:
+        if self.pos >= len(self.text):
+            return ""
+        c = self.text[self.pos]
+        self.pos = self.pos + 1
+        return c
+
+    def skip_ws(self):
+        while self.pos < len(self.text) and self.text[self.pos] in _WS_CHARS:
+            self.pos = self.pos + 1
+
+    def expect(self, c: str):
+        if self.pos >= len(self.text) or self.text[self.pos] != c:
+            raise JSONParseError(f"expected {c!r}")
+        self.pos = self.pos + 1
+
+    def expect_keyword(self, keyword: str):
+        if self.pos + len(keyword) > len(self.text):
+            raise JSONParseError(f"expected {keyword!r}")
+        if self.text[self.pos : self.pos + len(keyword)] != keyword:
+            raise JSONParseError(f"expected {keyword!r}")
+        self.pos = self.pos + len(keyword)
+
+    def read_string(self) -> str:
+        self.expect('"')
+        out = []
+        while self.pos < len(self.text):
+            c = self.advance()
+            if c == '"':
+                return "".join(out)
+            if c == "\\":
+                if self.pos >= len(self.text):
+                    raise JSONParseError("unterminated string escape")
+                esc = self.advance()
+                if esc == '"':
+                    out.append('"')
+                elif esc == "\\":
+                    out.append("\\")
+                elif esc == "/":
+                    out.append("/")
+                elif esc == "b":
+                    out.append("\b")
+                elif esc == "f":
+                    out.append("\f")
+                elif esc == "n":
+                    out.append("\n")
+                elif esc == "r":
+                    out.append("\r")
+                elif esc == "t":
+                    out.append("\t")
+                elif esc == "u":
+                    if self.pos + 4 > len(self.text):
+                        raise JSONParseError(f"bad unicode escape at {self.pos}")
+                    hex4 = self.text[self.pos : self.pos + 4]
+                    if not _is_hex4(hex4):
+                        raise JSONParseError(f"bad unicode escape at {self.pos}")
+                    cp = int(hex4, 16)
+                    if 0xD800 <= cp <= 0xDBFF:
+                        if self.pos + 5 >= len(self.text) or self.text[self.pos + 5] != "\\" or self.pos + 6 >= len(self.text) or self.text[self.pos + 6] != "u":
+                            raise JSONParseError(f"unpaired high surrogate at {self.pos}")
+                        if self.pos + 10 >= len(self.text):
+                            raise JSONParseError(f"bad low surrogate at {self.pos}")
+                        hex4b = self.text[self.pos + 7 : self.pos + 11]
+                        if not _is_hex4(hex4b):
+                            raise JSONParseError(f"bad low surrogate at {self.pos + 7}")
+                        cp2 = int(hex4b, 16)
+                        if not (0xDC00 <= cp2 <= 0xDFFF):
+                            raise JSONParseError(f"bad low surrogate at {self.pos + 7}")
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                        out.append(chr(cp))
+                        self.pos = self.pos + 11
+                        continue
+                    out.append(chr(cp))
+                    self.pos = self.pos + 4
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {self.pos}")
+                continue
+            if ord(c) < 0x20:
+                raise JSONParseError(f"unescaped control character at {self.pos}")
+            out.append(c)
+        raise JSONParseError("unterminated string")
+
+    def read_number(self) -> float | int:
+        start = self.pos
+        if self.peek() == "-":
+            self.advance()
+        if self.pos >= len(self.text):
+            raise JSONParseError(f"bad number at {self.pos}")
+        if self.peek() == "0":
+            self.advance()
+        elif self.peek() in _DIGIT_CHARS:
+            while self.pos < len(self.text) and self.peek() in _DIGIT_CHARS:
+                self.advance()
+        else:
+            raise JSONParseError(f"bad number at {self.pos}")
+        is_float = False
+        if self.peek() == ".":
+            is_float = True
+            self.advance()
+            if self.pos >= len(self.text) or self.peek() not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number fractional at {self.pos}")
+            while self.pos < len(self.text) and self.peek() in _DIGIT_CHARS:
+                self.advance()
+        if self.peek() in ("e", "E"):
+            is_float = True
+            self.advance()
+            if self.pos < len(self.text) and self.peek() in ("+", "-"):
+                self.advance()
+            if self.pos >= len(self.text) or self.peek() not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number exponent at {self.pos}")
+            while self.pos < len(self.text) and self.peek() in _DIGIT_CHARS:
+                self.advance()
+        s = self.text[start:self.pos]
+        if is_float:
+            return float(s)
+        return int(s)
+
+
+def _parse_value_with_lexer(lexer: _Lexer) -> Any:
+    lexer.skip_ws()
+    c = lexer.peek()
+    if c == "{":
+        return _parse_object_with_lexer(lexer)
+    if c == "[":
+        return _parse_array_with_lexer(lexer)
+    if c == '"':
+        return lexer.read_string()
+    if c == "t" or c == "f":
+        return _parse_bool_with_lexer(lexer)
+    if c == "n":
+        return _parse_null_with_lexer(lexer)
+    if c == "-" or c in _DIGIT_CHARS:
+        return lexer.read_number(), lexer.pos
+    raise JSONParseError(f"unexpected character {c!r} at position {lexer.pos}")
+
+
+def _parse_object_with_lexer(lexer: _Lexer) -> dict:
+    lexer.expect("{")
+    out: dict = {}
+    lexer.skip_ws()
+    if lexer.pos < len(lexer.text) and lexer.peek() == "}":
+        lexer.advance()
+        return out
+    while True:
+        lexer.skip_ws()
+        if lexer.pos >= len(lexer.text) or lexer.peek() != '"':
+            raise JSONParseError(f"expected string key at {lexer.pos}")
+        key = lexer.read_string()
+        lexer.skip_ws()
+        if lexer.pos >= len(lexer.text) or lexer.peek() != ":":
+            raise JSONParseError(f"expected ':' at {lexer.pos}")
+        lexer.advance()
+        lexer.skip_ws()
+        value = _parse_value_with_lexer(lexer)
+        # Use direct assignment instead of rebuilding dict
+        out[key] = value
+        lexer.skip_ws()
+        if lexer.pos >= len(lexer.text):
+            raise JSONParseError("unterminated object")
+        c = lexer.peek()
+        if c == ",":
+            lexer.advance()
+            continue
+        if c == "}":
+            lexer.advance()
+            return out
+        raise JSONParseError(f"expected ',' or '}}' at {lexer.pos}")
+
+
+def _parse_array_with_lexer(lexer: _Lexer) -> list:
+    lexer.expect("[")
+    out: list = []
+    lexer.skip_ws()
+    if lexer.pos < len(lexer.text) and lexer.peek() == "]":
+        lexer.advance()
+        return out
+    while True:
+        lexer.skip_ws()
+        value = _parse_value_with_lexer(lexer)
+        # Use direct append instead of rebuilding list
+        out.append(value)
+        lexer.skip_ws()
+        if lexer.pos >= len(lexer.text):
+            raise JSONParseError("unterminated array")
+        c = lexer.peek()
+        if c == ",":
+            lexer.advance()
+            continue
+        if c == "]":
+            lexer.advance()
+            return out
+        raise JSONParseError(f"expected ',' or ']' at {lexer.pos}")
+
+
+def _parse_bool_with_lexer(lexer: _Lexer) -> bool:
+    if lexer.pos + 4 <= len(lexer.text) and lexer.text[lexer.pos : lexer.pos + 4] == "true":
+        lexer.pos = lexer.pos + 4
+        return True
+    if lexer.pos + 5 <= len(lexer.text) and lexer.text[lexer.pos : lexer.pos + 5] == "false":
+        lexer.pos = lexer.pos + 5
+        return False
+    raise JSONParseError(f"bad bool at {lexer.pos}")
+
+
+def _parse_null_with_lexer(lexer: _Lexer) -> None:
+    if lexer.pos + 4 <= len(lexer.text) and lexer.text[lexer.pos : lexer.pos + 4] == "null":
+        lexer.pos = lexer.pos + 4
+        return None
+    raise JSONParseError(f"bad null at {lexer.pos}")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find('\\S', pos)` or `re.search` for whitespace skipping is problematic because JSON allows Unicode whitespace characters beyond ASCII space, tab, newline, and carriage return. These approaches would not correctly identify all JSON whitespace, leading to parsing errors. Additionally, `find` with `\\S` won't work as intended since `\\S` is a regex pattern, not a literal string.
+
+STEELMAN: A better approach is to use the existing regex `_WS_RE` that's already defined to match all JSON whitespace characters (including Unicode), and call `search()` to find the next non-whitespace character. This preserves correctness while significantly improving performance by avoiding the character-by-character loop, and it's a direct optimization of the existing code structure.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

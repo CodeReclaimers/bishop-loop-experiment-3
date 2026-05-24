@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace character-by-character whitespace skipping with a single regex match fails because `_WS_RE` only matches zero or more whitespace characters at the start of the match, not the position after all leading whitespace. Using `re.match()` or `re.search()` would require repositioning the parser after the match, and the regex approach would not be truly O(1) since it still needs to advance the position by the matched length. Additionally, the regex engine's overhead could outweigh the benefits for small amounts of whitespace.
+
+STEELMAN: The steelman version would use `re.match(_WS_RE, text[pos:])` to find all leading whitespace, then advance the position by the length of the match, preserving the intent of using regex for efficient whitespace skipping while properly handling the position advancement and avoiding the O(n) loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

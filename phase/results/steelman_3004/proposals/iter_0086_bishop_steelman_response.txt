@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex search would break the parser's ability to handle whitespace correctly, since `_WS_PATTERN.search(text, pos)` would only find the next non-whitespace character but not advance the position past all consecutive whitespace. It also doesn't account for the fact that the regex engine may not be faster than a simple loop for short whitespace sequences, and could introduce overhead due to regex compilation or state management.
+
+STEELMAN: A better approach is to use the regex to find the end of the whitespace sequence starting at `pos`, then return that position directly, effectively skipping all whitespace in one operation. This preserves the existing logic while leveraging regex for efficient skipping, but must ensure the regex is used correctly to avoid breaking the parsing flow.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

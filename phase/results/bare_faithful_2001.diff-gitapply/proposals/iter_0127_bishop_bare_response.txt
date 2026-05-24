@@ -1,0 +1,39 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,8 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+
+ This is the starting point for the optimization loop. It is correct against
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
++ Whitespace is skipped via a per-call Python loop instead of a regex.
++ (Suggestion: replace with pre-compiled regex)
+ """
+ from __future__ import annotations
+
+ from typing import Any
+@@ -17,6 +19,9 @@
+ _HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+               "A", "B", "C", "D", "E", "F"}
+
+
++import re
++_WS_RE = re.compile(r'[ \t\n\r]*')
++
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+@@ -35,13 +40,10 @@
+ def _skip_ws(text: str, pos: int) -> int:
+     # Use a faster loop with direct indexing
+     try:
+-        while text[pos] in _WS_CHARS:
+-            pos += 1
++        pos += len(_WS_RE.match(text, pos).group(0))
+     except IndexError:
+         pass
+     return pos
+```

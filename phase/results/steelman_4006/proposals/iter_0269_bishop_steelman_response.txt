@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a set for whitespace character checks is misguided because the current implementation already uses a string `' \t\n\r\f'` in the `in` operator, which is effectively constant time for such a small set of characters. The proposed change would require converting the string to a set, which is unnecessary overhead. Additionally, the suggestion conflates the performance issue with the `in` operator on a list with the actual performance bottleneck in `_skip_ws`, which is already optimized for the small character set.
+
+STEELMAN: The core idea of optimizing character checks is sound, but the implementation should focus on using a frozenset for the whitespace characters in `_skip_ws`, which is already the most efficient approach for small, fixed character sets. This maintains performance while avoiding the overhead of repeated string operations and aligns with the existing code's use of frozensets for similar purposes.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    _WS_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find(' \t\n\r', pos)` is flawed because `str.find()` returns the index of the *first* occurrence of any character in the given set, not the index of the *first non-whitespace character*. This would incorrectly skip over whitespace characters rather than stopping at the first non-whitespace character. Additionally, this approach doesn't account for the fact that `find()` returns -1 when no characters are found, which would break the logic.
+
+STEELMAN: The steelman approach is to use `text.find(' \t\n\r', pos)` to locate the first non-whitespace character, but we must properly handle the case where no whitespace is found (i.e., when `find()` returns -1) and ensure that we correctly advance the position to the first non-whitespace character. We also need to apply this optimization consistently across all whitespace-skipping logic in `_parse_value` and `_skip_ws`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    next_non_ws = text.find(' \t\n\r', pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

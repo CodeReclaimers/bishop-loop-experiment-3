@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex match would break the parser's ability to track position correctly, since the regex engine returns a match object with a start position but the parser expects to advance through the string incrementally. It also doesn't account for the fact that the current implementation uses a loop to avoid repeated string slicing and that regex matching may not be faster than the existing O(1) set lookups for whitespace characters. Additionally, it would complicate error reporting and make the code less readable.
+
+STEELMAN: A better approach would be to use the compiled regex to skip whitespace in a single operation, but still maintain the incremental position tracking by using `re.match` or `re.search` with the current position as the starting point, and then updating the position based on the match's end index. This preserves the performance benefit of regex while maintaining the correctness and readability of the existing code.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

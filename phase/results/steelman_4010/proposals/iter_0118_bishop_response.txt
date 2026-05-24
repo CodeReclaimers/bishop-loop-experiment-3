@@ -1,0 +1,53 @@
+To optimize the `json_parser.py` parser, we can refactor the parsing logic for numbers to use a more efficient algorithm that avoids unnecessary string manipulations. Specifically, we can scan the JSON number directly without converting it into a string first. This approach leverages Python's built-in support for floating-point arithmetic and integer parsing which is generally faster than manually constructing strings.
+
+Here are the steps:
+
+1. **Use Python's Built-in Parsing Functions**: Instead of using `float(text[pos:])` or `int(text[pos:], 10)`, we can use the `float()` function directly on the portion of the text that represents the number. This avoids the overhead of converting to a string.
+
+2. **Avoid String Concatenation**: By directly parsing the number, we avoid unnecessary string concatenations which can be costly in terms of performance.
+
+Here is the updated code snippet:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s)
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+```
+
+This change makes the parser faster by avoiding unnecessary string operations and directly parsing numbers using Python's built-in functions.

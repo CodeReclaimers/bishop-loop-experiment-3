@@ -1,0 +1,128 @@
+CRITIQUE: The suggestion to use regex substitution for escape sequences would break Unicode handling, since the regex would need to be carefully crafted to avoid misinterpreting valid Unicode code points as escape sequences. It also fails to account for the complex logic required to validate surrogate pairs in Unicode escapes, which must be processed as a unit. Additionally, it doesn't consider that the current implementation already uses efficient list building and avoids string concatenation, so a regex-based approach could introduce overhead from regex compilation and matching.
+
+STEELMAN: The steelman is to pre-process the string using a single regex that safely handles all valid escape sequences (including Unicode) by replacing them with their actual character representations, while still maintaining the correct validation of surrogate pairs and ensuring that invalid escapes are still caught. This approach would reduce the per-character loop in `_parse_string` but keep the correctness guarantees by using a carefully constructed regex that matches the full escape pattern and delegates to a helper function for Unicode validation.
+
+```python
+<<<<<<< SEARCH
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+=======
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    # Preprocess string to handle escape sequences using regex
+    # This regex matches all valid escape sequences and replaces them with actual characters
+    # It avoids the per-character loop in the original implementation
+    escaped = _WS_RE.sub('', text[pos:n])
+    # Handle escape sequences using a single regex replacement
+    def replace_escape(match):
+        esc = match.group(0)[1]  # Get the character after the backslash
+        if esc == '"':
+            return '"'
+        elif esc == '\\':
+            return '\\'
+        elif esc == '/':
+            return '/'
+        elif esc == 'b':
+            return '\b'
+        elif esc == 'f':
+            return '\f'
+        elif esc == 'n':
+            return '\n'
+        elif esc == 'r':
+            return '\r'
+        elif esc == 't':
+            return '\t'
+        elif esc == 'u':
+            hex4 = match.group(0)[2:6]
+            if not _is_hex4(hex4):
+                raise JSONParseError(f"bad unicode escape at {pos}")
+            cp = int(hex4, 16)
+            if 0xD800 <= cp <= 0xDBFF:
+                # Handle surrogate pair
+                if pos + 6 >= n or text[pos + 6] != '\\' or pos + 7 >= n or text[pos + 7] != 'u':
+                    raise JSONParseError(f"unpaired high surrogate at {pos}")
+                hex4b = text[pos + 8:pos + 12]
+                if not _is_hex4(hex4b):
+                    raise JSONParseError(f"bad low surrogate at {pos + 8}")
+                cp2 = int(hex4b, 16)
+                if not (0xDC00 <= cp2 <= 0xDFFF):
+                    raise JSONParseError(f"bad low surrogate at {pos + 8}")
+                cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+            return chr(cp)
+        else:
+            raise JSONParseError(f"bad escape \\{esc} at {pos}")
+    # Compile the regex once for reuse
+    escape_re = re.compile(r'\\["\\/bfnrt]|\\u[0-9a-fA-F]{4}')
+    processed = escape_re.sub(replace_escape, escaped)
+    # Find the closing quote
+    end_quote = text.find('"', pos)
+    if end_quote == -1:
+        raise JSONParseError("unterminated string")
+    return processed, end_quote + 1
+>>>>>>> REPLACE
+```

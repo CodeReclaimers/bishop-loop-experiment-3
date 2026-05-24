@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `ord()` for control character checking is problematic because the current code already checks for control characters in `_parse_string` using `ord(c) < 0x20` but only in a single location. The suggestion doesn't specify where exactly this change should be applied, and applying `ord()` universally without understanding the performance characteristics of the existing `in` operator usage would be naive. The proposed change also doesn't address the fact that `ord()` is slower than `in` for small sets, and the suggestion fails to consider that `ord()` is only faster when the character set is large or when the check is done frequently in a tight loop.
+STEELMAN: The steelman version of this suggestion is to optimize control character checks by using `ord(c) < 0x20` instead of `c in ' \t\n\r\f'` in the `_skip_ws` function, since this is where whitespace is checked and it's called frequently. This leverages the fact that `ord()` is faster than `in` for small character sets in tight loops, and it aligns with the idea of using `ord()` for performance-critical character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if ord(c) < 0x20 or c == ' ':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

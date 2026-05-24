@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `text.find(r'\S', pos)` is fundamentally flawed because `\S` is a regex pattern that must be compiled, and `str.find()` doesn't accept regex patterns — it only does literal string searches. Additionally, the proposed approach would not correctly handle the specific whitespace characters defined in `_WS_CHARS`, which includes tab, newline, and carriage return, but not space. This would lead to incorrect parsing behavior.
+
+STEELMAN: A better approach would be to use a compiled regex pattern that matches one or more whitespace characters starting at `pos`, and then advance the position by the match length. This would preserve the intent of leveraging a regex engine for efficient whitespace skipping, while correctly handling all whitespace characters in `_WS_CHARS`.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

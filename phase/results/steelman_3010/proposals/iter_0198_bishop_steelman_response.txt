@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `str.translate` would not preserve the exact position needed by the parser, since `translate` removes characters but doesn't return the new position after skipping. Additionally, `str.translate` is not suitable for in-place skipping of whitespace without altering the string, and would require complex logic to track the correct position after translation.
+STEELMAN: A better approach is to use `str.translate` to efficiently remove all whitespace characters from the string, then use a regex to find the next non-whitespace character's position, which preserves the required behavior while leveraging the performance benefits of C-optimized string operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to efficiently remove whitespace and find next non-whitespace position
+    if pos >= len(text):
+        return pos
+    # Create translation table to remove whitespace characters
+    trans_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Remove all whitespace from the substring starting at pos
+    stripped = text[pos:].translate(trans_table)
+    # Find the position in original string by comparing lengths
+    new_pos = pos + len(text[pos:]) - len(stripped)
+    # Use regex to find the next non-whitespace character's position
+    match = _WS_PATTERN.match(text[new_pos:])
+    if match:
+        new_pos += match.end()
+    return new_pos
+>>>>>>> REPLACE
+```

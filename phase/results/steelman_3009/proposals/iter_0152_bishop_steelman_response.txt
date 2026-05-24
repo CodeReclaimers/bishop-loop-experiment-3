@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion fails to account for the fact that `translate` with a translation table mapping whitespace to `'\0'` would corrupt the input string, making subsequent parsing impossible. Additionally, the proposed approach doesn't handle the case where the input is entirely whitespace, which would result in an empty string after translation and break the parsing logic. Finally, it doesn't consider that `translate` is still a Python-level call, not a true C-level optimization, and doesn't eliminate the need for repeated string slicing or parsing of the result.
+
+STEELMAN: The steelman version would use a precomputed translation table mapping all whitespace characters to a single sentinel character (e.g., `'\0'`) and apply it once to the remaining string, then use `str.find()` to locate the first non-whitespace character. This avoids repeated Python loops in `_skip_ws` by delegating to C-level string operations, but preserves the original string structure for parsing. It also ensures that the original string is not corrupted and handles edge cases like all-whitespace inputs correctly.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precomputed translation table for whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\0\0\0\0")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

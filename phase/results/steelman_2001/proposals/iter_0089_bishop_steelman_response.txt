@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it doesn't correctly handle the case where whitespace characters are interspersed with non-whitespace characters — `find` will return the position of the first whitespace character, not skip all consecutive whitespace. Additionally, it assumes that the entire string can be searched at once, which is inefficient and incorrect for the parser's needs.
+
+STEELMAN: The steelman version would replace the character-by-character loop in `_skip_ws` with a more efficient approach using `re.search` or a regex-based skip function that matches one or more whitespace characters, preserving correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the regex for performance
+_WS_PATTERN = re.compile(f'[{re.escape("".join(_WS_CHARS))}]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

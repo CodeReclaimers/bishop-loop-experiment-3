@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while-loop with a regex search would break the logic because `_WS_RE.search(text, pos)` finds the next non-whitespace character, not the end of the whitespace sequence. The regex would need to match zero or more whitespace characters from the current position, but `search()` doesn't work that way without a proper pattern like `r'\s*'`. Additionally, this approach could introduce performance regressions due to regex overhead for small amounts of whitespace.
+
+STEELMAN: The steelman is to use `re.match(_WS_RE, text, pos)` to match zero or more whitespace characters starting at `pos`, then return the end index of that match. This preserves the intent of bulk skipping while correctly using the precompiled regex for performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,51 @@
+CRITIQUE: The suggestion to use a lookup table for control character detection is unworkable because it fails to account for the fact that JSON strings are UTF-8 encoded, not ASCII, so individual bytes don't reliably represent characters. Additionally, the approach would require a 256-entry lookup table, which is memory-heavy and doesn't align with the existing performance optimizations using frozensets. It also doesn't address the core issue of the `ord(c) < 0x20` check being a simple comparison, not a bottleneck.
+STEELMAN: A better approach would be to precompute a lookup table for all ASCII control characters (0-31) and use it to replace the `ord(c) < 0x20` check, which would avoid the expensive `ord()` call and reduce conditional branching. This preserves the existing logic for UTF-8 handling while improving performance for the common case of ASCII characters.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+# Lookup table for ASCII control characters (0-31)
+_CTRL_CHARS = frozenset(range(32))
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+```

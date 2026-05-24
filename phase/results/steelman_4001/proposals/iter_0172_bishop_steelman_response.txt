@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to "use an index to track the position within the text instead of repeatedly searching for the next non-whitespace character" is fundamentally flawed because it misunderstands the performance bottleneck. The `skip_ws` function is called repeatedly at every parsing step, but the proposed optimization doesn't address that the current implementation already uses an index (`pos`) — it's just doing a linear scan from that index. The real issue is not the index tracking, but that we're doing redundant whitespace skipping at every level of recursion, and the repeated `pos` updates are not the main cost.
+
+STEELMAN: A better approach is to optimize the whitespace skipping by using a precomputed or cached position tracking, such as advancing the position in a single pass through whitespace without re-scanning from the start each time. The key is to reduce the overhead of repeated checks and avoid redundant whitespace handling at every parsing level by using a more efficient skip function that advances the position directly and efficiently.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

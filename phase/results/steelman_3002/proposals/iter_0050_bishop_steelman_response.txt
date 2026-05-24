@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `c in ' \t\n\r'` with `c in b'\x09\x0a\x0b\x0c'` is flawed because it assumes all whitespace characters are ASCII, which is not true in general JSON parsing; Unicode whitespace characters like U+00A0 (non-breaking space) would not be handled correctly. Additionally, the bytes lookup would only work for ASCII characters, breaking compatibility with non-ASCII input strings.
+
+STEELMAN: A better approach would be to precompute a frozenset of all valid JSON whitespace characters (including Unicode ones) and use that for O(1) membership testing, preserving correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    _WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

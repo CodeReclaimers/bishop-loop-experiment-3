@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace character-by-character scanning with a state machine approach is problematic because it would require a complete rewrite of `_parse_number` and `_parse_value` to work with iterators, which would likely introduce complexity and potential bugs. The suggestion also fails to address the actual performance bottleneck in `_parse_number` which is already using a compiled regex for fast number detection. Additionally, the proposed change would break the existing API and require a significant refactor of the parsing logic.
+
+STEELMAN: The core idea of optimizing number parsing is sound, but rather than replacing the regex-based approach entirely, we should improve the current implementation by using a more efficient state machine to handle number parsing directly in the existing framework. This approach would maintain the current API and structure while reducing the overhead of string scanning by using a single pass with proper state tracking for digits, decimal points, and exponents.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

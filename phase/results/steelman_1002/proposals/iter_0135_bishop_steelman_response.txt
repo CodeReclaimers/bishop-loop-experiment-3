@@ -1,0 +1,310 @@
+```python
+# CRITIQUE:
+# The suggestion to use a generator function for processing characters in chunks is unworkable because it fundamentally conflicts with the recursive descent parsing approach used in the code. Recursive descent parsers require random access to the input stream for backtracking and lookahead, which a generator-based approach cannot efficiently support. Additionally, the suggestion doesn't address the core performance bottlenecks like repeated string concatenations, redundant whitespace skipping, or inefficient number parsing, which are the real issues slowing down the parser.
+#
+# STEELMAN:
+# The steelman approach involves refactoring the parser to use a stateful iterator (like a custom `TextReader` class) that maintains position and allows efficient forward traversal while preserving the recursive structure. This enables optimized character access without sacrificing correctness, and can be combined with pre-processing steps like using regex for whitespace skipping or more efficient number parsing. The core idea of avoiding unnecessary string building and using more efficient data structures remains intact.
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use frozenset for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+class TextReader:
+    """A stateful reader for efficient forward traversal of text."""
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+        self.length = len(text)
+
+    def peek(self) -> str:
+        if self.pos >= self.length:
+            return ''
+        return self.text[self.pos]
+
+    def advance(self) -> str:
+        if self.pos >= self.length:
+            return ''
+        c = self.text[self.pos]
+        self.pos += 1
+        return c
+
+    def skip_ws(self) -> None:
+        while self.pos < self.length and self.text[self.pos] in _WS_CHARS:
+            self.pos += 1
+
+    def skip_to(self, char: str) -> bool:
+        while self.pos < self.length:
+            if self.text[self.pos] == char:
+                return True
+            self.pos += 1
+        return False
+
+    def skip_to_any(self, chars: frozenset) -> bool:
+        while self.pos < self.length:
+            if self.text[self.pos] in chars:
+                return True
+            self.pos += 1
+        return False
+
+    def consume(self, expected: str) -> bool:
+        if self.pos < self.length and self.text[self.pos] == expected:
+            self.pos += 1
+            return True
+        return False
+
+    def consume_until(self, char: str) -> str:
+        start = self.pos
+        while self.pos < self.length and self.text[self.pos] != char:
+            self.pos += 1
+        if self.pos < self.length:
+            self.pos += 1
+        return self.text[start:self.pos - 1]
+
+    def consume_number(self) -> str:
+        start = self.pos
+        if self.pos < self.length and self.text[self.pos] == "-":
+            self.pos += 1
+        if self.pos >= self.length:
+            raise JSONParseError(f"bad number at {self.pos}")
+        if self.text[self.pos] == "0":
+            self.pos += 1
+        elif self.text[self.pos] in _DIGIT_CHARS:
+            while self.pos < self.length and self.text[self.pos] in _DIGIT_CHARS:
+                self.pos += 1
+        else:
+            raise JSONParseError(f"bad number at {self.pos}")
+        is_float = False
+        if self.pos < self.length and self.text[self.pos] == ".":
+            is_float = True
+            self.pos += 1
+            if self.pos >= self.length or self.text[self.pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number fractional at {self.pos}")
+            while self.pos < self.length and self.text[self.pos] in _DIGIT_CHARS:
+                self.pos += 1
+        if self.pos < self.length and self.text[self.pos] in ("e", "E"):
+            is_float = True
+            self.pos += 1
+            if self.pos < self.length and self.text[self.pos] in ("+", "-"):
+                self.pos += 1
+            if self.pos >= self.length or self.text[self.pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number exponent at {self.pos}")
+            while self.pos < self.length and self.text[self.pos] in _DIGIT_CHARS:
+                self.pos += 1
+        return self.text[start:self.pos]
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    reader = TextReader(text)
+    reader.skip_ws()
+    if reader.pos >= reader.length:
+        raise JSONParseError("empty input")
+    value, _ = _parse_value(reader)
+    reader.skip_ws()
+    if reader.pos != reader.length:
+        raise JSONParseError(f"trailing content at position {reader.pos}")
+    return value
+
+
+def _parse_value(reader: TextReader) -> tuple[Any, int]:
+    reader.skip_ws()
+    if reader.pos >= reader.length:
+        raise JSONParseError("unexpected end of input")
+    c = reader.peek()
+    if c == "{":
+        return _parse_object(reader)
+    if c == "[":
+        return _parse_array(reader)
+    if c == '"':
+        return _parse_string(reader)
+    if c == "t" or c == "f":
+        return _parse_bool(reader)
+    if c == "n":
+        return _parse_null(reader)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(reader)
+    raise JSONParseError(f"unexpected character {c!r} at position {reader.pos}")
+
+
+def _parse_object(reader: TextReader) -> tuple[dict, int]:
+    if reader.peek() != "{":
+        raise JSONParseError(f"expected '{{' at {reader.pos}")
+    reader.advance()
+    out = {}
+    reader.skip_ws()
+    if reader.pos < reader.length and reader.peek() == "}":
+        reader.advance()
+        return out, reader.pos
+    while True:
+        reader.skip_ws()
+        if reader.pos >= reader.length or reader.peek() != '"':
+            raise JSONParseError(f"expected string key at {reader.pos}")
+        key, pos = _parse_string(reader)
+        reader.skip_ws()
+        if reader.pos >= reader.length or reader.peek() != ":":
+            raise JSONParseError(f"expected ':' at {reader.pos}")
+        reader.advance()
+        reader.skip_ws()
+        value, pos = _parse_value(reader)
+        out[key] = value
+        reader.skip_ws()
+        if reader.pos >= reader.length:
+            raise JSONParseError("unterminated object")
+        c = reader.peek()
+        if c == ",":
+            reader.advance()
+            continue
+        if c == "}":
+            reader.advance()
+            return out, reader.pos
+        raise JSONParseError(f"expected ',' or '}}' at {reader.pos}")
+
+
+def _parse_array(reader: TextReader) -> tuple[list, int]:
+    if reader.peek() != "[":
+        raise JSONParseError(f"expected '[' at {reader.pos}")
+    reader.advance()
+    out = []
+    reader.skip_ws()
+    if reader.pos < reader.length and reader.peek() == "]":
+        reader.advance()
+        return out, reader.pos
+    while True:
+        reader.skip_ws()
+        value, pos = _parse_value(reader)
+        out.append(value)
+        reader.skip_ws()
+        if reader.pos >= reader.length:
+            raise JSONParseError("unterminated array")
+        c = reader.peek()
+        if c == ",":
+            reader.advance()
+            continue
+        if c == "]":
+            reader.advance()
+            return out, reader.pos
+        raise JSONParseError(f"expected ',' or ']' at {reader.pos}")
+
+
+def _parse_string(reader: TextReader) -> tuple[str, int]:
+    if reader.peek() != '"':
+        raise JSONParseError(f"expected '\"' at {reader.pos}")
+    reader.advance()
+    out = []
+    while reader.pos < reader.length:
+        c = reader.advance()
+        if c == '"':
+            return "".join(out), reader.pos
+        if c == "\\":
+            if reader.pos >= reader.length:
+                raise JSONParseError("unterminated string escape")
+            esc = reader.advance()
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if reader.pos + 4 > reader.length:
+                    raise JSONParseError(f"bad unicode escape at {reader.pos}")
+                hex4 = reader.text[reader.pos:reader.pos + 4]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {reader.pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if reader.pos + 5 >= reader.length or reader.text[reader.pos + 5] != "\\" or reader.pos + 6 >= reader.length or reader.text[reader.pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {reader.pos}")
+                    if reader.pos + 10 > reader.length:
+                        raise JSONParseError(f"bad low surrogate at {reader.pos}")
+                    hex4b = reader.text[reader.pos + 7:reader.pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {reader.pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {reader.pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    reader.pos += 11
+                    continue
+                out.append(chr(cp))
+                reader.pos += 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {reader.pos}")
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {reader.pos}")
+        out.append(c)
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in _HEX_CHARS for c in s)
+
+
+def _parse_bool(reader: TextReader) -> tuple[bool, int]:
+    pos = reader.pos
+    if pos + 4 <= reader.length and reader.text[pos:pos + 4] == "true":
+        reader.pos += 4
+        return True, reader.pos
+    if pos + 5 <= reader.length and reader.text[pos:pos + 5] == "false":
+        reader.pos += 5
+        return False, reader.pos
+    raise JSONParseError(f"bad bool at {reader.pos}")
+
+
+def _parse_null(reader: TextReader) -> tuple[None, int]:
+    pos = reader.pos
+    if pos + 4 <= reader.length and reader.text[pos:pos + 4] == "null":
+        reader.pos += 4
+        return None, reader.pos
+    raise JSONParseError(f"bad null at {reader.pos}")
+
+
+def _parse_number(reader: TextReader) -> tuple[float | int, int]:
+    s = reader.consume_number()
+    is_float = '.' in s or 'e' in s.lower()
+    if is_float:
+        return float(s), reader.pos
+    return int(s), reader.pos
+```

@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop is problematic because it would require duplicating the same logic in multiple places where whitespace is skipped, leading to code bloat and maintenance issues. Additionally, it doesn't address the actual performance bottleneck, which is likely the repeated character-by-character checks in the loop rather than the function call overhead. The suggestion also fails to consider that the current `_skip_ws` function is already quite efficient and that inlining might not yield meaningful performance gains in practice.
+
+STEELMAN: A better approach would be to optimize the `_skip_ws` function itself by replacing the `while` loop with a more efficient character lookup using a frozenset, similar to how `_DIGIT_CHARS` and `_HEX_CHARS` are used. This avoids repeated membership checks and leverages fast set lookups, while still maintaining a single, clean function that can be reused throughout the parser.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is problematic because `str.find` has O(n) complexity and would still require scanning through large amounts of text even when only a few characters need to be skipped. It also doesn't handle the case where the input is already at the end of the string efficiently, and could introduce overhead when the skip distance is small. Additionally, the approach doesn't consider that whitespace skipping is often a hot path that benefits more from optimized character-by-character loops than from high-level string methods.
+
+STEELMAN: A better approach is to implement a hybrid whitespace skip that uses `str.find` to quickly locate the first non-whitespace character when the input is long enough, but falls back to the current character-by-character scanning for shorter inputs or when the skip distance is small. This preserves the performance benefits of avoiding regex while reducing the overhead of repeated character checks in typical cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    # But use str.find for large inputs to avoid repeated checks
+    if len(text) - pos > 10:  # Threshold for when find is beneficial
+        try:
+            # Find the first non-whitespace character
+            first_non_ws = text.find(' ', pos)
+            if first_non_ws == -1:
+                first_non_ws = text.find('\t', pos)
+            if first_non_ws == -1:
+                first_non_ws = text.find('\n', pos)
+            if first_non_ws == -1:
+                first_non_ws = text.find('\r', pos)
+            if first_non_ws == -1:
+                return pos  # All whitespace
+            return first_non_ws
+        except ValueError:
+            # Fall back to character-by-character scanning
+            pass
+    
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

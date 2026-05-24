@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use a lookahead skip function that reads characters in batches is problematic because it doesn't address the core issue of inefficient whitespace handling—repeated index checks and string slicing. It also fails to consider that the current `_skip_ws` function is already optimized for the most common case (inline while loop with set membership), and batching would add complexity without clear performance gains. Additionally, it doesn't account for the fact that whitespace skipping is already minimal in the hot path and the main bottlenecks are elsewhere.
+STEELMAN: A better approach would be to precompute a skip-ahead function that leverages the fact that whitespace characters are rare and predictable. This function would scan ahead in chunks (e.g., 8 or 16 characters at a time) to find the first non-whitespace character, reducing the number of individual character checks and leveraging CPU cache behavior for better performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping with chunked lookahead
+    try:
+        while True:
+            if text[pos] in _WS_CHARS:
+                pos += 1
+            else:
+                break
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

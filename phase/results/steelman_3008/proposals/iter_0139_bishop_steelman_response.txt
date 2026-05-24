@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `text.find(' '.join(_WS_CHARS), pos)` is flawed because it would incorrectly handle cases where whitespace characters appear in the middle of the input, and it would not properly handle the case where no whitespace is found, leading to incorrect parsing behavior. It also fails to consider that the whitespace characters are not necessarily adjacent in the string, and the approach doesn't correctly maintain the parser's state.
+STEELMAN: A better approach would be to use `text.find` to locate the first non-whitespace character, but with a fallback to the original loop when the `find` method doesn't return a valid index, ensuring correctness while still improving performance for typical cases with large amounts of whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    # but optimize by using find for large whitespace sequences
+    if pos >= len(text):
+        return pos
+    # Try to find the next non-whitespace character efficiently
+    next_non_ws = text.find(' '.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        # No whitespace found, so skip all remaining characters
+        return len(text)
+    # Skip the whitespace characters
+    while pos < next_non_ws:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(' ', pos)` is flawed because it only checks for space characters, ignoring tab, newline, and carriage return whitespace as defined by `_WS_CHARS`. This would break parsing of valid JSON with non-space whitespace. Additionally, `find` returns -1 when not found, but the suggestion doesn't clarify how to handle that case properly—merely returning `len(text)` would incorrectly skip past all remaining content if no space is found, rather than finding the next non-whitespace character.
+
+STEELMAN: A better approach is to use a regex pattern that matches all whitespace characters (as currently done with `_WS_PATTERN`) but leverage `re.search` to find the first non-whitespace character efficiently, or alternatively, use a compiled regex with `match` on the slice starting at `pos`, which avoids the manual loop while correctly handling all whitespace types.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to "skip whitespace in blocks and then scan each character directly" is vague and potentially problematic because it doesn't specify how to efficiently handle large blocks of whitespace without falling back to regex or inefficient character-by-character scanning. It also fails to address the core issue that the current `_skip_ws` function already uses direct character scanning, which is already optimal for this operation.
+
+STEELMAN: The steelman version of this suggestion is to optimize `_skip_ws` by using a more efficient block-based scanning approach that leverages Python's built-in string methods or precompiled regex patterns for large whitespace segments, while still maintaining the direct character scanning for smaller segments to avoid the overhead of regex matching for every single whitespace skip.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: precompiled regex for large blocks, direct scanning for small
+    # This avoids the overhead of regex matching for every small skip while still being efficient
+    # for large whitespace sequences.
+    m = _WS_RE.match(text, pos)
+    if m:
+        return m.end()
+    # Fallback to direct scanning for any remaining small whitespace
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

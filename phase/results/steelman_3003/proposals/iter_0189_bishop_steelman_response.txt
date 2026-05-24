@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the regex-based `_skip_ws` with a simple loop using `_WS_CHARS` would eliminate regex compilation overhead but introduces a critical performance regression: the current implementation uses `re.compile(r"[ \t\n\r]*")` to skip *multiple* whitespace characters at once, while a naive loop would process each character individually, making it O(n) in the number of whitespace characters instead of O(1) per character. This change would severely degrade performance for inputs with long sequences of whitespace.
+STEELMAN: The steelman version would retain the precomputed `_WS_CHARS` frozenset but implement a more efficient loop that skips *consecutive* whitespace characters in a single pass, maintaining the O(1) per-character lookup while avoiding regex overhead. This preserves the intent of avoiding regex compilation while maintaining performance.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

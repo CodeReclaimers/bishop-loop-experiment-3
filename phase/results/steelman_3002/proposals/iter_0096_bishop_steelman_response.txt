@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a direct loop using string comparison is flawed because it doesn't address the actual performance bottleneck — the regex compilation and reuse of `_WS_RE` is unnecessary and costly. The proposed change would still require checking each character against a hardcoded string, which is inefficient compared to using a set for membership testing. Additionally, the suggestion ignores that the current implementation already avoids regex matching by precompiling the regex, so removing it entirely would not yield any benefit.
+
+STEELMAN: The steelman version of the suggestion is to replace the current `_skip_ws` implementation with a more efficient direct loop that uses a `frozenset` for whitespace characters instead of a hardcoded string comparison, since membership testing in a frozenset is faster than iterating through a string. This preserves the intent of avoiding regex overhead while improving performance through better data structures.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

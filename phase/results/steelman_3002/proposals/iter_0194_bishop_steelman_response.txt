@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `text.find(' \t\n\r', pos)` is problematic because `text.find()` scans linearly through the string until it finds any whitespace character, which can be inefficient for long sequences of non-whitespace characters. Additionally, it doesn't handle Unicode whitespace characters that are valid in JSON but not included in the hardcoded set `' \t\n\r'`, leading to incorrect parsing. Finally, it fails to account for the fact that the current implementation supports arbitrary JSON whitespace, including U+00A0 (non-breaking space) and other Unicode whitespace characters.
+STEELMAN: A better approach would be to maintain a set of valid JSON whitespace characters (including Unicode ones) and use a simple loop with direct character comparisons, avoiding regex entirely while ensuring full compliance with the JSON specification for whitespace handling.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, carriage return, and Unicode whitespace
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r' or c.isspace():
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

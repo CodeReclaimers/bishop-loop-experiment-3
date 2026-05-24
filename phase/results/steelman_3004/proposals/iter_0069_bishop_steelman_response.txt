@@ -1,0 +1,48 @@
+CRITIQUE: The suggestion to use a precomputed `_HEX_TO_INT` dictionary would not work correctly because it doesn't account for the fact that the hex string may be invalid or improperly formatted, which would cause lookup failures or incorrect results. Additionally, the suggestion to eliminate `_is_hex4` entirely is flawed because that function performs validation that's necessary to prevent malformed Unicode escapes from crashing the parser or producing invalid output. The proposed optimization would trade safety for speed without proper error handling.
+
+STEELMAN: The steelman version of the suggestion would precompute a dictionary mapping valid 4-character hex strings to their integer values, but it would still validate the hex strings using `_is_hex4` to ensure correctness. The lookup would be used only after validation, and the function call to `_is_hex4` would be replaced with a dictionary lookup for performance, while preserving all error-checking behavior.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+_HEX_TO_INT = {h: int(h, 16) for h in [f"{a}{b}{c}{d}" for a in "0123456789abcdefABCDEF" for b in "0123456789abcdefABCDEF" for c in "0123456789abcdefABCDEF" for d in "0123456789abcdefABCDEF"] if all(c in "0123456789abcdefABCDEF" for c in h)}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+>>>>>>> REPLACE
+```

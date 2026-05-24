@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with a regex find operation is flawed because `re.find()` would only find the first match, not skip all whitespace in one go. Additionally, the regex `\s*` matches zero or more whitespace characters, so it wouldn't directly give the index of the next non-whitespace character. This approach also introduces regex overhead for a simple operation that's already optimized with set lookups.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` with the compiled regex `_WS_RE` to skip all leading whitespace at once, by matching from the current position and advancing the index by the matched length. This preserves the intent of leveraging regex for bulk skipping while correctly advancing the position to the first non-whitespace character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

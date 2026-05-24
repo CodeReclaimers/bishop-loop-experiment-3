@@ -1,0 +1,96 @@
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using pre-computed set for O(1) lookups
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    ws_table = _build_ws_table(text)
+    pos = _skip_ws(text, 0, ws_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, ws_table)
+    pos = _skip_ws(text, pos, ws_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_ws_table(text: str) -> list[int]:
+    """Build a table mapping each position to the next non-whitespace position."""
+    n = len(text)
+    ws_table = [0] * n
+    pos = n
+    while pos > 0:
+        pos -= 1
+        if text[pos] in _WS_CHARS:
+            ws_table[pos] = ws_table[pos + 1]
+        else:
+            ws_table[pos] = pos + 1
+    return ws_table
+
+
+def _skip_ws(text: str, pos: int, ws_table: list[int]) -> int:
+    # Skip whitespace using pre-computed table for O(1) lookups
+    return ws_table[pos]
+
+
+def _parse_value(text: str, pos: int, ws_table: list[int]) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos, ws_table)
+    if c == "[":
+        return _parse_array(text, pos, ws_table)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```
+```

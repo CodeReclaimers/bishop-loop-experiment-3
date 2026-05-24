@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual while-loop in `_skip_ws` with `re.find` is flawed because `re.find` would still need to scan the string from the starting position, which doesn't eliminate the O(n) scanning cost; it merely changes the scanning method. Additionally, regex matching is typically slower than direct character set membership for simple whitespace skipping, especially for small inputs. The regex approach also doesn't handle the case where the input is entirely whitespace, which could lead to incorrect behavior or performance degradation.
+
+STEELMAN: A better approach would be to use `re.match` with the precompiled `_WS_PATTERN` to find a contiguous sequence of whitespace characters starting at the current position, and then advance the position by the length of that match. This avoids the character-by-character loop while leveraging the compiled regex for efficient scanning, but still requires careful handling to avoid performance regressions or incorrect behavior for edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one jump
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

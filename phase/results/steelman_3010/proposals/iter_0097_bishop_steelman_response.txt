@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `regex.search().start()` for whitespace skipping is flawed because it doesn't handle the case where the regex finds no match (i.e., reaches end-of-string) and would require additional logic to avoid index errors. Additionally, it assumes the regex engine will be faster than the simple loop, which may not be true due to regex overhead and the fact that the loop already uses an optimized `frozenset` for membership testing.
+
+STEELMAN: A better approach is to use `regex.search()` but safely handle the case where no match is found by checking if the match object is None, and in that case, return the end of the string. This preserves the performance benefits of regex while ensuring correctness and avoiding the overhead of a loop that may be slower in Python.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, jumping directly to next non-whitespace character
+    match = _WS_PATTERN.search(text, pos)
+    if match is None:
+        return len(text)
+    return match.end()
+>>>>>>> REPLACE
+```

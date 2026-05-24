@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `str.translate()` with slicing to remove whitespace directly is fundamentally flawed because it misunderstands how whitespace removal works in the parser. The current `_skip_ws` function doesn't remove all whitespace at once, but rather advances a position pointer past whitespace characters one by one. Slicing would require identifying and removing *all* whitespace in a chunk, which is not the same operation. Additionally, slicing would not preserve the incremental parsing behavior needed for position tracking.
+STEELMAN: The steelman version of the suggestion is to optimize the `_skip_ws` function by using a more efficient loop that avoids repeated bounds checking and leverages the precomputed `_WS_CHARS` set, which is already implemented but could be further optimized by using a while loop with direct character access instead of `str.translate()` or list comprehensions. This preserves the core idea of avoiding intermediate string creation while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

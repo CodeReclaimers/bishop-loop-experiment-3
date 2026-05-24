@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use a character lookup table for whitespace is naive because it doesn't address the core performance bottleneck of repeated `ord()` calls in a hot loop, and would still require expensive string indexing and character-by-character checks. It also fails to consider that the current `_skip_ws` function is already O(n) and the lookup table approach wouldn't reduce the number of iterations or eliminate the need for checking each character in the input string.
+
+STEELMAN: The strongest version of this suggestion would be to replace the repeated character-by-character membership checks in `_skip_ws` with a precomputed lookup table using `bytes` or `bytearray` for fast O(1) character classification, which would eliminate the repeated `in` operations and significantly reduce the overhead of whitespace skipping in the parser's hot path.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+# Precompute a lookup table for whitespace characters for fast O(1) lookup
+_WS_TABLE = bytearray(256)
+for i in range(256):
+    _WS_TABLE[i] = 1 if chr(i) in _WS_CHARS else 0
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and _WS_TABLE[ord(text[pos])] != 0:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

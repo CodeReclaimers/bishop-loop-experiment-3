@@ -1,0 +1,49 @@
+CRITIQUE: The suggestion to predefine a translation table mapping whitespace characters to `None` and use `str.translate` is unworkable because `str.translate` expects a translation table where characters map to their replacements, not `None`. Passing `None` as a replacement would raise a `TypeError`. Additionally, this approach doesn't actually eliminate the per-call overhead of building the table; it just changes how it's built, and `str.translate` is not necessarily faster than set membership checks for small character sets.
+
+STEELMAN: The steelman is to precompute a single translation table once at module level that maps all whitespace characters to `None`, then use `str.translate` on the substring in `_skip_ws`. This avoids recreating the table on each call and leverages `str.translate`'s optimized C implementation, while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute translation table for whitespace removal
+_WS_TRANSLATE_TABLE = str.maketrans({char: None for char in _WS_CHARS})
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate for performance
+    start = pos
+    while pos < len(text):
+        # Find first non-whitespace character by translating
+        substr = text[pos:]
+        translated = substr.translate(_WS_TRANSLATE_TABLE)
+        if translated == substr:
+            # No whitespace found, return current pos
+            return pos
+        # Adjust pos to skip whitespace
+        pos += len(substr) - len(translated)
+        # If we're at the end of the string, return
+        if pos >= len(text):
+            return pos
+        # If we found a non-whitespace character, return pos
+        if text[pos] not in _WS_CHARS:
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

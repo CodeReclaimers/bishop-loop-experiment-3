@@ -1,0 +1,25 @@
+To optimize this JSON parser, we can use a more efficient approach to parse numbers by directly converting strings to integers or floats without unnecessary parsing steps. This will reduce the time complexity of number parsing from O(n) to O(1), where n is the length of the number string.
+
+Here's how you can do it:
+
+```python
+# Instead of using float() and int(), use direct conversion
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    try:
+        return int(s), pos
+    except ValueError as e:
+        raise JSONParseError(f"bad number at {pos}: {e}")
+```
+
+This change eliminates the need for string concatenation and uses direct conversion to integers or floats, which is much faster than using `float()` and `int()`. The use of try-except blocks ensures that if an invalid number format is encountered, it raises a JSONParseError.

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find(_WS_RE, pos)` is fundamentally flawed because `str.find()` does not accept compiled regex patterns — it only works with literal strings. Additionally, even if this worked, `find()` would return the position of the *first* match of the regex, not skip all whitespace in one operation, since the regex `[ \t\n\r]*` matches zero or more whitespace chars but `find()` would only locate the start of that match, not advance past it. This approach would not actually improve performance and would likely break the parser.
+STEELMAN: A better approach is to use the precompiled regex `_WS_RE` to match zero or more whitespace characters starting at `pos`, and then advance `pos` by the length of that match. This avoids per-character checks while correctly skipping all consecutive whitespace in one operation, leveraging the regex engine's optimization for repeated character matching.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

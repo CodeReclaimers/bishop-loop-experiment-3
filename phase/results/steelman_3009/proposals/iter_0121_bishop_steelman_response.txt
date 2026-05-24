@@ -1,0 +1,88 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` is flawed because `str.find` only finds the first occurrence of a character from a set, not the first non-digit character. It would incorrectly advance past multiple digits or fail to handle cases where the digit sequence is followed by non-numeric characters. Additionally, it doesn't account for the full number parsing logic including decimal points and exponents.
+STEELMAN: The steelman version would use `str.find` to locate the first non-digit character after the initial digit sequence, but still maintain the existing logic for handling decimal points, exponents, and proper number validation. It should leverage C-level string operations for digit scanning while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        # Use str.find to quickly locate the first non-digit character
+        # This leverages C-level string operations for better performance
+        end_pos = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end_pos == -1:
+            end_pos = n
+        pos = end_pos
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        # Use str.find to quickly locate the first non-digit character after decimal
+        end_pos = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end_pos == -1:
+            end_pos = n
+        pos = end_pos
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        # Use str.find to quickly locate the first non-digit character after exponent
+        end_pos = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end_pos == -1:
+            end_pos = n
+        pos = end_pos
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

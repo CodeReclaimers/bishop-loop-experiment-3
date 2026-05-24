@@ -1,0 +1,252 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    
+    # State machine implementation
+    class State:
+        START = 0
+        IN_OBJECT = 1
+        IN_OBJECT_KEY = 2
+        IN_OBJECT_VALUE = 3
+        IN_ARRAY = 4
+        IN_STRING = 5
+        IN_NUMBER = 6
+        IN_TRUE = 7
+        IN_FALSE = 8
+        IN_NULL = 9
+    
+    # Stack for tracking nesting levels
+    stack = []
+    state = State.START
+    pos = 0
+    current_value = None
+    current_key = None
+    current_string = []
+    current_number = []
+    in_string_escape = False
+    in_string_unicode = False
+    unicode_digits = []
+    
+    # Skip initial whitespace
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    
+    # Main parsing loop
+    while True:
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        
+        c = text[pos]
+        
+        if state == State.START:
+            if c == '{':
+                stack.append((State.IN_OBJECT, {}))
+                pos += 1
+                state = State.IN_OBJECT
+            elif c == '[':
+                stack.append((State.IN_ARRAY, []))
+                pos += 1
+                state = State.IN_ARRAY
+            elif c == '"':
+                state = State.IN_STRING
+                current_string = []
+                pos += 1
+            elif c == 't':
+                state = State.IN_TRUE
+                pos += 1
+            elif c == 'f':
+                state = State.IN_FALSE
+                pos += 1
+            elif c == 'n':
+                state = State.IN_NULL
+                pos += 1
+            elif c == '-' or c in "0123456789":
+                state = State.IN_NUMBER
+                current_number = [c]
+                pos += 1
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        
+        elif state == State.IN_OBJECT:
+            if c == '}':
+                if not stack:
+                    raise JSONParseError("unexpected }")
+                prev_state, obj = stack.pop()
+                if prev_state == State.IN_OBJECT:
+                    current_value = obj
+                    state = prev_state
+                elif prev_state == State.IN_ARRAY:
+                    stack[-1][1].append(obj)
+                    state = prev_state
+                else:
+                    current_value = obj
+                    state = State.START
+                pos += 1
+            elif c == '"':
+                state = State.IN_OBJECT_KEY
+                current_string = []
+                pos += 1
+            elif c == ',':
+                pos += 1
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        
+        elif state == State.IN_OBJECT_KEY:
+            if in_string_escape:
+                if c == 'u':
+                    in_string_unicode = True
+                    unicode_digits = []
+                else:
+                    current_string.append('\\' + c)
+                in_string_escape = False
+            elif c == '\\':
+                in_string_escape = True
+            elif c == '"':
+                current_key = ''.join(current_string)
+                state = State.IN_OBJECT_VALUE
+                pos += 1
+            else:
+                current_string.append(c)
+                pos += 1
+        
+        elif state == State.IN_OBJECT_VALUE:
+            if c == ':':
+                pos += 1
+                state = State.START
+            else:
+                raise JSONParseError(f"expected : at position {pos}")
+        
+        elif state == State.IN_ARRAY:
+            if c == ']':
+                if not stack:
+                    raise JSONParseError("unexpected ]")
+                prev_state, arr = stack.pop()
+                if prev_state == State.IN_OBJECT:
+                    current_value = arr
+                    state = prev_state
+                elif prev_state == State.IN_ARRAY:
+                    stack[-1][1].append(arr)
+                    state = prev_state
+                else:
+                    current_value = arr
+                    state = State.START
+                pos += 1
+            elif c == ',':
+                pos += 1
+            else:
+                # Push back to parse the value
+                pos -= 1
+                state = State.START
+        
+        elif state == State.IN_STRING:
+            if in_string_escape:
+                if c == 'u':
+                    in_string_unicode = True
+                    unicode_digits = []
+                else:
+                    current_string.append('\\' + c)
+                in_string_escape = False
+            elif c == '\\':
+                in_string_escape = True
+            elif c == '"':
+                current_value = ''.join(current_string)
+                state = State.START
+                pos += 1
+            else:
+                current_string.append(c)
+                pos += 1
+        
+        elif state == State.IN_NUMBER:
+            if c in "0123456789.-+eE":
+                current_number.append(c)
+                pos += 1
+            else:
+                # End of number
+                num_str = ''.join(current_number)
+                try:
+                    if '.' in num_str or 'e' in num_str.lower():
+                        current_value = float(num_str)
+                    else:
+                        current_value = int(num_str)
+                except ValueError:
+                    raise JSONParseError(f"bad number at {pos}")
+                state = State.START
+                pos -= 1  # Re-process the character
+        
+        elif state == State.IN_TRUE:
+            if pos == len(text) - 4:
+                if text[pos:pos+4] == "true":
+                    current_value = True
+                    state = State.START
+                    pos += 4
+                else:
+                    raise JSONParseError(f"bad bool at {pos}")
+            else:
+                raise JSONParseError(f"bad bool at {pos}")
+        
+        elif state == State.IN_FALSE:
+            if pos == len(text) - 5:
+                if text[pos:pos+5] == "false":
+                    current_value = False
+                    state = State.START
+                    pos += 5
+                else:
+                    raise JSONParseError(f"bad bool at {pos}")
+            else:
+                raise JSONParseError(f"bad bool at {pos}")
+        
+        elif state == State.IN_NULL:
+            if pos == len(text) - 4:
+                if text[pos:pos+4] == "null":
+                    current_value = None
+                    state = State.START
+                    pos += 4
+                else:
+                    raise JSONParseError(f"bad null at {pos}")
+            else:
+                raise JSONParseError(f"bad null at {pos}")
+        
+        # Handle value assignment in objects and arrays
+        if state == State.START and current_value is not None:
+            if stack and stack[-1][0] == State.IN_OBJECT:
+                obj = stack[-1][1]
+                obj[current_key] = current_value
+                current_value = None
+                state = State.IN_OBJECT
+            elif stack and stack[-1][0] == State.IN_ARRAY:
+                arr = stack[-1][1]
+                arr.append(current_value)
+                current_value = None
+                state = State.IN_ARRAY
+            else:
+                # Final value
+                break
+        
+        # Check for trailing content
+        if pos >= len(text):
+            break
+    
+    # Final checks
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    
+    return current_value
+```

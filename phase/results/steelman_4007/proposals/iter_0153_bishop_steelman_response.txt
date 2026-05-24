@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion to use regex for whitespace skipping is problematic because regex compilation overhead would hurt performance on small inputs, and the regex engine's state management could introduce unpredictable performance characteristics. Additionally, the suggestion doesn't address the core issue that the current `_skip_ws` function is already optimized with an inline loop and exception handling, making a regex-based approach likely slower for typical JSON parsing workloads.
+
+STEELMAN: A better approach would be to use a hybrid strategy where a fast inline loop handles small inputs (under a threshold), and a pre-compiled regex is used for larger inputs, but only after a warm-up period to avoid compilation overhead. This preserves the performance characteristics of the current implementation for small inputs while leveraging regex for larger inputs where it's more efficient.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping for small inputs
+    # Use regex for larger inputs after warm-up
+    if len(text) > 1000:
+        # Pre-compiled regex for large inputs
+        import re
+        global _ws_regex
+        try:
+            _ws_regex
+        except NameError:
+            _ws_regex = re.compile(r'^\s*')
+        match = _ws_regex.match(text[pos:])
+        if match:
+            return pos + len(match.group())
+    # Fall back to inline loop for small inputs or during warm-up
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

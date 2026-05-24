@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to use a generator for `_parse_value` is unworkable because the parser is fundamentally recursive and must fully consume each value before returning it; yielding values incrementally would break the expected return type and recursive structure. Additionally, the current implementation already builds objects and arrays incrementally, so the memory usage benefit would be minimal since the final data structures must still be fully constructed.
+
+STEELMAN: A better approach would be to refactor the parser to use a single-pass iterative strategy with a stack, avoiding deep recursion and reducing function call overhead while maintaining the same interface and correctness. This would improve performance without changing the API or breaking the recursive descent pattern's logic.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Fast path for common case: avoid function call overhead
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Fast path for common case: avoid function call overhead
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

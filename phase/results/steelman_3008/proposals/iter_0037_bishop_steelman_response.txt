@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `text.find(lambda c: c not in _WS_CHARS, pos)` is unworkable because `str.find()` doesn't accept a lambda function — it only takes a substring or character. Additionally, this approach would scan the entire string from `pos` onward until finding a non-whitespace character, which could be inefficient for large amounts of whitespace, and it doesn't integrate well with the existing parser's structure.
+
+STEELMAN: A better approach would be to use `str.find()` with a precomputed set of non-whitespace characters to locate the first non-whitespace character, avoiding a Python loop in favor of a fast C-level scan, while still maintaining the correct behavior for parsing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace in one C-level scan
+    next_non_ws = text.find(lambda c: c not in _WS_CHARS, pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

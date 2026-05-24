@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace regex with direct character iteration is naive because it ignores the performance benefits of regex's optimized compiled pattern matching, especially for large amounts of whitespace. It also fails to address the complexity of handling Unicode whitespace or the need for efficient bounds checking in tight loops. The approach could introduce subtle bugs around edge cases like malformed input or unhandled escape sequences.
+
+STEELMAN: A better approach would be to use a direct character loop with precomputed membership checks, similar to the existing `_skip_ws` function, but optimized to avoid redundant bounds checking and leverage the existing `_WS_CHARS` frozenset for O(1) lookup while still maintaining the simplicity and correctness of the current implementation.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

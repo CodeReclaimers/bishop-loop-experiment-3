@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find` or a generator expression would fail because `text.find` doesn't support searching for the first character *not* in a set — it only searches for specific substrings or characters. A generator like `next((c for c in text[pos:] if c not in _WS_CHARS), None)` is inefficient since it still iterates character-by-character and doesn't leverage optimized C-level string operations. Additionally, the generator approach would not handle the case where the entire remainder of the string is whitespace, which should return `len(text)`.
+
+STEELMAN: The steelman is to use a hybrid approach that leverages `str.find` to efficiently skip whitespace by searching for the first non-whitespace character, but in a way that avoids repeated character-by-character checks. Specifically, we can repeatedly call `text.find` with a custom predicate or use a more optimized loop that skips large chunks of whitespace by detecting when a non-whitespace character is found, ideally using `str.translate` or `str.rstrip` for performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to efficiently skip whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

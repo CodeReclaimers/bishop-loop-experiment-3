@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex search would be problematic because `re.search()` scans forward from the starting position until it finds a non-whitespace character, but it doesn't handle the case where there's no whitespace at all — the regex would still need to be used carefully. Additionally, calling `search()` repeatedly on large inputs could introduce overhead from regex engine setup and backtracking, especially when whitespace is sparse or absent.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` with a pattern that matches one or more whitespace characters, but only when we know there's likely to be a match. Alternatively, we can precompute the end position of whitespace using `re.search()` and then directly jump to that position, avoiding the loop entirely — but this must be done carefully to avoid repeated regex calls on small inputs or cases where regex overhead outweighs benefit.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

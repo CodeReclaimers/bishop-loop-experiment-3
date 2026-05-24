@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex call would break the function's contract because `re.search` only finds the first match, not the longest contiguous run of whitespace starting at the given position. Additionally, it would introduce regex overhead for a simple operation that's already highly optimized with frozenset lookups and avoids Python loops.
+STEELMAN: A better approach is to use `re.match` (not `search`) at the given position to find the longest whitespace run, which correctly handles the contiguous nature of whitespace skipping. This preserves the intent of leveraging regex performance while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match for contiguous run
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

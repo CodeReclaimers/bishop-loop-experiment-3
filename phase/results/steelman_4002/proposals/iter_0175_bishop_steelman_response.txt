@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a simple loop is misguided because the current implementation already uses a direct loop in `_skip_ws` that checks `text[pos] in _WS_CHARS` — this is already a character-by-character check without regex overhead. The suggestion fails to address the actual performance bottleneck, which is the repeated membership testing in a set and the inefficient handling of whitespace at every parsing level. It also ignores that the current loop is already optimized with a try/except pattern to avoid index checking.
+
+STEELMAN: A better approach would be to optimize the existing loop in `_skip_ws` by using a more efficient lookup mechanism, such as a precomputed boolean array or a C-style pointer advancement with inline checks, to avoid repeated set membership tests and reduce function call overhead. The goal is to make the whitespace skipping as fast as possible while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping with direct index access
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

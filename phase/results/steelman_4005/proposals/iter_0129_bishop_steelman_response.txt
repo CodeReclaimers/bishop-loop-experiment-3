@@ -1,0 +1,71 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is unworkable because it would fundamentally alter the parsing logic by removing whitespace characters entirely from the string, which breaks the ability to track positions and maintain parse state. Additionally, `str.translate` is not necessarily faster than the current optimized loop, especially when dealing with small amounts of whitespace, and it doesn't address the core issue of avoiding repeated bounds checking in a performance-critical parsing loop.
+
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (like a space), and then use a fast loop with a single bounds check per iteration, while still preserving the original string structure for position tracking. This preserves the performance benefits of avoiding repeated bounds checks and character lookups, but avoids the complexity of modifying the string during parsing.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Precompute translation table for whitespace skipping
+# Maps whitespace chars to a single sentinel character (space) to avoid string modification
+_WS_TRANSLATE_TABLE = str.maketrans({char: " " for char in _WS_CHARS})
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast loop using translation table and single bounds check per iteration
+    # This avoids repeated bounds checking and character lookups
+    while pos < len(text):
+        if text[pos] not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` returns the index of the first occurrence of any whitespace character, not the index after all leading whitespace. This would incorrectly advance `pos` past only the first whitespace character rather than all leading whitespace. Additionally, `find()` is not guaranteed to be faster than a simple loop for small amounts of whitespace, and the implementation would need careful handling to avoid edge cases like empty strings or malformed inputs.
+
+STEELMAN: The steelman version should use `text.find()` to locate the first non-whitespace character, but then correctly advance `pos` to that position, effectively skipping all leading whitespace in one operation. This approach leverages C-optimized string operations while maintaining correctness by ensuring that `pos` is advanced to the correct final position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find() to skip all leading whitespace in one C-level operation
+    ws_string = ''.join(_WS_CHARS)
+    next_non_ws = text.find(ws_string, pos)
+    if next_non_ws == -1:
+        # No whitespace found, return original pos
+        return pos
+    # Find the first non-whitespace character
+    while next_non_ws < len(text) and text[next_non_ws] in _WS_CHARS:
+        next_non_ws += 1
+    return next_non_ws
+>>>>>>> REPLACE
+```

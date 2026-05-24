@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `isspace()` instead of regex for whitespace skipping is problematic because `isspace()` only handles ASCII whitespace by default, while the current implementation correctly handles Unicode whitespace via a frozenset. Additionally, the suggestion doesn't address the core performance bottlenecks like repeated string concatenation in `_parse_string` or inefficient dictionary building. The idea of avoiding "unnecessary string concatenation" is vague and doesn't specify concrete optimizations.
+
+STEELMAN: The strongest version of this suggestion would involve using `str.isspace()` for ASCII whitespace detection as a faster alternative to the current loop-based approach, while still maintaining full Unicode support via the existing `_WS_CHARS` frozenset for non-ASCII cases. This preserves the performance gains from avoiding regex while keeping the existing correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos].isspace():
+        pos = pos + 1
+    # Fall back to frozenset for non-ASCII whitespace
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+>>>>>>> REPLACE
+```

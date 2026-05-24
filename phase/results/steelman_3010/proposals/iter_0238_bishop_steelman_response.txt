@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `str.maketrans` and `text.find` would not work because it fundamentally changes the parsing logic — the parser needs to advance through whitespace character-by-character to maintain accurate position tracking for error messages and nested structures. Using a translation pass would lose position information and complicate the parsing flow. Additionally, this approach would not actually be faster than the current O(1) membership checks in a frozenset, since `str.translate` and `str.find` are not significantly faster than the existing loop for small, fixed sets of characters.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`) and then use `str.find` to locate the next non-sentinel character, but only for skipping whitespace in a way that still allows for precise position tracking. This preserves the intent of leveraging fast C-level string operations while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-level string operations to skip whitespace efficiently
+    # Create a translation table mapping all whitespace to null character
+    if pos >= len(text):
+        return pos
+    # Find the next non-whitespace character using find
+    # This avoids the O(n) loop by leveraging fast C-level string search
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

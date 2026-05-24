@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use generator expressions for token parsing is unworkable because it doesn't address the core performance issues in the current implementation, which stem from character-by-character scanning, repeated string operations, and redundant whitespace handling. Generator expressions would still require the same fundamental parsing logic and wouldn't eliminate the expensive operations like `text[pos] in _DIGIT_CHARS` or repeated `pos += 1` loops. Additionally, the suggestion fails to consider that the performance bottleneck is not in iteration but in the parsing algorithm itself, not in the iteration mechanism.
+
+STEELMAN: The steelman version would involve replacing the character-by-character scanning in `_skip_ws` and `_parse_number` with a single regex-based scan that identifies complete tokens (whitespace, numbers, etc.) in one pass, while preserving the existing recursive descent structure. This approach would reduce the number of individual character checks and streamline the parsing flow by using regex for token-level operations rather than per-character loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for efficient whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

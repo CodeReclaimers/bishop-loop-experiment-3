@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a `frozenset` for whitespace checking is fundamentally flawed because it doesn't address the actual performance bottleneck in `_skip_ws`. The current implementation already uses a direct character check against a hardcoded string, which is already O(1) per character. The real issue is that the function still iterates through whitespace characters one by one, which is inefficient for large amounts of whitespace. The suggestion fails to recognize that the optimization should focus on skipping large contiguous whitespace blocks, not just the lookup mechanism.
+
+STEELMAN: The strongest version of this suggestion would optimize `_skip_ws` by using a frozenset for fast character lookup, but also implement a more efficient approach that skips contiguous whitespace in larger chunks rather than character-by-character iteration, especially when dealing with large amounts of whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using frozenset lookup
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it would require scanning the entire whitespace set character by character in the worst case, negating the performance benefit. It also doesn't handle the case where the input is all whitespace, which would cause `find` to return `len(text)` and not properly signal an error. Additionally, the approach assumes that `find` will be faster than a simple while loop, which isn't necessarily true for small inputs or when the loop is already optimized.
+
+STEELMAN: A better approach is to use `str.translate` and `str.maketrans` to efficiently remove all whitespace characters in one C-level operation, then compute the new position as the difference between the original and translated strings. This avoids the Python-level loop while being robust to edge cases and leveraging highly optimized C implementations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to None (remove them)
+    trans_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Translate the substring starting from pos
+    translated = text[pos:].translate(trans_table)
+    # The new position is the length of the translated string plus the original start
+    return pos + len(translated)
+>>>>>>> REPLACE
+```

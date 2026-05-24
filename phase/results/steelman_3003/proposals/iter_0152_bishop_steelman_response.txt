@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex call is flawed because `re.search()` finds the *first* match, not the *next non-whitespace position*, and would require a separate regex to find the *end* of whitespace. Additionally, using regex for such a simple operation is likely slower than the current O(1) frozenset lookups in a tight loop.
+STEELMAN: A better approach is to use `re.match()` with the precompiled `_WS_RE` regex to skip whitespace, which will match zero or more whitespace characters starting at the given position, and return the end position directly — preserving the performance gains of the existing approach while simplifying the logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

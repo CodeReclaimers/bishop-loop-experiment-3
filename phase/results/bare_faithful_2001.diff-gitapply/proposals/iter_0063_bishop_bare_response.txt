@@ -1,0 +1,104 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,3 +1,6 @@
++"""Deliberately slow but correct JSON parser. Editable surface.
++
++This is the starting point for the optimization loop. It is correct against
+ """
+ from __future__ import annotations
+
+@@ -24,6 +27,10 @@
+ _DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+ _HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+               "A", "B", "C", "D", "E", "F"}
++_ESCAPE_MAP = {
++    '"': '"',
++    "\\": "\\",
++    "/": "/",
++    "b": "\b",
++    "f": "\f",
++    "n": "\n",
++    "r": "\r",
++    "t": "\t",
++}
+
+
+@@ -65,15 +72,10 @@
+         if c == "\\":
+             pos += 1
+             if pos >= n:
+-                raise JSONParseError("unterminated string escape")
+-            esc = text[pos]
+-            if esc == '"':
+-                out.append('"')
+-            elif esc == "\\":
+-                out.append("\\")
+-            elif esc == "/":
+-                out.append("/")
+-            elif esc == "b":
+-                out.append("\b")
+-            elif esc == "f":
+-                out.append("\f")
+-            elif esc == "n":
+-                out.append("\n")
+-            elif esc == "r":
+-                out.append("\r")
+-            elif esc == "t":
+-                out.append("\t")
+-            elif esc == "u":
+-                if pos + 4 >= n:
+-                    raise JSONParseError(f"bad unicode escape at {pos}")
+-                hex4 = text[pos + 1 : pos + 5]
+-                if not _is_hex4(hex4):
+-                    raise JSONParseError(f"bad unicode escape at {pos}")
+-                cp = int(hex4, 16)
+-                if 0xD800 <= cp <= 0xDBFF:
+-                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+-                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+-                    if pos + 10 >= n:
+-                        raise JSONParseError(f"bad low surrogate at {pos}")
+-                    hex4b = text[pos + 7 : pos + 11]
+-                    if not _is_hex4(hex4b):
+-                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+-                    cp2 = int(hex4b, 16)
+-                    if not (0xDC00 <= cp2 <= 0xDFFF):
+-                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+-                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+-                    out.append(chr(cp))
+-                    pos = pos + 11
+-                    continue
+-                out.append(chr(cp))
+-                pos = pos + 4
+-            else:
+-                raise JSONParseError(f"bad escape \\{esc} at {pos}")
++            esc = text[pos]
++            if esc == "u":
++                if pos + 4 >= n:
++                    raise JSONParseError(f"bad unicode escape at {pos}")
++                hex4 = text[pos + 1 : pos + 5]
++                if not _is_hex4(hex4):
++                    raise JSONParseError(f"bad unicode escape at {pos}")
++                cp = int(hex4, 16)
++                if 0xD800 <= cp <= 0xDBFF:
++                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
++                        raise JSONParseError(f"unpaired high surrogate at {pos}")
++                    if pos + 10 >= n:
++                        raise JSONParseError(f"bad low surrogate at {pos}")
++                    hex4b = text[pos + 7 : pos + 11]
++                    if not _is_hex4(hex4b):
++                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
++                    cp2 = int(hex4b, 16)
++                    if not (0xDC00 <= cp2 <= 0xDFFF):
++                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
++                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
++                    out.append(chr(cp))
++                    pos = pos + 11
++                    continue
++                out.append(chr(cp))
++                pos = pos + 4
++            else:
++                out.append(_ESCAPE_MAP.get(esc, chr(ord(esc))))
+             pos += 1
+             continue
+```

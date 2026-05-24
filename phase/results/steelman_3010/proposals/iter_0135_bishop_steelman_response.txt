@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the manual while loop with a regex search would break the parser's ability to handle consecutive whitespace correctly, since `search()` only finds the first match and doesn't advance the position past all whitespace. Additionally, it would introduce unnecessary overhead from regex engine setup and matching for every call, especially in cases where there's no whitespace at all, defeating the purpose of optimization.
+
+STEELMAN: A better approach is to use the regex to skip whitespace, but only when there's a significant amount of it — for small amounts of leading whitespace, the existing loop is more efficient. We can still leverage the regex engine for large runs of whitespace while falling back to the fast path for typical cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for large runs of whitespace, fallback to loop for small ones
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        match = _WS_PATTERN.search(text, pos)
+        if match:
+            return match.end()
+    return pos
+>>>>>>> REPLACE
+```

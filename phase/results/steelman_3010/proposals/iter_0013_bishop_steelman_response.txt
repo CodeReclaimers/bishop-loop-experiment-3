@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace skip with a regex match would break the existing logic because `_skip_ws` is used in multiple contexts where partial advancement is needed — for example, when parsing object keys or array elements, the parser must advance past whitespace but then needs to check the next specific character. A regex match would consume all contiguous whitespace and return the end position, but it wouldn't allow the parser to peek at the next character to decide what to do next, which is essential for correct parsing. Additionally, regex-based skipping may not be faster than the current O(1) set membership check in tight loops, especially if the whitespace is short.
+
+STEELMAN: The steelman is to use the regex to skip whitespace, but still allow the parser to inspect the next character after the match. This can be done by using `re.match` or `re.search` with a lookahead or by advancing the position to the end of the matched whitespace and then using a separate check to peek at the next character. The core idea is to leverage the optimized regex engine for the bulk skipping while preserving the parser's ability to make decisions based on the next character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, leveraging optimized scanning
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

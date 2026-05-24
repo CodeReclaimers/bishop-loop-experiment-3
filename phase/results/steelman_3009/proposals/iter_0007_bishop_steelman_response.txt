@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace `text[pos] in _WS_CHARS` with `ord(text[pos]) < 0x20` is flawed because it would incorrectly classify many non-whitespace ASCII characters (like `!`, `#`, `$`, etc.) as whitespace, since they have ASCII values less than 0x20. It also fails to account for the fact that the standard JSON whitespace characters are only space (0x20), tab (0x09), line feed (0x0A), and carriage return (0x0D), not all characters below 0x20.
+
+STEELMAN: The steelman version of the suggestion should use a direct ASCII check against the specific whitespace characters defined in the JSON standard: space (0x20), tab (0x09), line feed (0x0A), and carriage return (0x0D). This preserves the performance benefit of avoiding frozenset membership testing while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct ASCII checks for whitespace characters for O(1) membership
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

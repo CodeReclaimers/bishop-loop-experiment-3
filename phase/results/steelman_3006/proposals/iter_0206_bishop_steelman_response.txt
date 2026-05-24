@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while-loop with `str.find` or regex fails because `str.find` would only locate the first non-whitespace character, not skip all consecutive whitespace — the loop is necessary to consume the entire whitespace sequence. Additionally, `str.find` or regex aren't necessarily faster than the current loop for small inputs, and would add complexity without clear benefit. The approach also doesn't account for the fact that `str.find` may not be optimized for repeated calls or small string slices.
+STEELMAN: A better approach is to use `str.find` to locate the first non-whitespace character, but only when a significant amount of whitespace is expected, and fall back to the current loop for short or sparse whitespace runs. This avoids the per-character Python iteration while maintaining performance across all input sizes.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip large blocks of whitespace, falling back to loop for small cases
+    if pos < len(text):
+        # Only use find if we expect significant whitespace to skip
+        next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+        if next_non_ws != -1:
+            return next_non_ws
+    # Fallback to the original loop for small or sparse whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

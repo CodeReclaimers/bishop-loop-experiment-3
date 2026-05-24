@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to "use a more efficient string scanning method for large blocks of whitespace" is vague and potentially problematic because it doesn't address the actual performance bottleneck in `_skip_ws` which is already optimized to avoid regex. The second part about "directly checking for escape sequences without regex" is also naive since the current implementation already avoids regex for escape handling, and the suggestion doesn't consider that the current escape handling is already quite efficient.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a single pass with a compiled regex for large blocks of whitespace, and to precompute a lookup table for escape sequences to avoid repeated dictionary lookups during string parsing, while maintaining the existing correctness and structure.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for large blocks of whitespace
+    m = _WS_RE.match(text, pos)
+    return m.end() if m else pos
+>>>>>>> REPLACE
+```

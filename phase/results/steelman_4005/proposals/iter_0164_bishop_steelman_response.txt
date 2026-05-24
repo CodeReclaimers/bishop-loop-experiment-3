@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use a more efficient regex pattern for skipping whitespace is problematic because the current implementation already uses a precompiled regex `_WS_PATTERN` and the performance bottleneck is likely elsewhere. The second part about directly checking character codes for numbers is naive because it ignores the complexity of number parsing, such as handling exponents, decimal points, and ensuring correct float/int conversion without using built-in functions like `int()` and `float()`.
+
+STEELMAN: A better approach would be to optimize the whitespace skipping by leveraging the existing `frozenset` lookup for characters, which is already O(1), rather than relying on regex. For number parsing, we can improve performance by using direct character code checks (like `ord(c) - ord('0')`) for digit conversion while still using `int()` and `float()` for final conversion to maintain correctness and avoid reimplementing complex parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call fails because `re.search()` only finds the first match, not the longest contiguous sequence starting at `pos`. This would skip only the first whitespace character instead of all contiguous whitespace. Additionally, the regex approach doesn't handle the case where the input is exhausted properly, and the current implementation's loop-based approach is more robust for error handling and edge cases.
+
+STEELMAN: The steelman version would use `_WS_RE.match(text, pos)` instead of `search`, which matches from the start of the string and correctly advances past all contiguous whitespace. It should also handle the case where the regex doesn't match (i.e., no whitespace at `pos`) by falling back to the original logic or ensuring the match always succeeds by anchoring properly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

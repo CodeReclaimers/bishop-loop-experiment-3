@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the iterative whitespace skipping loop with a single regex call is problematic because `re.search()` finds the first match from the current position, not the longest sequence of leading whitespace. This would skip only the first whitespace character instead of all leading whitespace, breaking parsing correctness. Additionally, using regex for this simple task introduces overhead and reduces performance compared to the optimized set-based lookup.
+STEELMAN: The steelman approach is to use `re.match()` with the compiled regex `_WS_RE` to skip all leading whitespace at once, which correctly advances past the full sequence of whitespace characters while maintaining performance. This preserves the intent of reducing Python-level loops and leveraging the regex for efficient whitespace handling, but avoids the pitfalls of `search()` and maintains correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

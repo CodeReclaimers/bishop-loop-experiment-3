@@ -1,0 +1,11 @@
+We need to suggest a change. Probably avoid building ws_table and using regex per parse, instead use direct index scanning as already used, but maybe precompute whitespace table once per parse is fine. But better: use compiled regex to skip whitespace? Already done. Could replace _skip_ws (while loop) with direct index jump using regex find? Or use built-in str.find to locate next non-whitespace? That is faster. Also avoid building ws_table? Already uses it. Suggest replacing _skip_ws with a single regex search: pos = _WS_PATTERN.start(text, pos) + len(_WS_PATTERN.group())? Actually pattern matches zero or more whitespace, so start returns same pos. Better: use while loop is fine; but maybe use text.find to skip whitespace? hmm.
+
+The main cost is building ws_table and regex per parse; could replace with direct loop as already. Maybe we can precompute whitespace set and use while loop (already). The biggest overhead is regex pattern matching per call? Actually we compile once.
+
+Probably best: replace _skip_ws with a direct index increment loop (already) but keep; maybe replace _skip_ws_with_table with direct while loop; but we already have that.
+
+Simplify: replace building ws_table and using _skip_ws_with_table with a simple while loop that advances pos over whitespace using set membership; that's faster.
+
+Thus suggestion: remove ws_table and _skip_ws_with_table; replace with a direct while loop using _WS_CHARS set.
+
+Let's output: Replace the _skip_ws_with_table call and the ws_table building with a simple while loop that advances pos while text[pos] is in _WS_CHARS, removing the table entirely. This eliminates the O(n) table construction and reduces overhead.

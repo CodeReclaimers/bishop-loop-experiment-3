@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with a regex match would not work correctly because `_WS_PATTERN` is compiled to match zero or more whitespace characters, not the position *after* the whitespace. Using `find` or `search` would only locate the next whitespace run, not skip it to the next non-whitespace character. Additionally, the regex approach would be slower than the current O(1) membership checks for individual characters, especially in cases with minimal whitespace.
+
+STEELMAN: A better approach is to use the regex to skip whitespace by matching the pattern and advancing the position by the match length, but only when there is a significant amount of leading whitespace to skip. The key is to preserve the fast O(1) single-character checks for small amounts of whitespace, while using the regex for larger skips, effectively combining both strategies for optimal performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for large skips, fallback to manual for small skips
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

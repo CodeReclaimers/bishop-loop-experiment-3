@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion fails to account for the fact that `str.find` on a translation table with a sentinel character won't work as intended, since `str.find` searches for a literal character, not a mapped one. Additionally, the approach doesn't consider that whitespace skipping may need to handle multiple consecutive whitespace characters, and the performance benefit of `str.find` is not guaranteed to outweigh the overhead of building the translation table and managing the sentinel mapping.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character, then use `str.translate` to replace all whitespace in one pass, followed by `str.find` to locate the next non-sentinel character. This avoids repeated character-by-character checks and leverages highly optimized C-level string operations, while still correctly handling the position tracking logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translation table to map all whitespace to sentinel, then find next non-sentinel
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace all whitespace with a sentinel
+    ws_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(ws_table)
+    # Find first non-sentinel character
+    next_non_ws = translated.find(" ")
+    if next_non_ws == -1:
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

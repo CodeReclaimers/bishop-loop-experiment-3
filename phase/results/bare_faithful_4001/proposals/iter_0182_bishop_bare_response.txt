@@ -1,0 +1,131 @@
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        # State machine: track parsing stage
+        stage = "key"  # or "colon", "value", "comma", "end"
+        if stage == "key":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != '"':
+                raise JSONParseError(f"expected string key at {pos}")
+            key, pos = _parse_string(text, pos)
+            stage = "colon"
+        if stage == "colon":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos = pos + 1
+            stage = "value"
+        if stage == "value":
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+            stage = "comma"
+        if stage == "comma":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                stage = "key"
+                continue
+            if c == "}":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        # State machine: track parsing stage
+        stage = "value"  # or "comma", "end"
+        if stage == "value":
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            out.append(value)
+            stage = "comma"
+        if stage == "comma":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated array")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                stage = "value"
+                continue
+            if c == "]":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

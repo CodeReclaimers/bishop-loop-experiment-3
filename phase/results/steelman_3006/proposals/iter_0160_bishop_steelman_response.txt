@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` returns the index of the first occurrence of any whitespace character, not the first non-whitespace character, and it would require additional logic to skip all consecutive whitespace. Also, using `all(c in _HEX_CHARS for c in s)` instead of a manual loop would be slower for short strings like 4-character hex sequences, as it creates a generator and iterates through all characters even when the first few are invalid.
+
+STEELMAN: The steelman version would use `text.find(''.join(_WS_CHARS), pos)` correctly by finding the first whitespace character and advancing past it, but only if such a character exists; otherwise, we'd fall back to the existing loop. For `_is_hex4`, we should keep the manual loop but optimize it by checking the length first and early-returning on invalid characters, which avoids unnecessary iteration while maintaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to jump to next non-whitespace, with fallback to loop
+    next_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_ws == -1:
+        return len(text)
+    return next_ws
+>>>>>>> REPLACE
+```

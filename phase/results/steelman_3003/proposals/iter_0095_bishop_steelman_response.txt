@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `_WS_RE.search(text, pos).end()` would not work correctly because the regex pattern `r"[ \t\n\r]*"` matches zero or more whitespace characters, but it doesn't account for the fact that `search()` returns the *start* of the match, not the end, and the match could be empty. Additionally, this approach would not handle the case where the regex engine backtracks or fails to advance properly, potentially causing performance regressions or incorrect parsing behavior.
+STEELMAN: A better approach is to use `_WS_RE.match(text, pos)` which will match from the given position and return the end index of the whitespace run. This preserves the intent of jumping past all whitespace in one operation, while avoiding the pitfalls of `search()` and maintaining O(1) character checks for individual characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

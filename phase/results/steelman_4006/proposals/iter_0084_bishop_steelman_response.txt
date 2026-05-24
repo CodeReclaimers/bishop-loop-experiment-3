@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `ord(c)` comparisons for whitespace skipping is problematic because it ignores the fact that Python strings are Unicode, and direct byte-level comparisons may not correctly handle all Unicode whitespace characters or may fail on non-ASCII input. It also doesn't address the actual performance bottleneck in `_skip_ws`, which is the repeated string indexing and condition checks.
+STEELMAN: A better approach would be to use `ord(c)` comparisons for a predefined set of common ASCII whitespace characters, but still maintain correctness for Unicode by falling back to a more general check or using a fast lookup table for ASCII-only cases, while ensuring that the optimization doesn't break on non-ASCII inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using ord() comparisons for ASCII whitespace
+    while pos < len(text):
+        c = text[pos]
+        # Use ord() for fast ASCII whitespace checks
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r' or c == '\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

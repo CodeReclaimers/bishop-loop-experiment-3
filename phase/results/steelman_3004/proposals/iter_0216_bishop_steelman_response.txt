@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `_parse_string` calls with a direct index jump using a `skip_table` is unworkable because it ignores the fundamental complexity of string parsing, which involves escape sequence handling, Unicode processing, and control character validation that cannot be bypassed with simple index arithmetic. The suggestion also fails to account for the fact that `_parse_string` is not just about skipping whitespace — it's about correctly parsing and validating the entire string literal, including its contents. Additionally, the idea of using a `skip_table` without defining or implementing it makes the suggestion technically infeasible.
+
+STEELMAN: The core idea is sound — avoid repeated calls to `_skip_ws` by precomputing valid skip positions. However, instead of replacing string parsing entirely, we can optimize the whitespace skipping by using a precomputed lookup table to jump over whitespace in O(1) time, while still calling `_parse_string` to handle the full string parsing logic. This preserves correctness while improving performance by eliminating redundant whitespace checks in the parsing loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+# Precompute a skip table for whitespace
+def _build_skip_table(text: str) -> list[int]:
+    skip_table = [0] * len(text)
+    for i in range(len(text) - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = skip_table[i + 1] + 1 if i + 1 < len(text) else 1
+        else:
+            skip_table[i] = 0
+    return skip_table
+
+
+def _skip_ws_fast(skip_table: list[int], pos: int) -> int:
+    return pos + skip_table[pos]
+>>>>>>> REPLACE
+```

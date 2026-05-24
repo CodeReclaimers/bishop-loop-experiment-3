@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is problematic because it doesn't handle the case where the next non-whitespace character is at position `pos` itself — the find call would return `pos` and incorrectly skip zero characters. Additionally, it would not correctly handle the case where the entire remainder of the string is whitespace, leading to an index out of bounds or incorrect behavior.
+STEELMAN: The steelman version should use `text.find(''.join(_WS_CHARS), pos)` but first check if the character at `pos` is already non-whitespace, and if so, return `pos` immediately. If not, we can safely use `find` to locate the next non-whitespace character, and handle the edge case where the entire remaining string is whitespace by checking the result against the string length.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    if pos >= len(text):
+        return pos
+    if text[pos] not in _WS_CHARS:
+        return pos
+    n = len(text)
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return n
+    return next_non_ws
+>>>>>>> REPLACE
+```

@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use a 256-element boolean lookup table assumes all ASCII characters are equally likely to be whitespace, but in practice, non-whitespace characters vastly outnumber whitespace characters, making the table mostly wasted space. Additionally, the approach doesn't account for the fact that Python's frozenset lookup is already highly optimized and the performance gain from avoiding hash computation may be negligible or even negative due to cache effects from the larger table. The implementation also ignores that whitespace characters are a small subset of all possible ASCII characters, so the memory overhead of a full 256-element array is not justified.
+STEELMAN: A better approach would be to create a compact lookup table that only marks the actual whitespace characters (space, tab, newline, carriage return) as true, and use a simple list or bytearray indexed by `ord(c)` for O(1) lookup. This avoids the overhead of hash computation while minimizing memory usage, and keeps the lookup efficient and cache-friendly.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+=======
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Fast whitespace lookup table (O(1) char check)
+_WS_TABLE = [False] * 256
+for c in " \t\n\r":
+    _WS_TABLE[ord(c)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using fast boolean lookup table
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

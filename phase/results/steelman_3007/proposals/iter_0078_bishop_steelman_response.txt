@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace loop with a single regex match is flawed because `_WS_RE.find()` would only find the first match, not skip all consecutive whitespace. Additionally, the regex approach doesn't properly handle the incremental parsing state, as it would require re-parsing from the match position rather than advancing the parser position incrementally. It also introduces regex overhead that may not be faster than the existing O(1) set lookups.
+
+STEELMAN: A better approach is to use `re.match(_WS_RE, text[pos:])` to find all leading whitespace at once, then advance the position by the length of the matched whitespace, maintaining the incremental parsing behavior while leveraging regex for efficient bulk skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk matching
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

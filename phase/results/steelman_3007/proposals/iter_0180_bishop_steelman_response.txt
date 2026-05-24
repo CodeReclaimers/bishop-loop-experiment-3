@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character loop in `_skip_ws` with a single regex call is flawed because `re.sub()` would require reconstructing the entire remaining string after skipping whitespace, which is inefficient and breaks the incremental parsing model. Additionally, it doesn't preserve the position tracking needed for the parser's state management. The regex approach also introduces overhead from regex compilation and matching that may not be beneficial in practice.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` with the precompiled whitespace regex to find the end of the whitespace sequence in one operation, then advance the position by that amount. This preserves the incremental parsing model, avoids string reconstruction, and reduces loop overhead while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

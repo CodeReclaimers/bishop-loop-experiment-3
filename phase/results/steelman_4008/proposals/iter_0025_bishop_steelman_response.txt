@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to "use precompiled regular expressions for faster character scanning" is fundamentally flawed because the current implementation already avoids regex in `_skip_ws` by using direct character checks, and the suggestion doesn't address the real performance bottlenecks like redundant whitespace handling at every parsing level or inefficient string building. Additionally, using regex for whitespace skipping would likely be slower than the existing direct loop approach, especially for small inputs.
+
+STEELMAN: The core idea should be to minimize redundant whitespace skipping by performing it only at the top level of the parser, rather than at every recursive descent step. This reduces the number of times whitespace is scanned, which is the main performance bottleneck. The precompiled regex usage should be applied selectively to optimize the top-level whitespace skipping, not to replace existing direct character scanning in inner functions.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

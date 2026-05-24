@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to replace explicit whitespace skipping with a regex would be unworkable because it doesn't account for the fact that the current implementation needs to advance a position pointer through the input string, and regex matching doesn't naturally integrate with this positional parsing approach. Additionally, the performance benefit of a single regex call is offset by the overhead of regex compilation and matching, especially when done repeatedly in tight loops. It also doesn't address the core issue of redundant whitespace handling at every recursive descent level, which is a major bottleneck.
+
+STEELMAN: The strongest version of the suggestion would be to precompile a regex that matches one or more whitespace characters and use it to efficiently skip whitespace by advancing the position pointer, while still maintaining the existing recursive descent structure. This preserves the core idea of using regex for whitespace handling but integrates it properly into the existing parsing logic without disrupting the overall architecture.
+
+```python
+<<<<<<< SEARCH
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_WS_RE = re.compile(r'[ \t\n\r]+')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

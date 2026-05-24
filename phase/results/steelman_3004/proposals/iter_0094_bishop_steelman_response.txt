@@ -1,0 +1,70 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a precomputed `ws_table` array is problematic because it assumes a fixed-size table lookup, but the input string can be arbitrarily long, making a table of size `len(text)` impractical and memory-inefficient. Additionally, it fails to account for the fact that whitespace skipping is a dynamic operation that depends on the actual content of the string, not just a static lookup. The proposed approach would also break down if the parser needs to handle very large inputs or if the table construction logic is not properly aligned with the parsing state.
+
+STEELMAN: A better approach would be to precompute a lookup table for the first few hundred or thousand characters, or to implement a hybrid strategy where the table is used for short sequences and a fallback to the current while-loop method for longer stretches. This preserves the performance benefits of table lookups while maintaining correctness and avoiding memory blowup.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+# Build a lookup table for whitespace skipping (optimized for small inputs)
+def _build_ws_table(text: str, max_len: int = 1000) -> list[int]:
+    table = [0] * min(len(text), max_len)
+    for i in range(min(len(text), max_len)):
+        if text[i] in _WS_CHARS:
+            table[i] = table[i-1] + 1 if i > 0 else 1
+        else:
+            table[i] = 0
+    return table
+
+def _skip_ws_with_table(text: str, pos: int, table: list[int]) -> int:
+    if pos >= len(text):
+        return pos
+    if pos < len(table):
+        # Use table for fast lookup
+        if table[pos] > 0:
+            return pos + table[pos]
+        return pos
+    # Fallback to original logic for large inputs
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

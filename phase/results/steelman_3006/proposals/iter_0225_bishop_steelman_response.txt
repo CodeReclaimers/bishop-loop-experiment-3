@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to use a pre-computed bitmask for whitespace checking is fundamentally flawed because ASCII whitespace characters are not contiguous in the ASCII table (e.g., space is 32, tab is 9, newline is 10, carriage return is 13), so a simple bit mask cannot reliably distinguish whitespace from non-whitespace characters. Additionally, this approach would require either a 128-bit or 256-bit bitmask, which is inefficient and not practical for typical use cases.
+STEELMAN: A better approach would be to use a lookup table (array) of booleans indexed by ASCII values for fast O(1) membership checks, which maintains the performance benefit of avoiding set lookups while correctly handling all ASCII whitespace characters.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Pre-computed lookup table for whitespace characters (ASCII values 0-127)
+_WS_TABLE = [False] * 128
+for ch in _WS_CHARS:
+    _WS_TABLE[ord(ch)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a lookup table for O(1) whitespace checks
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

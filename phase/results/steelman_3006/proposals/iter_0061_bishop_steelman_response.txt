@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the while-loop with `str.find` is problematic because `str.find` would need to be called repeatedly in a loop to skip multiple whitespace characters, negating the performance benefit. Additionally, `str.find` searches for a single character, not a set of characters, so it can't directly replace the membership checks against `_WS_CHARS`. The approach also fails to consider that `str.find` may not be faster than a tight Python loop for small inputs.
+
+STEELMAN: The steelman version uses a hybrid approach: leverage `str.find` to skip ahead to the first non-whitespace character, but still handle the edge case where the string ends without any non-whitespace characters, and ensure the logic remains efficient by minimizing Python-level iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip ahead to the next non-whitespace character
+    # for better performance on large whitespace runs
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

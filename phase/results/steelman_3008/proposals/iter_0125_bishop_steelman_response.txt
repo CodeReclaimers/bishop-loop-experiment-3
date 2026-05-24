@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion fails because `text.find(''.join(_WS_CHARS), pos)` creates a string of all whitespace characters and searches for the first occurrence, but this approach doesn't handle consecutive whitespace correctly since `find` only returns the first match. It also doesn't account for the fact that `find` will return the index of the first whitespace character, not the index after the entire run of whitespace. Additionally, it assumes that all whitespace characters are single-byte, which is true in ASCII but not in general Unicode.
+
+STEELMAN: A better approach is to use `text.find` to locate the first non-whitespace character, but instead of just finding one character, we should iterate through the string to skip an entire run of whitespace by using `text.find` with a custom function that identifies the first non-whitespace character, and then advance `pos` to that index. However, a simpler and more robust way is to compute the index of the first non-whitespace character using `text.find` with a predicate or by building a set of non-whitespace characters and using `str.find` on that set, but the cleanest approach is to avoid `str.find` for this case and instead use a loop that advances `pos` until it finds a non-whitespace character, which can be optimized by precomputing the set of non-whitespace characters and using that in a loop.
+
+However, the core idea of skipping large runs of whitespace can be implemented more efficiently by leveraging `str.find` to locate the first non-whitespace character, but we must ensure that we do not just find one character but skip an entire sequence. The steelman is to replace the while loop with a loop that uses `str.find` to find the next non-whitespace character, then advance `pos` to that position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip an entire run of whitespace at once
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # Skip the whitespace by advancing to the first non-whitespace character
+    return next_non_ws
+>>>>>>> REPLACE
+```

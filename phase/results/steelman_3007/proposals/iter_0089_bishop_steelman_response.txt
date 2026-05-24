@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to pre-compute a table mapping each index to the next non-whitespace position would require a table of size proportional to the input length, which is wasteful for sparse whitespace patterns. It would also not handle the case where the input is mostly non-whitespace efficiently, as the table would still need to be fully populated. Additionally, the approach doesn't consider that whitespace skipping is often a short operation, making table lookup overhead not worth the benefit.
+
+STEELMAN: A better approach is to use a hybrid method where we scan ahead in chunks (e.g., 8 or 16 characters at a time) using efficient string operations, and only fall back to character-by-character scanning when a whitespace character is encountered within a chunk. This maintains the O(1) average performance while reducing memory overhead and avoiding unnecessary table construction.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using efficient chunked scanning
+    while pos < len(text):
+        # Check in chunks for efficiency
+        chunk = text[pos:pos + 8]
+        for i, c in enumerate(chunk):
+            if c not in _WS_CHARS:
+                return pos + i
+        pos += 8
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with an inline byte-level scan using `ord(text[pos]) < 0x20` is flawed because it only skips ASCII whitespace (0-32) but JSON allows Unicode whitespace characters like U+00A0 (non-breaking space) or U+2000 through U+200A (various Unicode spaces), which are not covered by this narrow range. Additionally, this approach eliminates the function call overhead but introduces a tight loop that may not be optimized well by the interpreter, and it doesn't account for the fact that `isspace()` is already optimized in CPython.
+STEELMAN: A better approach would be to inline the whitespace skipping logic but use the existing `text[pos].isspace()` check, which correctly handles all Unicode whitespace, while still avoiding the function call overhead by unrolling the loop manually in the main parsing functions.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline whitespace skipping
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline whitespace skipping
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

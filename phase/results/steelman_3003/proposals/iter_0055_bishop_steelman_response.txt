@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to precompute a whitespace-stripped string and parse that would break JSON parsing because whitespace is significant in JSON for separating tokens like `true`, `false`, `null`, and number components. Removing all whitespace would cause parsing failures. Additionally, this approach would not handle escaped quotes or control characters correctly, and would likely break string parsing entirely. The idea of a single-pass parse with pre-stripping is fundamentally incompatible with JSON's grammar.
+STEELMAN: A better approach would be to use a regex to find and skip whitespace in a single operation, but still maintain the original string for accurate error reporting and token parsing. We can replace repeated `_skip_ws` calls with a single regex-based skip that advances the position, but keep the original string intact for tokenization and error messages.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

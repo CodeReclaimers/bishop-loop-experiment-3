@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a regex substitution would break position tracking because `re.sub` doesn't preserve the original position after skipping whitespace; it would return a modified string instead of advancing the parser's position. Additionally, the regex approach would likely be slower for small amounts of whitespace due to regex overhead, and it wouldn't handle the exact positioning required for error reporting.
+STEELMAN: The steelman version uses the precompiled regex to find the next non-whitespace character's position, then advances the parser's position to that point, preserving exact position reporting while leveraging fast regex matching for large whitespace runs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

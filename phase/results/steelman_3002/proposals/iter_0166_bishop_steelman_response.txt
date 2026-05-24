@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace `frozenset` membership checks with direct Unicode code point comparisons is problematic because it assumes ASCII compatibility and doesn't account for Unicode digits outside the '0'-'9' range. Additionally, the proposed change in `_skip_ws` would break handling of non-ASCII whitespace characters that are valid in JSON, and the performance gain from avoiding set lookups is likely negligible compared to the cost of string slicing and character comparisons.
+
+STEELMAN: The steelman version would replace frozenset membership checks with direct character range comparisons for ASCII digits and whitespace, but it should preserve the original behavior for all valid JSON whitespace characters and ensure Unicode digit handling remains intact. The optimization should be applied carefully in both `_skip_ws` and `_parse_number`, while maintaining correctness for all valid JSON inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c >= ' ' and c <= '\r' and c != '\x0b' and c != '\x0c':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

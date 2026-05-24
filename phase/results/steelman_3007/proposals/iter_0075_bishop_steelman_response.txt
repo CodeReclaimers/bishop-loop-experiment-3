@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `re.finditer` is flawed because it doesn't account for the fact that `finditer` would need to be called repeatedly and would not integrate cleanly with the existing parser's position-tracking logic. Additionally, regex-based skipping could introduce performance overhead from regex compilation or matching that outweighs the gains, especially since whitespace is typically short and frequent.
+
+STEELMAN: A better approach is to precompile a regex that matches one or more whitespace characters and use it to skip whitespace in a single step, while still maintaining the parser's current position tracking and avoiding repeated regex compilation. This preserves the performance benefit of skipping large runs of whitespace while keeping the parser's structure intact.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s+')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup of runs
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

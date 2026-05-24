@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace direct character checks with `isspace()` is problematic because `isspace()` considers a broader set of Unicode whitespace characters beyond just the ASCII ones (` \t\n\r\f`) that the current implementation handles. This could lead to incorrect parsing behavior or performance degradation if non-ASCII whitespace is present in the input. Additionally, `isspace()` is not necessarily faster than direct character checks for the limited set of ASCII whitespace being processed.
+
+STEELMAN: The steelman version would use `isspace()` but only after confirming that the character is an ASCII character, avoiding the broader Unicode behavior while still benefiting from the C-optimized implementation for ASCII whitespace. This preserves performance gains while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks for ASCII
+    while pos < len(text):
+        c = text[pos]
+        if c < '\x80' and c.isspace():
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

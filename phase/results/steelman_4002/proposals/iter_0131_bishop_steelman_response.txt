@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `bytes.decode` is unworkable because the input is already a Python string, not bytes, so there's no prior encoding step to avoid. Additionally, parsing bytes directly would require careful handling of Unicode and escape sequences, which would likely introduce complexity and potential bugs rather than performance gains. The suggestion also fails to address the core performance bottlenecks like string concatenation in `_parse_string` and redundant whitespace checks.
+
+STEELMAN: The steelman is to optimize string parsing by using `bytes.decode` when the input is actually bytes, and to pre-allocate string buffers or use more efficient string building techniques in `_parse_string` to avoid repeated concatenation. This preserves the intent of avoiding string concatenation while addressing the actual performance issues in the parsing logic.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

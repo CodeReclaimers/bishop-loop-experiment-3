@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_PATTERN.span(pos)` is problematic because `re.match` (which `span()` uses internally) is not guaranteed to match the longest possible sequence from the current position — it matches the first valid match, which could be shorter than the full whitespace run. Additionally, regex matching is generally slower than a simple loop for small amounts of whitespace, and the overhead of regex compilation and state management may outweigh any gains in code simplicity.
+
+STEELMAN: The steelman version would use `re.match` with the precompiled pattern to find the longest contiguous match of whitespace starting at `pos`, and then return the end position of that match. This preserves the intent of using regex for efficient whitespace skipping while ensuring correctness by relying on the regex engine's ability to match maximal munch of the defined whitespace set.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex match fails because `re.search()` will only find the first match and won't advance past all whitespace characters in one go; it would need to be called in a loop or use `re.match()` with a pattern like `\s*` at the start of the string. Additionally, the regex engine may not be faster than the optimized set membership checks for short whitespace sequences, and it introduces potential overhead from regex compilation or repeated calls.
+STEELMAN: The steelman is to use `re.match()` with a pattern that matches zero or more whitespace characters (`\s*`) starting from the current position, and advance `pos` by the match's end. This avoids Python-level loops while still leveraging the fast C-compiled regex engine, and correctly handles the case where no whitespace is present.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

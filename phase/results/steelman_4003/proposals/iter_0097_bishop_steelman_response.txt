@@ -1,0 +1,82 @@
+CRITIQUE: The suggestion to replace the digit character set with a bitset is misguided because the current implementation already uses `frozenset("0123456789")` which provides O(1) lookup time. Additionally, the suggestion conflates two different performance concerns: character set membership testing and regex matching. The real bottleneck in number parsing isn't the digit lookup but rather the regex matching and string parsing logic.
+STEELMAN: A better approach would be to eliminate the regex entirely for number parsing and instead use a direct, optimized parsing loop that leverages the existing `frozenset` for digit detection while avoiding regex overhead and string concatenation.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional sign
+    if text[pos] == "-":
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos >= len(text):
+        return int(text[start:pos]), pos
+    
+    # Check for decimal point
+    if text[pos] == ".":
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos >= len(text):
+            return float(text[start:pos]), pos
+    
+    # Check for exponent
+    if text[pos] in "eE":
+        pos += 1
+        if pos < len(text) and text[pos] in "+-":
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    # Convert the parsed number
+    s = text[start:pos]
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

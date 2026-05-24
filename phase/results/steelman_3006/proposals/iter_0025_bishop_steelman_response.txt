@@ -1,0 +1,21 @@
+CRITIQUE: The suggested implementation using `next((c for c in text[pos:] if c not in _WS_CHARS), None)` creates a generator that iterates through all characters from `pos` onward until finding a non-whitespace character. This is inefficient for long whitespace runs because it still examines every whitespace character in the sequence, making it O(n) in the worst case rather than O(1) as claimed. Additionally, the generator expression doesn't return the index of the character, so it would require additional logic to track position, breaking the intended simplicity and performance.
+
+STEELMAN: A better approach is to use `text.find` with a custom function that checks for non-whitespace characters, but in a way that avoids creating a full generator. We can instead iterate over the string in chunks or use a hybrid method where we scan in batches and fall back to `text.find` for long runs, or more simply, we can improve the existing loop by using `str.lstrip` or similar methods that are optimized for whitespace skipping, while keeping the core idea of reducing per-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    # Find the first non-whitespace character starting from pos
+    non_ws_pos = pos
+    while non_ws_pos < len(text) and text[non_ws_pos] in _WS_CHARS:
+        non_ws_pos += 1
+    return non_ws_pos
+>>>>>>> REPLACE
+```

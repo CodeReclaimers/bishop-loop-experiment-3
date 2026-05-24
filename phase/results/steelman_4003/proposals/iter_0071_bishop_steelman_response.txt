@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to simply use `int()` and `float()` directly on the matched string is flawed because it ignores the fact that the current implementation already uses regex to validate and extract the full number string before conversion. This approach would require re-parsing the number format, potentially leading to incorrect parsing of edge cases like scientific notation or invalid numbers that the regex already correctly identifies. Additionally, it doesn't address the performance bottleneck of redundant whitespace handling or the overhead of repeated string slicing and validation.
+
+STEELMAN: The steelman version of the suggestion is to leverage Python's built-in `int()` and `float()` functions but only after using the existing regex match to extract the complete, validated number string. This preserves the performance gains from pre-validation while simplifying the conversion logic and avoiding redundant character-by-character parsing, making the number parsing more efficient and cleaner.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion using built-in functions for simplicity and performance
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

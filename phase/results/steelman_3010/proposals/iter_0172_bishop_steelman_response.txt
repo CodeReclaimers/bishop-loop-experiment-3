@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual loop with `WS_PATTERN.search().end()` would be suboptimal because regex matching is generally slower than direct character checks for simple whitespace skipping. Additionally, the regex approach would not handle the case where the input is all whitespace correctly, as `search()` would still need to scan the entire string, negating any performance benefit. It also doesn't account for the fact that the current implementation skips only the first contiguous block of whitespace, not necessarily all of it in one go.
+
+STEELMAN: A better approach would be to use `WS_PATTERN.match()` at the current position to skip all leading whitespace in one go, and only fall back to the manual loop if the regex doesn't match or if it fails to consume all whitespace. This preserves the performance gains of regex for common cases while maintaining correctness and avoiding the overhead of repeated checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip leading whitespace, falling back to manual check if needed
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to manual check for any remaining whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

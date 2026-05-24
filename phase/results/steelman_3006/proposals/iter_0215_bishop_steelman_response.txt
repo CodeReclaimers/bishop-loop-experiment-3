@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` returns the index of the first occurrence of any character in the whitespace set, but the current implementation needs to skip ALL consecutive whitespace characters. Using `find()` would incorrectly advance the position to the first non-whitespace character, not the end of the whitespace sequence. Additionally, `find()` is not necessarily faster than a simple while loop for small whitespace sequences, and the performance gain would be negligible or negative in most cases.
+
+STEELMAN: A better approach is to use `str.translate()` with a translation table to efficiently skip whitespace by converting all whitespace characters to a single marker, then using `str.find()` to locate the first non-marker character. However, a simpler and more robust steelman is to use a while loop with a precomputed set lookup, but optimize it by using `str.find()` only when the current position is not at a whitespace character, avoiding the character-by-character iteration in most cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find for performance when skipping whitespace
+    if pos >= len(text):
+        return pos
+    # Check if current character is whitespace
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Skip all consecutive whitespace characters
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with `re.find` would break the logic because `re.find` only finds the next match from the current position, but the current implementation advances through whitespace character-by-character to handle JSON's specific whitespace rules. Using regex would not properly preserve the behavior of skipping only JSON whitespace (space, tab, line feed, carriage return) and would likely cause incorrect parsing or performance degradation due to regex overhead for simple cases.
+STEELMAN: A better approach is to use the precompiled regex `_WS_RE` to find the next non-whitespace position by matching zero or more whitespace characters starting at the current position, which can be done efficiently with `_WS_RE.match(text, pos)` and then advancing by the match's length to get the next non-whitespace index.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

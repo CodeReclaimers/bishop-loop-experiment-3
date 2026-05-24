@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace loop with a regex-based approach would be suboptimal because it introduces unnecessary overhead from regex compilation and matching, while the current implementation already uses efficient O(1) membership checks with frozensets. Additionally, the proposed approach would not handle the case where whitespace is skipped in a single pass without repeatedly checking bounds, and could lead to performance degradation due to regex engine overhead.
+
+STEELMAN: A better approach would be to leverage the existing regex pattern `_WS_PATTERN` that's already defined for whitespace skipping, but use it more efficiently by calling `re.match` or `re.search` to skip multiple whitespace characters in one operation, rather than manually looping through each character. This preserves the performance benefits of regex while avoiding the overhead of repeated string indexing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use the precomputed regex pattern to skip all whitespace at once
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

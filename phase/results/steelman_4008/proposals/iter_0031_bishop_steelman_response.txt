@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to "use a single loop that directly scans through the string for non-whitespace characters" is unworkable because it contradicts the existing implementation which already uses exactly that approach in `_skip_ws`. The suggestion also incorrectly claims that the current implementation uses "multiple regex calls" when it only uses one precompiled regex `_WS_RE` that's never actually called. Additionally, removing `frozenset` for `_DIGIT_CHARS` is irrelevant since it's not used in `_skip_ws` at all.
+
+STEELMAN: The core insight is to optimize `_skip_ws` by eliminating the redundant check for specific whitespace characters and instead using a more efficient character-by-character scan with early termination. The steelman preserves the existing single-loop approach but refines it to avoid unnecessary conditionals and improve branch prediction, while also removing the unused `_DIGIT_CHARS` frozenset that was likely included by mistake.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        c = text[pos]
+        if c != ' ' and c != '\t' and c != '\n' and c != '\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

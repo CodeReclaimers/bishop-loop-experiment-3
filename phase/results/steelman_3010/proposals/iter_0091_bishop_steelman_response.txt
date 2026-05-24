@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a regex-based jump table is flawed because the `_WS_PATTERN` regex is compiled to match zero or more whitespace characters but doesn't provide a way to jump directly to the next non-whitespace position in a single operation. Additionally, the regex approach would not integrate cleanly with the existing parser's position-tracking logic, and would likely introduce overhead from regex matching instead of reducing it. The idea of a "skip table" isn't well-defined in the context of the current implementation.
+
+STEELMAN: A better approach would be to use the precompiled `_WS_PATTERN` to find the next non-whitespace position by matching from the current position, which avoids the O(n) loop in `_skip_ws` and still maintains correctness. This allows a single regex operation to skip all leading whitespace, which is more efficient than character-by-character iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all leading whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

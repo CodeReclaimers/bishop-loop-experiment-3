@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the while loop with `next(i for i in range(pos, len(text)) if text[i] not in _WS_CHARS)` is flawed because it creates a Python generator expression that still iterates character-by-character in the worst case, negating the performance benefit. It also fails to handle the case where all remaining characters are whitespace, as the generator will run through all of them without early termination. Additionally, it doesn't account for the fact that `_skip_ws` may be called many times during parsing, so any overhead in the generator setup or iteration will compound.
+
+STEELMAN: A better approach is to use `str.find` with a custom helper that skips whitespace by jumping directly to the next non-whitespace character, but only when the current position is not already at a non-whitespace character. This avoids the Python loop overhead while still maintaining correctness and performance for typical JSON inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

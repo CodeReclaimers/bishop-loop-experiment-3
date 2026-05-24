@@ -1,0 +1,66 @@
+CRITIQUE: The suggestion to replace regex with character-by-character scanning is problematic because it ignores the complexity of number parsing, particularly handling scientific notation, decimal points, and signed integers correctly. A naive implementation would likely introduce bugs or fail to handle edge cases like "0.1e-5" or "-0", and would still need to validate the parsed result. It also doesn't address the fact that the current regex approach already uses a precompiled pattern and built-in conversion which is highly optimized.
+
+STEELMAN: The steelman version would involve implementing a custom number parser that directly scans the string using a state machine approach, avoiding regex entirely while still maintaining correctness for all valid JSON number formats including integers, floats, and scientific notation. This approach would be more efficient than regex matching and leverage the existing optimizations in Python's built-in float/int conversion functions.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional sign
+    if text[pos] == '-':
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    
+    # Parse integer part
+    if text[pos] == '0':
+        pos += 1
+    else:
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+        if pos == start + 1 and text[start] == '0':
+            raise JSONParseError(f"bad number at {start}")
+    
+    # Parse decimal part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        if pos >= len(text) or not text[pos].isdigit():
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+    
+    # Parse exponent part
+    if pos < len(text) and text[pos].lower() == 'e':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        if pos >= len(text) or not text[pos].isdigit():
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+    
+    # Extract the number string and convert
+    s = text[start:pos]
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

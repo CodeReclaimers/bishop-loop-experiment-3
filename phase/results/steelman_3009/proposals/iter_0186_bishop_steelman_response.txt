@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use `text.translate(_WS_TABLE)` won't work because it requires precomputing a translation table that maps all whitespace characters to a single sentinel value, but the current implementation needs to preserve the original text and return the correct position after skipping whitespace. Using `translate` would destroy the original text structure and make it impossible to determine where the next non-whitespace character is located. Additionally, `translate` is not a constant-time operation for large inputs, and the approach doesn't consider that the position needs to be calculated based on the actual skipped characters.
+
+STEELMAN: A better approach would be to use `str.translate` with a translation table that maps all whitespace characters to a single sentinel character, then use `str.find` to locate the first non-sentinel character. This avoids the per-character Python loop while still correctly identifying the position after whitespace. The sentinel character should be chosen such that it doesn't appear in valid JSON input, and the logic should be carefully constructed to handle edge cases like empty strings or strings with only whitespace.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Translation table to map all whitespace to a sentinel character
+_WS_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to map whitespace to sentinel, then find first non-sentinel
+    if pos >= len(text):
+        return pos
+    # Create a substring from current position to end and translate it
+    translated = text[pos:].translate(_WS_TABLE)
+    # Find first non-sentinel character
+    new_pos = translated.find("\x00")
+    if new_pos == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

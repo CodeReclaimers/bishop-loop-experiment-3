@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to count leading spaces or tabs per line and skip chunks quickly is flawed because it assumes a line-by-line structure that JSON doesn't require—whitespace can appear anywhere between tokens. This approach would fail on arbitrary whitespace patterns and introduce complexity without clear performance gains. It also doesn't address the actual bottleneck, which is character-by-character checking in `_skip_ws`, and could even slow things down due to unnecessary logic.
+
+STEELMAN: A better approach would be to use a hybrid strategy in `_skip_ws`: first check for runs of common whitespace characters (like spaces and tabs) using a fast loop, then fall back to the existing character-by-character check only when needed. This preserves the performance of direct checks for small amounts of whitespace while avoiding repeated character-by-character iteration in longer sequences.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using hybrid approach
+    # First, skip runs of common whitespace characters quickly
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

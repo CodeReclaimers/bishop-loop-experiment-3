@@ -1,0 +1,246 @@
+You are suggesting an optimization idea for a Python JSON parser.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+# CRITIQUE:
+# The suggestion to replace `out = out + [v]` with `out.append(value)` is on the right track but misses the core performance issue in `_parse_array`. While `append` is better than list concatenation, the real problem is that the current code already uses `out.append(value)` — the issue is not in the array building logic but in the repeated dictionary rebuilds in `_parse_object` where `out = dict(out); out[key] = value` is used instead of direct assignment. The suggestion fails to identify the actual bottleneck and proposes a fix that doesn't address the real performance cost.
+#
+# STEELMAN:
+# The correct optimization is to ensure in-place updates for both arrays and objects. For arrays, `append` is already being used, which is good. For objects, the current code already does `out[key] = value` directly, which is also good. The suggestion's intent is sound but misapplied — it should focus on ensuring no unnecessary rebuilding of collections occurs, especially in object construction. Since the code already does this correctly, the suggestion is already implemented and doesn't need changes. However, if we assume the original had the problematic pattern, the steelman would be to ensure all collections are built in-place without unnecessary rebuilds.
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = [" ", "\t", "\n", "\r"]
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment avoids rebuilding dict on each step.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+# ... 58 lines elided ...
+                out = out + "\f"
+            elif esc == "n":
+                out = out + "\n"
+            elif esc == "r":
+                out = out + "\r"
+            elif esc == "t":
+                out = out + "\t"
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (("0" <= ch <= "9") or ("a" <= ch <= "f") or ("A" <= ch <= "F")):
+            return False
+    return True
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+```
+
+Recent ideas already tried:
+Accepted improvements (most recent first):
+  - [bishop_steelman] PROMOTE z=+1.96 mean=0.0129 (baseline 0.0180)
+  - [bishop_steelman] PROMOTE z=+1.53 mean=0.0127 (baseline 0.0129)
+
+Rejected attempts (most recent first):
+  - [bishop_steelman] REJECT z=-1.96 mean=0.0135 (baseline 0.0127)
+  - [skippy] REJECT z=-1.96 mean=0.0135 (baseline 0.0127)
+  - [bishop_steelman] REJECT z=-1.96 mean=0.0132 (baseline 0.0127)
+  - [skippy] REJECT z=-1.96 mean=0.0138 (baseline 0.0127)
+  - [bishop_steelman] REJECT z=-1.96 mean=0.0139 (baseline 0.0127)
+
+Excerpts from the most recent rejected candidates (avoid repeating these mistakes):
+
+--- rejection 1 ---
+# CRITIQUE:
+# The suggestion to use a list buffer for string accumulation is sound in principle, but as stated it fails to address the core issue of how the buffer is managed. Specifically, the suggestion doesn't clarify whether the buffer is initialized once and reused, or reinitialized on every call, which could lead to unnecessary allocations. Additionally, the current implementation already handles escape sequences carefully, and a naive list-based approach might not preserve the exact semantics of escape handling without careful attention to the order of operations and Unicode handling.
+#
+# STEELMAN:
+# The steelman version should implement a list-based string builder that is initialized once per call and reused across all escape sequence processing, ensuring that the final join operation is efficient and that all escape sequences are handled correctly. The key is to avoid repeated string concatenation while maintaining correctness and performance.
+
+<rest of the file implementing the steelman>
+
+--- rejection 2 ---
+# CRITIQUE:
+# The suggestion to use a list for collecting characters in `_parse_string` is sound in principle, but it fails to account for the fact that the current implementation already uses string concatenation (`out = out + c`) in a way that's inefficient due to Python's immutable string nature. However, the real inefficiency lies in how escape sequences are handled — each escape is processed individually, and the string is built character-by-character without batching or optimizing the collection. This leads to O(n²) behavior even with list-based accumulation unless the entire escape processing is optimized.
+#
+# STEELMAN:
+# The steelman is to collect all characters in a list during normal processing, and only join once at the end. Additionally, for escape sequences, we should batch the non-escape characters and handle escape logic more efficiently by precomputing the final string size or using a more efficient accumulation strategy. This ensures linear time complexity while preserving correctness and readability.
+
+<rest of the file implementing the steelman>
+
+
+Your task: in 2-3 sentences, suggest one specific change to try in `json_parser.py`
+to make it faster while keeping it correct. Do NOT include code. Describe the approach
+only. Be specific about which part of the code changes and what mechanism makes it faster.
+
+Output: just the 2-3 sentence suggestion. No preamble. No postamble. No code.

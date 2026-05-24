@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` only returns the position of the first occurrence of any whitespace character, not the end position of a contiguous whitespace block. This would still require a loop to advance past all whitespace, negating the benefit. Additionally, `find()` with a multi-character string is not O(1) and can be slower than the current set-based approach for small whitespace runs.
+
+STEELMAN: The best approach is to use a precomputed lookup table (bytearray) for whitespace detection, which allows for O(1) character-by-character checks without the overhead of set membership tests. This maintains the current loop structure but makes each iteration much faster by using fast integer indexing instead of set lookups.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute a lookup table for whitespace characters for faster checking
+_WS_TABLE = bytearray(256)
+for i in range(256):
+    _WS_TABLE[i] = 1 if chr(i) in _WS_CHARS else 0
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a lookup table for faster whitespace detection
+    while pos < len(text) and _WS_TABLE[ord(text[pos])] != 0:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

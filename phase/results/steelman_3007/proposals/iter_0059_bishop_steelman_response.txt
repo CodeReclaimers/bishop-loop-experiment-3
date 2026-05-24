@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex-based bulk whitespace removal would break the parser's position tracking, since the regex operates on the entire string rather than advancing a position pointer. This would cause all subsequent parsing to lose track of where it left off, leading to incorrect parsing or crashes. Additionally, the regex approach would be slower for small amounts of whitespace and could introduce performance regressions in typical cases.
+
+STEELMAN: A better approach would be to use the regex to efficiently skip whitespace at the current position, by matching the leading whitespace with `_WS_RE.match(text, pos)` and advancing the position by the match length, preserving the existing parsing logic while gaining the performance benefit of regex for bulk skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

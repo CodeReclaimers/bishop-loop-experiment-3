@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use a single `try-except` block for skipping whitespace is flawed because it would still require checking `text[pos]` in a loop, which means the `IndexError` would only be raised once the end of the string is reached, not when whitespace ends. This approach doesn't eliminate the overhead of repeatedly checking character membership, and could actually be slower due to exception handling overhead in tight loops. It also fails to address the core issue of avoiding repeated bounds checking and redundant set membership lookups.
+
+STEELMAN: A better approach would be to refactor `_skip_ws` to use a more efficient loop that minimizes bounds checks by precomputing the length and using a single `pos < len(text)` check, while still leveraging the `frozenset` for O(1) character membership. This avoids both redundant bounds checks and the overhead of exception handling, while preserving the performance characteristics of the current implementation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by precomputing the length and using a single bounds check
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

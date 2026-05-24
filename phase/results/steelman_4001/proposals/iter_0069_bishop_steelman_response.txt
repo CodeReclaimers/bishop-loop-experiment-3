@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to replace regex with character-by-character scanning for numbers is problematic because it ignores the complexity of JSON number syntax, which includes scientific notation, decimal points, and signed integers. A naive character loop would likely miss edge cases or require multiple passes, introducing bugs and potentially not being faster than the optimized regex. It also contradicts the existing implementation which already uses a compiled regex for number parsing, making this change redundant and possibly harmful.
+
+STEELMAN: The steelman version of this suggestion would retain the use of a compiled regex for number parsing but optimize the scanning logic by precomputing digit character sets and avoiding repeated string slicing operations. This preserves the correctness and performance benefits of regex while reducing overhead in the parsing loop.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

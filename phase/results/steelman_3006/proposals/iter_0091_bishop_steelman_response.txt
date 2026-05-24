@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a single-byte boolean lookup table keyed by `ord(c)` is unworkable because it would require a 256-element array (or larger if extended ASCII is considered), which wastes significant memory. Additionally, it fails to address the performance bottleneck of string slicing and repeated character-by-character parsing, and would not be applicable to multi-character checks like `"true"` or `"false"`.
+
+STEELMAN: A better approach would be to precompute lookup tables for character sets using a compact bit vector or a sparse lookup structure (e.g., a dictionary mapping ordinals to booleans) for membership checks, while keeping the existing string comparisons for multi-character tokens like "true", "false", "null", etc. This preserves the core idea of constant-time lookups but avoids memory waste and handles all edge cases correctly.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use lookup tables for O(1) membership checks
+_WS_CHARS = [False] * 256
+_WS_CHARS[ord(" ")] = True
+_WS_CHARS[ord("\t")] = True
+_WS_CHARS[ord("\n")] = True
+_WS_CHARS[ord("\r")] = True
+
+_DIGIT_CHARS = [False] * 256
+for c in "0123456789":
+    _DIGIT_CHARS[ord(c)] = True
+
+_HEX_CHARS = [False] * 256
+for c in "0123456789abcdefABCDEF":
+    _HEX_CHARS[ord(c)] = True
+>>>>>>> REPLACE
+```

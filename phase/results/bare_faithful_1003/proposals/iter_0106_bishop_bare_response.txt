@@ -1,0 +1,225 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Pre-compiled regex for skipping whitespace
+_WS_RE = re.compile(r'\s*')
+
+# Pre-compiled regex for matching tokens
+_TOKEN_RE = re.compile(r'''
+    (?P<ws>\s+)
+    |(?P<lbrace>\{)
+    |(?P<rbrace>\})
+    |(?P<lbracket>\[)
+    |(?P<rbracket>\])
+    |(?P<colon>:)
+    |(?P<comma>,)
+    |(?P<true>true)
+    |(?P<false>false)
+    |(?P<null>null)
+    |(?P<string>"(?:[^"\\]|\\.)*")
+    |(?P<number>(?:-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?))
+    |(?P<invalid>.)
+''', re.VERBOSE)
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    tokens = _tokenize(text)
+    pos = 0
+    value, pos = _parse_value(tokens, pos)
+    if pos != len(tokens):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _tokenize(text: str) -> list[tuple[str, str, int]]:
+    tokens = []
+    pos = 0
+    while pos < len(text):
+        match = _TOKEN_RE.match(text, pos)
+        if not match:
+            raise JSONParseError(f"unexpected character at position {pos}")
+        kind = match.lastgroup
+        value = match.group()
+        if kind == 'ws':
+            pos += len(value)
+            continue
+        elif kind == 'invalid':
+            raise JSONParseError(f"unexpected character {value!r} at position {pos}")
+        else:
+            tokens.append((kind, value, pos))
+            pos += len(value)
+    return tokens
+
+
+def _parse_value(tokens: list[tuple[str, str, int]], pos: int) -> tuple[Any, int]:
+    if pos >= len(tokens):
+        raise JSONParseError("unexpected end of input")
+    kind, value, _ = tokens[pos]
+    if kind == 'lbrace':
+        return _parse_object(tokens, pos)
+    if kind == 'lbracket':
+        return _parse_array(tokens, pos)
+    if kind == 'string':
+        return _parse_string(tokens[pos]), pos + 1
+    if kind == 'true':
+        return True, pos + 1
+    if kind == 'false':
+        return False, pos + 1
+    if kind == 'null':
+        return None, pos + 1
+    if kind == 'number':
+        return _parse_number(tokens[pos]), pos + 1
+    raise JSONParseError(f"unexpected token {value!r} at position {pos}")
+
+
+def _parse_object(tokens: list[tuple[str, str, int]], pos: int) -> tuple[dict, int]:
+    if tokens[pos][0] != 'lbrace':
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out = {}
+    if pos < len(tokens) and tokens[pos][0] == 'rbrace':
+        return out, pos + 1
+    while True:
+        if pos >= len(tokens) or tokens[pos][0] != 'string':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(tokens[pos]), pos + 1
+        if pos >= len(tokens) or tokens[pos][0] != 'colon':
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        if pos >= len(tokens):
+            raise JSONParseError("unexpected end of input")
+        value, pos = _parse_value(tokens, pos)
+        out[key] = value
+        if pos >= len(tokens):
+            raise JSONParseError("unterminated object")
+        c = tokens[pos][0]
+        if c == 'comma':
+            pos = pos + 1
+            continue
+        if c == 'rbrace':
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(tokens: list[tuple[str, str, int]], pos: int) -> tuple[list, int]:
+    if tokens[pos][0] != 'lbracket':
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out = []
+    if pos < len(tokens) and tokens[pos][0] == 'rbracket':
+        return out, pos + 1
+    while True:
+        if pos >= len(tokens):
+            raise JSONParseError("unexpected end of input")
+        value, pos = _parse_value(tokens, pos)
+        out.append(value)
+        if pos >= len(tokens):
+            raise JSONParseError("unterminated array")
+        c = tokens[pos][0]
+        if c == 'comma':
+            pos = pos + 1
+            continue
+        if c == 'rbracket':
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(token: tuple[str, str, int]) -> str:
+    value = token[1]
+    if value[0] != '"' or value[-1] != '"':
+        raise JSONParseError(f"expected string at {token[2]}")
+    # Remove surrounding quotes
+    s = value[1:-1]
+    out = []
+    pos = 0
+    while pos < len(s):
+        c = s[pos]
+        if c == '"':
+            raise JSONParseError("unexpected quote in string")
+        if c == "\\":
+            pos = pos + 1
+            if pos >= len(s):
+                raise JSONParseError("unterminated string escape")
+            esc = s[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == '\\':
+                out.append('\\')
+            elif esc == '/':
+                out.append('/')
+            elif esc == 'b':
+                out.append('\b')
+            elif esc == 'f':
+                out.append('\f')
+            elif esc == 'n':
+                out.append('\n')
+            elif esc == 'r':
+                out.append('\r')
+            elif esc == 't':
+                out.append('\t')
+            elif esc == 'u':
+                if pos + 4 >= len(s):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = s[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= len(s) or s[pos + 5] != "\\" or pos + 6 >= len(s) or s[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= len(s):
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = s[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    return ''.join(out)
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in "0123456789abcdefABCDEF" for c in s)
+
+
+def _parse_number(token: tuple[str, str, int]) -> float | int:
+    value = token[1]
+    try:
+        if '.' in value or 'e' in value.lower():
+            return float(value)
+        else:
+            return int(value)
+    except ValueError:
+        raise JSONParseError(f"bad number at {token[2]}")
+```

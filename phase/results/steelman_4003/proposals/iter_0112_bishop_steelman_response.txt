@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to "use Python's built-in `float()` or `int()` functions directly" is naive because it ignores the fact that the current implementation already uses these functions correctly in `_parse_number`. The real performance bottleneck isn't the conversion itself but rather the regex matching and string parsing overhead. Simply switching to built-ins without addressing the parsing logic won't yield meaningful improvements.
+STEELMAN: The steelman is to optimize the number parsing by leveraging the already validated regex match to directly convert the matched string using `int()` or `float()` while ensuring that the regex pattern is as precise as possible to avoid unnecessary backtracking or fallbacks, and that we avoid redundant parsing steps.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to use `str.translate` would remove all whitespace characters from the input string, which breaks the fundamental requirement of the parser to track positions within the original string. The `translate` approach would not preserve the original `pos` tracking logic needed for error reporting and recursive parsing. Additionally, the current `_skip_ws` function is designed to advance a position pointer through whitespace, not to return a modified string.
+
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (like `'\0'`) and then use `str.translate` to efficiently skip whitespace while preserving the original string structure for position tracking. However, the most practical and correct implementation is to replace the Python loop with a regex-based skip that leverages C-level optimization while maintaining position tracking.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = [" ", "\t", "\n", "\r"]
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+
+def parse(text: str) -> Any:
+=======
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = [" ", "\t", "\n", "\r"]
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+_WS_PATTERN = re.compile(r'[ \t\n\r]+')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

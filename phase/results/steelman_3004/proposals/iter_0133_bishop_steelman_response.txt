@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a pre-computed skip table would require building a table of size O(n) for every parse, which is wasteful and doesn't scale well for large inputs. It also doesn't account for the fact that whitespace skipping is often a short operation, making table lookup overhead not worth it. Additionally, the table would need to be rebuilt on every parse call, negating any performance benefit.
+
+STEELMAN: A better approach would be to compute a skip table once per parse operation, but reuse it across multiple calls to `_skip_ws` within the same parse. The table can be built once and then used for all whitespace skipping within that parse, making the skip operation O(1) per call while still being practical for varying input sizes.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

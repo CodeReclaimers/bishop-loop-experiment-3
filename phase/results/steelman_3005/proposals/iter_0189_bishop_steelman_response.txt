@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace `_WS_PATTERN` with a direct index scan is flawed because it ignores the fact that `_skip_ws` is already implemented using direct character checking (`text[pos].isspace()`), not regex. The `WS_PATTERN` is defined but never used in `_skip_ws`, making the suggestion based on a misunderstanding of the current code. Additionally, the suggestion doesn't address the actual performance bottleneck, which is likely elsewhere in the parsing logic.
+
+STEELMAN: The strongest version of the suggestion would be to ensure that `_skip_ws` is indeed optimized to avoid regex overhead, even though it's already using direct character checks. The steelman would be to confirm and enforce that `_skip_ws` is using a fast, direct loop with `isspace()` and not relying on regex at all, while also ensuring the regex `_WS_PATTERN` is removed if unused.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

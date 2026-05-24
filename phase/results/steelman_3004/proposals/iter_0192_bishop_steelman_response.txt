@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a single regex match has a critical flaw: it doesn't account for the fact that the regex `r'[ \t\n\r]*'` will match zero or more whitespace characters, but the current code needs to advance past *all* leading whitespace to find the next non-whitespace character. Using `re.search(...).end()` would incorrectly position the parser at the end of the whitespace sequence, not the start of the next token. Additionally, this approach would break the existing error reporting and position tracking in the parser.
+
+STEELMAN: A better approach is to use `re.search(r'[ \t\n\r]+', text, pos)` to match one or more whitespace characters starting from position `pos`, then advance the position by the match length. This preserves the intent of skipping all whitespace in one operation while maintaining correct positioning and error handling.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

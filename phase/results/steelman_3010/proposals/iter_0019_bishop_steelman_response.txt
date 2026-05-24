@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to replace digit scanning with a regex fails because it doesn't account for the need to validate number format constraints like leading zeros, proper exponent syntax, and the distinction between integers and floats. A naive regex would match invalid formats like "0123" or "1e+" and wouldn't handle the complex logic required for correct number parsing, especially with Unicode escapes and surrogate pairs. It also ignores that the current approach already avoids Python loops by using `while` with precomputed sets, which is already quite fast.
+
+STEELMAN: The steelman is to use a single compiled regex to match the full number token (including sign, decimal point, and exponent), then validate and parse the result using Python's built-in `int()` and `float()` functions, which are highly optimized. This approach preserves correctness while leveraging the regex engine for fast initial token matching, and avoids the complex manual validation logic currently present in `_parse_number`.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+# Compiled regex for number matching
+_NUMBER_PATTERN = re.compile(r'(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

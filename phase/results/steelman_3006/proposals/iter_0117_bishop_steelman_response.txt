@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to replace an if-elif chain with a dictionary lookup seems unworkable because it fails to account for the fact that multiple characters (like 't' and 'f' for booleans, or 'n' for null) require prefix checking to distinguish between different parsers. A simple character-based lookup won't handle these cases correctly without additional logic. Additionally, the approach doesn't consider that some parsers like `_parse_number` need to handle the '-' sign and multiple digit types, which complicates a direct character-to-function mapping.
+
+STEELMAN: The steelman version would use a dictionary lookup for single-character starters ('{', '[', '"', 'n', 't', 'f'), but for multi-character cases like booleans and nulls, it would still need to do a prefix check. The approach should leverage a lookup table for the first character, then delegate to appropriate handlers that can handle prefix matching or special cases, maintaining the existing logic flow while reducing branching overhead.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+# Map first characters to their parser functions
+_PARSE_FUNCS = {
+    "{": _parse_object,
+    "[": _parse_array,
+    '"': _parse_string,
+    "n": _parse_null,
+    "t": _parse_bool,
+    "f": _parse_bool,
+}
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c in _PARSE_FUNCS:
+        func = _PARSE_FUNCS[c]
+        if c in ("t", "f"):
+            # Special handling for boolean parsing which needs to check the full word
+            # We can reuse the existing _parse_bool function but pass it the right pos
+            # For now, let's just call it directly with pos, since the function checks the full word
+            return func(text, pos)
+        else:
+            return func(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

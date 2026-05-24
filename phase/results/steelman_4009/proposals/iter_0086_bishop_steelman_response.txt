@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to cache the last read character and use a single loop for whitespace skipping is unworkable because it fundamentally misunderstands the parser's structure — the current design uses recursive descent with `_skip_ws` called at multiple strategic points, not a single linear scan. Caching a single character would break the ability to backtrack or reprocess tokens, and a single loop would not handle the recursive nature of JSON parsing correctly. It also fails to address the core performance bottlenecks like string concatenation and repeated function calls.
+STEELMAN: The steelman is to optimize `_skip_ws` by replacing the per-call Python loop with a regex-based approach, and to reduce redundant whitespace checks by batching them into fewer, smarter calls, while preserving the recursive descent structure and ensuring correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one go
+    import re
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

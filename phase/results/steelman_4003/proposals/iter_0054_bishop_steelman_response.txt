@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to avoid float conversion before checking if a number is an integer is problematic because it doesn't address the core issue: JSON numbers can be extremely large and precise, and direct integer parsing without proper overflow handling or arbitrary precision arithmetic will fail or produce incorrect results. Additionally, the approach of just checking for "." or "e" doesn't account for scientific notation like "1e+10" which should be parsed as an integer if it represents one.
+STEELMAN: A better approach would be to parse the number string as an integer first if it matches the integer pattern (no decimal point or exponent), and only fall back to float parsing if it contains a decimal or exponent. This preserves the performance benefit of avoiding unnecessary float conversions while maintaining correctness for all valid JSON numbers.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    # Check if it's an integer first (no decimal point or exponent)
+    if "." not in s and "e" not in s.lower():
+        # It's an integer, parse directly as int
+        return int(s), pos
+    # It's a float, parse as float
+    return float(s), pos
+>>>>>>> REPLACE
+```

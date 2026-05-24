@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex match has several issues: first, `re.match()` only matches at the beginning of the string, so it won't skip leading whitespace properly if there's non-whitespace content before it; second, `re.search()` would find the first match but not necessarily consume all leading whitespace, potentially leaving the parser in an inconsistent state; third, this approach introduces regex overhead for a simple operation that's already optimized with set lookups.
+STEELMAN: The steelman version would use `re.match()` with a regex that matches zero or more whitespace characters starting at the current position, and then advance the position by the match length, preserving the O(1) set membership checks for character validation while leveraging regex for efficient bulk skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

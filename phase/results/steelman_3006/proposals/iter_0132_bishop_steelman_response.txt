@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find()` is flawed because `text.find()` only returns the index of the first occurrence of a character, not a set of characters. It cannot directly find the first non-whitespace character from a set like `_WS_CHARS`. Additionally, `text.find()` would require searching for each whitespace character individually or using a regex, which would be less efficient than the current O(1) set membership check.
+
+STEELMAN: A better approach would be to use `str.translate()` and `str.maketrans()` to efficiently remove all whitespace characters from a substring and then calculate the new position based on the difference in length. This preserves the performance benefit of avoiding per-character iteration while working within the constraints of Python's string operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace characters
+    # Create a translation table that maps whitespace characters to None (removes them)
+    whitespace_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Find the first non-whitespace character by translating and measuring
+    remaining_text = text[pos:]
+    translated = remaining_text.translate(whitespace_table)
+    # The difference in length gives us the number of whitespace characters skipped
+    return pos + (len(remaining_text) - len(translated))
+>>>>>>> REPLACE
+```

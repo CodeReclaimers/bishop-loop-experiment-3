@@ -1,0 +1,49 @@
+CRITIQUE: The suggestion to replace the per-character loop in `_skip_ws` with a table-driven approach is flawed because it doesn't account for the fact that whitespace characters are not uniformly distributed, and building a full skip table would require O(n) space and time to precompute, negating any performance gains. Additionally, the approach fails to consider that the current implementation already uses a simple loop with direct character comparisons, which is highly efficient for typical JSON inputs where whitespace is sparse.
+STEELMAN: A better approach would be to precompute a skip table that maps each byte position to the number of consecutive whitespace characters starting from that position, but only for the common case of small whitespace runs. This allows for fast jumps while keeping memory usage reasonable and avoiding the overhead of regex matching or repeated loop evaluations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+
+# Precompute a skip table for common whitespace patterns
+def _build_skip_table(text: str) -> list[int]:
+    table = [0] * len(text)
+    i = len(text) - 1
+    while i >= 0:
+        if text[i] in ' \t\n\r':
+            table[i] = 1 + (table[i + 1] if i + 1 < len(text) else 0)
+        else:
+            table[i] = 0
+        i -= 1
+    return table
+
+# Global skip table to be reused
+_SKIP_TABLE = []
+
+def _skip_ws_with_table(text: str, pos: int) -> int:
+    global _SKIP_TABLE
+    if not _SKIP_TABLE or len(_SKIP_TABLE) != len(text):
+        _SKIP_TABLE = _build_skip_table(text)
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos += _SKIP_TABLE[pos]
+    return pos
+>>>>>>> REPLACE
+```

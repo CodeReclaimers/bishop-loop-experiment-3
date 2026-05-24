@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to use a `skip_table` for whitespace skipping is unworkable because it assumes a fixed-size table can be built for all possible ASCII characters, but the current implementation uses a set-based lookup that's already O(1) for individual characters. Additionally, the idea of a precomputed table doesn't align with the dynamic nature of parsing where whitespace can be any combination of space, tab, newline, or carriage return, and the table would need to be computed per-input or be massive. This approach would also break the existing logic flow and require reworking the entire skip mechanism.
+STEELMAN: The steelman is to precompute a skip table that maps each character to a boolean indicating whether it's a whitespace character, then use a while loop that advances the position by checking this table instead of repeatedly doing set membership tests. This preserves the O(1) lookup but avoids the overhead of set membership checks while maintaining the original parsing structure.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Pre-computed skip table for whitespace characters
+_SKIP_TABLE = [True if chr(i) in _WS_CHARS else False for i in range(256)]
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precomputed table for O(1) lookup
+    while pos < len(text) and _SKIP_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

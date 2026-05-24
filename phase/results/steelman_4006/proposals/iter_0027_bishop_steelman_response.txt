@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to "skip over whitespace first" is problematic because it misunderstands the current implementation's structure — the `_skip_ws` function is already called at the beginning of `parse` and throughout parsing, so simply "skipping first" doesn't change the overall control flow or eliminate redundant checks. Additionally, it fails to account for the fact that whitespace skipping is already optimized and integrated into the parsing logic, so a naive reordering would not yield performance gains and might introduce bugs if not carefully implemented.
+
+STEELMAN: A better approach is to optimize the initial whitespace skipping in the `parse` function by using a more efficient method that directly advances through whitespace characters without repeated function calls, while preserving the existing logic for handling whitespace within parsing. This can be achieved by inlining the whitespace skipping logic at the start of `parse` and using a fast loop to advance the position, reducing function call overhead.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Fast initial whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Fast trailing whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

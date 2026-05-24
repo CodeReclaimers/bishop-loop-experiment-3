@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use a generator expression in `_skip_ws` instead of `re.match` is unworkable because the current implementation doesn't use `re.match` at all — it uses a manual loop with `text[pos] in _WS_CHARS`. Additionally, the suggestion doesn't address the actual performance bottlenecks in `_skip_ws` which are the repeated membership checks against a list, and the loop overhead. The generator expression approach would not be applicable here since the current code doesn't involve regex at all.
+
+STEELMAN: The strongest version of this suggestion would optimize `_skip_ws` by replacing the list-based membership check with a set-based one, which would improve the O(k) lookup time to O(1), and also consider using `str.find` or `str.translate` for faster skipping of whitespace when dealing with large inputs.
+
+```python
+<<<<<<< SEARCH
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = [" ", "\t", "\n", "\r"]
+_DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Deliberately use sets — every membership check is O(1) instead of O(k).
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+>>>>>>> REPLACE
+```

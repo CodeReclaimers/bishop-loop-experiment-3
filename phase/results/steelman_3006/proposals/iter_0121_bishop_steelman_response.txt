@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while-loop with `str.find` is flawed because `str.find` only returns the index of the first occurrence of a character, not the first character *not* in the set. This would require multiple calls or complex logic to find the first non-whitespace character, defeating the purpose of simplification. Additionally, `str.find` isn't necessarily faster than a tight loop with set membership in CPython due to function call overhead and string copying.
+STEELMAN: A better approach is to use `str.translate` with a translation table to efficiently skip whitespace by converting all whitespace characters to a sentinel value, then use `str.find` to locate the first non-sentinel character. This leverages C-level optimizations while maintaining correctness and avoiding repeated membership checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create translation table that maps whitespace to a sentinel character
+    if pos >= len(text):
+        return pos
+    # Find first non-whitespace character using translate + find
+    # This avoids repeated set membership checks
+    whitespace_table = str.maketrans(''.join(_WS_CHARS), ' ' * len(_WS_CHARS))
+    translated = text[pos:].translate(whitespace_table)
+    new_pos = pos + len(translated) - len(translated.lstrip(' '))
+    return new_pos
+>>>>>>> REPLACE
+```

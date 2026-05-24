@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to use `pos = _WS_PATTERN.search(text, pos, 0)[0]` is fundamentally flawed because `re.search()` doesn't work that way — it returns a match object, not an index, and the second argument is not a limit. Additionally, the regex pattern `[ \t\n\r]*` matches zero or more whitespace chars, not the first non-whitespace character, so it would return the start of the whitespace sequence, not the position after it. This approach would also likely be slower than the existing loop for small amounts of whitespace.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` with the correct pattern to find the first non-whitespace character, and then compute the position after the matched whitespace. Specifically, we can use `_WS_PATTERN.match(text, pos)` to find whitespace at the current position, then advance by the matched length to get the index of the first non-whitespace character. This preserves the performance benefits of regex while working correctly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

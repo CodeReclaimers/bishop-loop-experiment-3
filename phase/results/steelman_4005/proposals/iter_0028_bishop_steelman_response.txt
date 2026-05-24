@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to precompute character sets for whitespace handling in `_parse_value` is unworkable because the function already uses a precomputed `_WS_CHARS` frozenset, and the suggestion doesn't address the actual performance bottleneck, which is the repeated calls to `_skip_ws` in multiple parsing functions. The suggestion also fails to consider that `_parse_value` itself doesn't directly handle whitespace — it delegates to `_skip_ws`, so the optimization would be indirect and potentially misleading.
+
+STEELMAN: The strongest version of the suggestion would be to ensure that all character membership checks in parsing functions use precomputed frozensets, and to make sure that `_skip_ws` is as efficient as possible by leveraging the existing `_WS_CHARS` frozenset, which is already correctly implemented. The goal is to ensure consistent use of fast O(1) lookups across all relevant parsing functions, not just in `_parse_value` but throughout.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

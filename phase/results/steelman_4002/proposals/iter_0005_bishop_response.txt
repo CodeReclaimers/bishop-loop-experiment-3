@@ -1,0 +1,61 @@
+To optimize the JSON parser, we can introduce a caching mechanism for parsing numbers to avoid redundant scans and improve performance. Here's how we can modify the `_parse_number` function:
+
+1. **Add a Cache**: We will use a dictionary to store previously parsed numbers to reduce the number of repeated scans.
+
+2. **Update Parsing Logic**: During the parsing process, if we encounter a number that has already been parsed before, we will check if the cached value matches the current value. If it does, we can return the cached value instead of scanning again.
+
+3. **Modify `_parse_number` Function**:
+   ```python
+   def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+       n = len(text)
+       start = pos
+       if pos < n and text[pos] == "-":
+           pos += 1
+       if pos >= n:
+           raise JSONParseError(f"bad number at {pos}")
+       if text[pos] == "0":
+           pos = pos + 1
+       elif text[pos] in _DIGIT_CHARS:
+           while pos < n and text[pos] in _DIGIT_CHARS:
+               pos = pos + 1
+       else:
+           raise JSONParseError(f"bad number at {pos}")
+       is_float = False
+       if pos < n and text[pos] == ".":
+           is_float = True
+           pos = pos + 1
+           if pos >= n or text[pos] not in _DIGIT_CHARS:
+               raise JSONParseError(f"bad number fractional at {pos}")
+           while pos < n and text[pos] in _DIGIT_CHARS:
+               pos = pos + 1
+       if pos < n and text[pos] in ("e", "E"):
+           is_float = True
+           pos = pos + 1
+           if pos < n and text[pos] in ("+", "-"):
+               pos = pos + 1
+           if pos >= n or text[pos] not in _DIGIT_CHARS:
+               raise JSONParseError(f"bad number exponent at {pos}")
+           while pos < n and text[pos] in _DIGIT_CHARS:
+               pos = pos + 1
+       s = text[start:pos]
+       # Cache the parsed number if it hasn't been cached before
+       if not self.number_cache.get(s):
+           if is_float:
+               self.number_cache[s] = float(s)
+           else:
+               self.number_cache[s] = int(s)
+       return self.number_cache[s], pos
+   ```
+
+4. **Initialize Cache**: Add a `number_cache` attribute to the parser class to store parsed numbers.
+
+5. **Update Parser Class**:
+   ```python
+   class JSONParser:
+       def __init__(self):
+           self.number_cache = {}
+
+       # ... existing methods ...
+   ```
+
+This approach reduces the number of redundant scans for numbers by caching previously parsed values, resulting in improved performance while maintaining correctness.

@@ -1,0 +1,34 @@
+CRITIQUE: Using regex for whitespace skipping would introduce significant overhead from regex compilation and matching, especially for small inputs where the regex engine's setup cost exceeds the benefit. It would also break the existing inline optimization in `_skip_ws` that avoids function call overhead and handles index errors gracefully. Additionally, regex-based solutions are less predictable in performance characteristics and could regress on small or simple inputs.
+STEELMAN: A better approach is to use a hybrid strategy where we inline the fast path for small whitespace runs (e.g., up to 8 characters) and fall back to a compiled regex for larger runs, preserving the performance benefits of the current inline loop while gaining efficiency for large contiguous whitespace sections.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Pre-compile a regex for skipping large chunks of whitespace
+_WS_REGEX = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping for small runs
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    else:
+        # For larger runs, use regex to skip efficiently
+        match = _WS_REGEX.match(text, pos)
+        if match:
+            pos += len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

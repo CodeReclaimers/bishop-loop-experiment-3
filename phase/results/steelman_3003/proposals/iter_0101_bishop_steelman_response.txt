@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex search would break the parser's ability to handle malformed input correctly, since regex-based skipping would consume all whitespace without proper error handling for invalid sequences. It also doesn't account for the fact that the current implementation uses a frozenset lookup for O(1) character checks, which is faster than regex matching for simple cases like whitespace. Additionally, the regex approach would not integrate cleanly with the rest of the parser's logic that assumes character-by-character processing.
+
+STEELMAN: A better approach would be to use a regex to skip whitespace, but still ensure that any skipped content is properly consumed and that the parser remains robust to malformed input by keeping the same error-checking behavior. The regex should be precompiled and used in a way that maintains the performance benefits while preserving correctness and compatibility with the existing code structure.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

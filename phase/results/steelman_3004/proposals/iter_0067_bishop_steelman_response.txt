@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the while loop with a regex match would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same error reporting granularity as character-by-character checking. It would also likely introduce performance regressions due to regex overhead for short whitespace sequences and could misalign position tracking if the regex skips past the end of valid input. Additionally, it would require significant changes to how position tracking is handled throughout the parser, which is already tightly coupled to the current loop-based approach.
+
+STEELMAN: A better approach would be to use the regex to skip whitespace but still validate that we don't skip past the end of the input string, and ensure that the position tracking remains accurate. We can leverage the regex for longer sequences of whitespace while preserving the character-level validation for error reporting and edge cases. This preserves the performance benefit of skipping multiple characters at once while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

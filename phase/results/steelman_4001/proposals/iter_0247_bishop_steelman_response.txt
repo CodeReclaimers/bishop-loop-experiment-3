@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the Python loop with a regex for whitespace skipping is problematic because it doesn't account for the fact that `_skip_ws` is called repeatedly at many levels of recursion, and regex matching has overhead that can be worse than a simple loop for small inputs. Additionally, the regex would need to be recompiled on every call unless precompiled, which would add complexity and potentially slow down the parser. The suggestion also ignores that the current loop is already quite fast for small amounts of whitespace.
+
+STEELMAN: The steelman is to precompile a regex for skipping whitespace and reuse it across calls, which would eliminate the repeated compilation cost and reduce the overhead of the per-character loop, especially in cases where there is significant whitespace to skip. This approach maintains the simplicity of the current design while improving performance through efficient regex reuse.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile the regex for skipping whitespace to avoid repeated compilation cost
+_SKIP_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    match = _SKIP_WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

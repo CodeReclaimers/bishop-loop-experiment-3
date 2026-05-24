@@ -1,0 +1,67 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a direct index advance using a pre-computed `ws_table` is unworkable because it assumes a single lookup table can handle all whitespace positions, which would require a table as large as the input string and would not scale. It also fails to account for the fact that `_skip_ws` is called in multiple contexts and needs to skip over variable-length whitespace sequences, not just advance by a fixed amount. Additionally, it doesn't consider that the current regex-based approach is already optimized and that a table-based approach would add complexity without clear performance gains.
+
+STEELMAN: A better approach would be to precompute a "whitespace skip table" that maps each position in the input string to the next non-whitespace character index, allowing O(1) jumps instead of O(n) scanning. This table can be built once per parse operation and used to skip whitespace efficiently, preserving the original design while improving performance for repeated whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _build_ws_table(text: str) -> list[int]:
+    """Build a table mapping each position to the next non-whitespace position."""
+    n = len(text)
+    ws_table = [0] * n
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            if pos == n - 1:
+                ws_table[pos] = n
+            else:
+                ws_table[pos] = ws_table[pos + 1]
+        else:
+            if pos == n - 1:
+                ws_table[pos] = n
+            else:
+                ws_table[pos] = pos + 1
+        pos -= 1
+    return ws_table
+>>>>>>> REPLACE
+```

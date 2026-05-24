@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a regex call is flawed because it would break the incremental parsing logic needed to track position accurately across multiple parsing steps. The regex approach would skip all whitespace at once, losing the ability to properly advance the parser state between tokens, and could cause incorrect parsing of nested structures or fail to detect trailing content properly. Additionally, regex matching for simple whitespace is likely slower than the optimized character-by-character lookup in the current implementation.
+
+STEELMAN: A better approach would be to use the regex to skip initial whitespace at the start of parsing and in key locations, but still maintain the existing manual iteration for fine-grained position tracking within parsing loops. This preserves the performance benefits of regex for large whitespace sections while keeping the precise control needed for correct parsing behavior.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

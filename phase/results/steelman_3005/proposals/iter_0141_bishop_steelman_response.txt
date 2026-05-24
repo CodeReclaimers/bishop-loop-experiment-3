@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `str.isspace()` with a direct membership test using a predefined set `_WS_CHARS` is problematic because it assumes all Unicode whitespace characters can be handled uniformly, which is not true—`str.isspace()` considers a broader range of Unicode whitespace characters beyond just the ASCII ones. Additionally, it fails to account for the fact that `str.isspace()` is optimized at the C level in CPython, and a Python set lookup may not outperform it, especially for small inputs or when the set is not well-tuned for the expected data distribution.
+
+STEELMAN: A better approach is to define `_WS_CHARS` as a frozen set of the most common ASCII whitespace characters (which are the primary concern for performance), and use this set for fast membership testing in `_skip_ws`, while still falling back to `str.isspace()` for rare Unicode whitespace cases to maintain correctness without sacrificing too much performance.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_WS_CHARS = frozenset(' \t\n\r')  # Common ASCII whitespace chars
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

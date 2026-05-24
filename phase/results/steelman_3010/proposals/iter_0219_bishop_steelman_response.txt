@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion fails to account for the fact that `re.search()` returns the start of the match, not the end, so adding `+ _WS_PATTERN.span(pos)[1]` would incorrectly advance the position by the full match length twice. Additionally, it doesn't handle the case where no whitespace is found, which would cause a `AttributeError` when calling `.start()` on a `None` result.
+STEELMAN: A correct implementation would use `re.search(_WS_PATTERN, text, pos)` to find the first match, and if found, advance the position to the end of that match; if not found, return the original position. This preserves the performance benefit of regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one step
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

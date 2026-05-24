@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.find(next(iter(_WS_CHARS)), pos)` is fundamentally flawed because `_WS_CHARS` is a frozenset, which has no defined iteration order, making `next(iter(_WS_CHARS))` non-deterministic. Even if it worked, `str.find` only finds the first character in the set, not all whitespace characters, so it would miss most whitespace. Additionally, `str.find` returns -1 for not found, which doesn't integrate cleanly with the existing logic.
+
+STEELMAN: The correct approach is to use `str.find` to locate the first non-whitespace character by searching for the complement of whitespace characters, or better yet, use `str.translate` with a translation table to efficiently skip whitespace in bulk. However, the most practical and performance-oriented steelman is to replace the character-by-character loop with a regex-based skip that efficiently identifies the next non-whitespace position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    import re
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

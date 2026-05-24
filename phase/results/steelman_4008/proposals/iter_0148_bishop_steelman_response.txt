@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.find` for large whitespace segments is problematic because it doesn't actually avoid regex compilation overhead (since the current implementation doesn't use regex for whitespace skipping), and `str.find` with a set of characters would require multiple calls or a custom loop anyway. Additionally, the approach doesn't consider that whitespace skipping is often done in small chunks, making the overhead of `str.find` likely worse than direct character scanning.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by using a hybrid strategy: scanning in larger chunks when possible (e.g., using `str.find` to locate the first non-whitespace character, or precomputing a lookup for whitespace characters), while still falling back to efficient character-by-character scanning for small segments or when the next non-whitespace character is found quickly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized whitespace skipping using hybrid approach
+    # Precomputed set for fast lookup
+    whitespace = {' ', '\t', '\n', '\r'}
+    while pos < len(text):
+        if text[pos] not in whitespace:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

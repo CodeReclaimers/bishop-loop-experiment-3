@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `text.find` and regex matching is flawed because `text.find` only locates the first occurrence of whitespace characters, not the end of a whitespace sequence. Additionally, using `re.compile(r"[ \t\n\r]*")` with `find` won't work as intended since the regex pattern matches zero or more whitespace characters, not the position after the whitespace. This would break the logic of skipping all consecutive whitespace.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with the precompiled regex to find the next non-whitespace position by advancing past any leading whitespace, leveraging the C-level regex engine while preserving correct behavior. We should modify `_skip_ws` to use `re.match` to skip all leading whitespace in one step.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

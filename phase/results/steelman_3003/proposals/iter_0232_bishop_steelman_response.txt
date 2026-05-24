@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is problematic because it would require replacing all whitespace with a sentinel character, which would fundamentally change the parsing logic. The current approach uses a loop to advance the position pointer; `str.translate` would return a new string, not a position, making it incompatible with the existing architecture. Additionally, this approach would not be faster for short inputs and could introduce overhead from string copying.
+
+STEELMAN: A better approach is to use `str.translate` to efficiently skip whitespace by translating all whitespace characters to a single sentinel character, then use `str.find` to locate the first non-sentinel character. This maintains the existing position-tracking logic while leveraging the optimized C-level string operations for the skip operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using str.translate and str.find for O(1) lookup
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with sentinel
+    trans_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the substring and find first non-sentinel
+    translated = text[pos:].translate(trans_table)
+    first_non_ws = translated.find(" ")
+    if first_non_ws == -1:
+        return len(text)
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

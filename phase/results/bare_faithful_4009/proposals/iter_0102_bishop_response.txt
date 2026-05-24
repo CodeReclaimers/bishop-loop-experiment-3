@@ -1,0 +1,51 @@
+Optimize the `parse` function by using a stack to track nested structures, reducing the need for recursive calls. This can be done by replacing the `pos += 1` in each condition with a recursive call that returns the updated position and value. The new function would look like this:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    stack = [pos]
+    while stack:
+        pos = stack.pop()
+        c = text[pos]
+        if c == "{":
+            value, new_pos = _parse_object(text, pos)
+            stack.append(new_pos)
+        elif c == "[":
+            value, new_pos = _parse_array(text, pos)
+            stack.append(new_pos)
+        elif c == '"':
+            value, new_pos = _parse_string(text, pos)
+            stack.append(new_pos)
+        elif c == "t" or c == "f":
+            value, new_pos = _parse_bool(text, pos)
+            stack.append(new_pos)
+        elif c == "n":
+            value, new_pos = _parse_null(text, pos)
+        else:
+            if ord(c) < 0x20:
+                raise JSONParseError(f"unescaped control character at {pos}")
+            value = c
+            new_pos = pos + 1
+        pos = new_pos
+    raise JSONParseError("unexpected end of input")
+```
+
+This approach avoids the overhead of recursive function calls, which can be costly in terms of performance. It replaces the `pos += 1` with a recursive call that returns the updated position and value, allowing the parser to build up the structure of the JSON data without making unnecessary jumps between different parts of the code.

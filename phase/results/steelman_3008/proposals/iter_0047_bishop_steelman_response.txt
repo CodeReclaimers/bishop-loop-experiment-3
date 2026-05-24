@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text[pos:].lstrip()` would be incorrect because it strips ALL leading whitespace characters from the substring, not just the standard JSON whitespace characters (`" \t\n\r"`). This could incorrectly consume non-whitespace characters that happen to appear after the initial whitespace, leading to parsing errors. Additionally, it would not handle the case where the input is entirely whitespace, as `lstrip()` would return an empty string and the offset calculation would be wrong.
+
+STEELMAN: A better approach would be to create a custom `lstrip`-like function that only strips the specific JSON whitespace characters (`" \t\n\r"`) using a C-optimized method, or alternatively, use `str.find` to locate the first non-whitespace character, which avoids Python-level loops while maintaining correctness for only the intended characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace in a single pass
+    # This avoids Python-level loop overhead while maintaining correctness
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

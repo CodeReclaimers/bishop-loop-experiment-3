@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace `re.compile(r'\s*')` with a manual character-by-character scan is problematic because it misunderstands the purpose of the existing `_skip_ws` function — which is to skip *zero or more* whitespace characters, not just one. The proposed change would break the logic by only advancing past a single whitespace character instead of all consecutive ones. Additionally, it fails to consider that the regex was likely used to avoid repeated manual checks, which could actually be less efficient than a well-optimized loop.
+
+STEELMAN: The steelman version preserves the intent of avoiding regex overhead but correctly implements a loop that advances through all consecutive whitespace characters using direct character comparisons. It maintains the same performance characteristics and correctness while eliminating the regex dependency.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

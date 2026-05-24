@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.search(text[pos:]).end()` in `_skip_ws` is flawed because it would require recompiling or reusing the regex object in a way that doesn't preserve the original `pos` tracking, and it would likely cause performance degradation due to repeated regex compilation or unnecessary overhead. Additionally, the regex engine's internal state isn't designed to efficiently skip whitespace in a single pass without re-parsing the entire string from the start.
+
+STEELMAN: A better approach would be to use the pre-compiled regex `_WS_RE` with `match()` or `search()` on the substring starting from `pos`, and extract the end position of the match to advance `pos` efficiently. This avoids repeated character-by-character checks while leveraging the optimized regex engine for bulk whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

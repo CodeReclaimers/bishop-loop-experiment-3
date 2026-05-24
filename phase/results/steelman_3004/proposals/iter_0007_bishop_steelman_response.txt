@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call would break the parser's ability to handle malformed input correctly, since the regex would consume all whitespace and leave no way to detect trailing content or invalid characters. It also fails to account for the fact that `_skip_ws` is called in multiple contexts where partial advancement is required for proper parsing flow. Additionally, regex-based skipping may not be faster than the current loop in all cases due to regex overhead and the fact that the current implementation already avoids redundant checks.
+
+STEELMAN: The steelman version would use the regex to skip whitespace, but still maintain the same position tracking semantics so that the parser can correctly detect invalid trailing content and ensure proper parsing flow. The regex should be used to advance the position by matching a prefix, not by replacing the entire whitespace-handling logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

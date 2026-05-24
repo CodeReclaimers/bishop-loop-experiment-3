@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use regex for large inputs while inlining small inputs is problematic because it introduces conditional logic that adds complexity and potential performance overhead. It doesn't address the core issue of inefficient whitespace handling in the main parsing loop, and the "small vs large" heuristic is poorly defined. Additionally, regex compilation overhead could hurt performance on small inputs where the current approach is already fast enough.
+STEELMAN: The steelman is to replace the current per-call Python loop in `_skip_ws` with a hybrid approach that uses a compiled regex for large inputs (say > 1000 chars) and the existing inline loop for smaller inputs, while also optimizing the regex pattern to be more efficient and avoiding repeated compilations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Use a compiled regex for large inputs to avoid repeated compilation
+# and improve performance on large texts.
+import re
+
+# Pre-compile the regex for whitespace skipping
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # For small inputs, use the inline loop for better performance
+    # For large inputs, use the compiled regex
+    if len(text) > 1000:
+        # Find the end of whitespace using regex
+        match = _WS_REGEX.match(text, pos)
+        if match:
+            return match.end()
+        return len(text)
+    else:
+        # Optimized inline whitespace skipping for small inputs
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+>>>>>>> REPLACE
+```

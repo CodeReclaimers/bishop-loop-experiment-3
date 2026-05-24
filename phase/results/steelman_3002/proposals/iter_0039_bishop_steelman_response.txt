@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `_WS_RE.search(text, pos).end()` would break on empty input or when there's no whitespace at the given position, because `search()` returns `None` when no match is found, and calling `.end()` on `None` raises an AttributeError. Additionally, it would incorrectly advance past non-whitespace characters if the regex matched at a position that wasn't the start of the whitespace run, and it would not properly handle the case where the input ends exactly at a whitespace boundary.
+STEELMAN: The steelman version should use `_WS_RE.match(text, pos)` instead of `search()` to ensure matching from the exact position, and handle the case where no match is found by returning the original `pos`. This preserves the performance benefits while maintaining correctness for all edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

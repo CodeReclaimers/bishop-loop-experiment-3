@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use `re.finditer` for whitespace skipping is problematic because it would require scanning the entire input text for whitespace patterns upfront, which contradicts the current approach of incremental parsing. This would break the streaming nature of the parser and likely introduce overhead from regex compilation and match processing that outweighs any gains. Additionally, `finditer` would not integrate well with the existing `_skip_ws` function's position-based interface.
+
+STEELMAN: A better approach would be to precompile the whitespace regex once and reuse it efficiently within `_skip_ws`, avoiding repeated compilation overhead while maintaining the incremental parsing behavior. This can be done by using `re.match` with a precompiled pattern on the current position, which allows for efficient forward scanning without changing the core parsing logic.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

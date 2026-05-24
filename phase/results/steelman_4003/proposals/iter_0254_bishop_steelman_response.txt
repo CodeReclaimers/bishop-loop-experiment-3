@@ -1,0 +1,63 @@
+CRITIQUE: The suggestion to use a "more efficient regex for number parsing" is unworkable because the current implementation already uses a regex (`_NUMBER_PATTERN`) for number parsing, and replacing it with another regex would not reduce overhead—it would just change the pattern matching logic without addressing the core inefficiency of using regex at all for this task. Additionally, regex-based number parsing introduces unnecessary backtracking and complexity compared to direct numeric conversion.
+
+STEELMAN: A better approach would be to eliminate regex usage entirely for number parsing and instead implement a fast, direct numeric parser that handles integers and floats in one pass, avoiding the overhead of regex engine matching and backtracking, while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == '-':
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    # Parse integer part
+    if text[pos] == '0':
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent part
+    if pos < len(text) and text[pos].lower() == 'e':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Extract and convert
+    s = text[start:pos]
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

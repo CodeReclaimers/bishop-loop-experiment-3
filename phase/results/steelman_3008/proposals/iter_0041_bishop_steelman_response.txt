@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion fails because it assumes that all whitespace characters have ASCII values between 9 and 31, but the current `_WS_CHARS` set includes space (`" "` which is 32), tab (`"\t"` which is 9), newline (`"\n"` which is 10), and carriage return (`"\r"` which is 13). Only tab, newline, and carriage return fall in the 9-31 range, so using an ASCII range check would skip the space character and incorrectly parse JSON. Additionally, the suggestion doesn't consider that the loop may need to handle non-ASCII characters in the future, which would break the assumption.
+
+STEELMAN: The steelman version of the suggestion is to use a more precise ASCII-range check that correctly identifies all whitespace characters by leveraging the fact that space (32) is not in the 9-31 range, and instead use a combination of a fast integer comparison for the common case (tab, newline, carriage return) and a fallback to set membership for space, or better yet, refine the range to include only the characters that are actually in the 9-31 range, which are tab, newline, and carriage return, and handle space separately.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with fast integer comparison for common whitespace chars
+    while pos < len(text):
+        c = text[pos]
+        if c == " ":
+            pos += 1
+        elif 9 <= ord(c) <= 13:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,106 @@
+To speed up parsing, we can use a more efficient string concatenation method and avoid rebuilding the dictionary at each step. Here’s how you could approach this:
+
+1. **Use `join` for Array Construction**: Instead of appending to a list in each iteration, append directly to the main result list using `out = out + [v]`, we can use `out.extend([v])`. This is faster because `extend` is optimized to handle lists and strings.
+
+2. **Preallocate List for Object Keys**: Before starting to parse, preallocate a dictionary with keys of the same size as expected. Then, while parsing, populate the dictionary by looking up existing keys or adding new ones.
+
+3. **Use Efficient String Concatenation**: Instead of using `out = out + [v]` in the array parsing loop, use `out.extend([v])`, which is more efficient and faster for large arrays.
+
+4. **Avoid Redundant Whitespace Handling**: While maintaining the whitespace handling at every level, you can optimize by consolidating repeated whitespace handling logic into a separate function that returns the position of the next non-whitespace character.
+
+Here’s how these changes might look in code:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str, pos: int) -> int:
+    while text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    out = []
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    out = {}
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] == "}":
+            return out, pos + 1
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    out = []
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] == "]":
+            return out, pos + 1
+        value, pos = _parse_value(text, pos)
+        out.extend([value])
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    start = pos
+    while pos < len(text) and text[pos] != '"':
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"unterminated string")
+    value = text[start:pos]
+    return value, pos + 1
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos +

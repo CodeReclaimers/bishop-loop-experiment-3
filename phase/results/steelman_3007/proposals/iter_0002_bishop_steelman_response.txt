@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to inline regex matching would break the existing control flow since `_skip_ws` is used in many places where the return value is immediately used in conditional logic or loop continuations. Inlining would require rewriting all those control structures to handle the match object directly, which would make the code more complex and error-prone. Additionally, the regex engine is already optimized for repeated use, so the performance gain from avoiding function calls would be minimal.
+
+STEELMAN: A better approach is to optimize the whitespace skipping by using a simple loop with precomputed character sets instead of regex, which eliminates the regex overhead while preserving the clear control flow and maintaining correctness. This approach still avoids function call overhead but keeps the code readable and maintainable.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

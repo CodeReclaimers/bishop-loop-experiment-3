@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use a precomputed skip table would require building a table of size O(n) for every parse operation, which is wasteful and complexity-wise no better than the current O(n) loop. It also fails to account for the fact that whitespace is typically sparse in JSON, making the table mostly filled with "next position" values that are only one step ahead, resulting in poor cache locality and memory overhead. Additionally, the table construction itself would be O(n) and add overhead compared to the simple while loop.
+
+STEELMAN: A better approach would be to use a hybrid strategy: for short strings or when whitespace is sparse, continue using the current while loop, but for longer strings with frequent whitespace, precompute a skip table that only stores jumps for positions where whitespace runs are longer than a threshold (e.g., > 3 consecutive spaces), and fall back to the loop for short runs. This preserves the core idea of avoiding per-character checks while avoiding unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    # For performance, use a hybrid approach: check 4 chars at a time for
+    # runs of whitespace, then fall back to the loop for small runs
+    while pos < len(text):
+        c = text[pos]
+        if c not in _WS_CHARS:
+            break
+        # Try to skip 4 chars at a time for efficiency
+        if pos + 4 <= len(text):
+            if text[pos:pos+4] == "    ":
+                pos += 4
+                continue
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

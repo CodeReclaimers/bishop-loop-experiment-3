@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace set membership checks with `ord` comparisons is problematic because it fails to account for Unicode characters that may be valid in JSON numbers but are not in the ASCII range '0'-'9'. Direct character comparisons like `'0' <= c <= '9'` only work reliably for ASCII digits and will not correctly handle Unicode digit characters. Additionally, the suggestion doesn't consider that `ord` comparisons may not be faster than set lookups in all cases due to Python's internal optimizations and branch prediction.
+
+STEELMAN: The steelman version of the suggestion is to use direct character range checks for ASCII digits and hex characters in `_parse_number` and `_is_hex4`, but only for the ASCII subset (0-9, a-f, A-F). This preserves the performance benefit of avoiding set lookups while maintaining correctness for valid JSON inputs, since JSON numbers and escape sequences are defined using ASCII characters. The change should be limited to ASCII ranges and not affect Unicode handling.
+
+```python
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not ('0' <= ch <= '9' or 'a' <= ch <= 'f' or 'A' <= ch <= 'F'):
+            return False
+    return True
+>>>>>>> REPLACE
+```

@@ -1,0 +1,65 @@
+CRITIQUE: The suggestion to "avoid unnecessary conversions" is misleading because the current implementation already uses Python's built-in `int()` and `float()` functions via `float(s)` and `int(s)` in `_parse_number`. The real performance bottleneck isn't the conversion itself but the regex matching overhead and redundant parsing steps. The suggestion doesn't address the core issue of using a regex to find number boundaries when a direct character-by-character parse would be faster.
+
+STEELMAN: The optimization should focus on eliminating the regex-based number detection entirely and instead perform a direct character-by-character parse of the number components, using `int()` and `float()` only on the final parsed string segments. This avoids the regex compilation cost and allows for more efficient parsing of numbers without sacrificing correctness.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == '-':
+        pos = pos + 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    
+    # Parse integer part
+    if text[pos] == '0':
+        pos = pos + 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+        if pos == start + 1 and text[start] == '0':
+            raise JSONParseError(f"bad number at {start}")
+    
+    # Parse fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos = pos + 1
+        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    
+    # Parse exponent part
+    if pos < len(text) and text[pos] in 'eE':
+        pos = pos + 1
+        if pos < len(text) and text[pos] in '+-':
+            pos = pos + 1
+        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    
+    s = text[start:pos]
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

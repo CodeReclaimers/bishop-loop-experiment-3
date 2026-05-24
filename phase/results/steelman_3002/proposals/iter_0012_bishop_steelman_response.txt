@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `re.sub('', text, pos)` would not work correctly because it removes all whitespace from the substring starting at `pos`, not just the leading whitespace. This would corrupt the parsing by deleting characters that should remain in the input stream. Additionally, `re.sub` is not suitable for skipping whitespace since it doesn't return the new position — it returns a modified string, making it incompatible with the existing parsing logic that relies on returning updated positions.
+STEELMAN: A better approach would be to use `re.match(_WS_RE, text, pos)` to find the end of the whitespace sequence, then advance the position to the first non-whitespace character. This preserves the existing API and leverages regex for fast whitespace detection while maintaining correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

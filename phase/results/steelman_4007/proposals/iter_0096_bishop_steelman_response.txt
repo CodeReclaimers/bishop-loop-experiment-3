@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `str.strip()` with a regex pattern is fundamentally flawed because `strip()` only removes characters from the beginning and end of a string, not from the middle, and it would require constructing a regex pattern that matches all whitespace characters, which is inefficient. Additionally, `strip()` would not work correctly in the context of incrementally parsing text, as it would consume the entire leading whitespace instead of advancing a position pointer. The suggestion also ignores that the current implementation needs to skip whitespace at arbitrary positions, not just at the start of the string.
+
+STEELMAN: A better approach would be to use a compiled regex pattern to find the first non-whitespace character starting from a given position, which would efficiently advance the position pointer without needing to process each whitespace character individually. This preserves the core idea of using regex for whitespace skipping while addressing the incremental parsing needs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

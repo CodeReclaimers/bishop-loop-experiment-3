@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to replace the regex-based `_skip_ws` with a direct character lookup fails because it doesn't account for the full JSON whitespace set, which includes U+000B (vertical tab) and U+000C (form feed) in addition to space, tab, line feed, and carriage return. This would cause parsing failures on valid JSON containing those characters. Additionally, the proposed approach would require maintaining a large lookup set or multiple conditionals, which could be less efficient than the existing regex in some cases.
+
+STEELMAN: The steelman version would replace the regex with a direct character lookup using a precomputed frozenset of all JSON whitespace characters, including the four standard ones plus U+000B and U+000C. This preserves the performance benefits of avoiding regex overhead while maintaining correctness across the full JSON specification.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r\x0b\x0c')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, carriage return,
+    # vertical tab, and form feed
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex span lookup is flawed because `_WS_RE.span(pos)` only returns the span of the *first* match, not all consecutive whitespace. Additionally, using `re.compile` for a simple character class like whitespace may not be faster than direct frozenset lookup, and could introduce overhead from regex engine initialization or matching.
+
+STEELMAN: A better approach is to use the precompiled regex to find the end position of the whitespace sequence by applying it to a slice starting at `pos`, and then advance `pos` by the length of the match, which avoids repeated character checks while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

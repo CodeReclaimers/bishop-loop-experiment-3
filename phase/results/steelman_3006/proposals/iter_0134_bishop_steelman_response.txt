@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion fails because `str.translate` removes all whitespace characters from the entire string slice, not just the leading ones, so it cannot determine the exact position after skipping whitespace. Additionally, it doesn't handle the case where the input is entirely whitespace, which should raise an error. The approach also ignores the fact that `translate` works on the entire string, not a position-based skip.
+STEELMAN: A better approach would be to use `str.translate` on a copy of the string slice to remove whitespace, then compute the difference in length to find the new position. However, this still has issues with the position tracking and error handling. A more robust steelman would use `str.lstrip` with the whitespace set or a hybrid approach that leverages `str.translate` but maintains accurate position tracking by using a more careful string manipulation technique.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create a translation table that maps whitespace chars to None (removes them)
+    whitespace_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Skip whitespace by translating the remaining string and measuring the difference
+    remaining = text[pos:]
+    translated = remaining.translate(whitespace_table)
+    return pos + len(remaining) - len(translated)
+>>>>>>> REPLACE
+```

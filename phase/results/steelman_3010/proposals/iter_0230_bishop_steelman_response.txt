@@ -1,0 +1,20 @@
+CRITIQUE: The suggested regex approach using `re.finditer(r'[^ \t\n\r]*', text)` is fundamentally flawed because it matches zero or more non-whitespace characters, which would incorrectly skip over the entire input if it starts with a non-whitespace character. Additionally, it doesn't properly handle the case where the input is entirely whitespace, as the regex would match an empty string and return the start index, not the position after whitespace. This approach also introduces regex overhead and complexity without clear performance gains over the existing loop-based method.
+
+STEELMAN: A better implementation would use `re.match(r'[ \t\n\r]*', text[pos:])` to find the first match of whitespace characters starting at the given position, and return `pos + match.end()` to get the index after the whitespace. This preserves the intent of using regex for whitespace skipping while correctly handling the position tracking and avoiding incorrect matches.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, returning position after any leading whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

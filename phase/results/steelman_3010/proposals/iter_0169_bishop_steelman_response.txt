@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the manual loop with `regex.search` is problematic because `re.search` finds the *first* match, not the *longest* run of whitespace, which would skip past the end of the whitespace sequence. Additionally, it doesn't handle the case where the input is entirely whitespace, potentially causing incorrect behavior or performance degradation due to regex overhead for small inputs.
+
+STEELMAN: The steelman version would use `regex.match` at the current position to find the longest contiguous whitespace run, or fall back to the existing loop for small inputs where regex overhead isn't justified. This preserves performance gains while maintaining correctness and avoiding regex engine pitfalls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace, falling back to manual loop for small inputs
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        match = _WS_PATTERN.match(text, pos)
+        if match:
+            return match.end()
+    # Fallback to manual loop for cases where regex isn't beneficial or fails
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

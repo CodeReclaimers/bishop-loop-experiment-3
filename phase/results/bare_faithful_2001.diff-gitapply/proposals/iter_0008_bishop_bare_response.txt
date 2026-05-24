@@ -1,0 +1,75 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,7 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+ 
+ This is the starting point for the optimization loop. It is correct against
++import re
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+ 
+@@ -16,10 +17,13 @@
+ _HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+               "A", "B", "C", "D", "E", "F"}
+
+
++WS_RE = re.compile(r'\s*')
++NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
++
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+@@ -35,10 +41,10 @@
+ def _skip_ws(text: str, pos: int) -> int:
+     n = len(text)
+     while pos < n and text[pos] in _WS_CHARS:
+-        pos = pos + 1
++        m = WS_RE.match(text, pos)
++        pos += m.end()
+     return pos
+
+
+@@ -118,15 +124,15 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     n = len(text)
+     start = pos
+-    if pos < n and text[pos] == "-":
+-        pos = pos + 1
+-    if pos >= n:
+-        raise JSONParseError(f"bad number at {pos}")
+-    if text[pos] == "0":
+-        pos = pos + 1
+-    elif text[pos] in _DIGIT_CHARS:
+-        while pos < n and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
+-    else:
+-        raise JSONParseError(f"bad number at {pos}")
+-    is_float = False
+-    if pos < n and text[pos] == ".":
+-        is_float = True
+-        pos = pos + 1
+-        if pos >= n or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number fractional at {pos}")
+-        while pos < n and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
+-    if pos < n and text[pos] in ("e", "E"):
+-        is_float = True
+-        pos = pos + 1
+-        if pos < n and text[pos] in ("+", "-"):
+-            pos = pos + 1
+-        if pos >= n or text[pos] not in _DIGIT_CHARS:
+-            raise JSONParseError(f"bad number exponent at {pos}")
+-        while pos < n and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++    m = NUMBER_RE.match(text, pos)
++    if not m:
++        raise JSONParseError(f"bad number at {pos}")
++    s = m.group(0)
++    pos += len(s)
++    is_float = '.' in s or 'e' in s.lower()
+     s = text[start:pos]
+     if is_float:
+         return float(s), pos
+     return int(s), pos
+```

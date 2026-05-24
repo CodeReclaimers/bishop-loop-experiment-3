@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to use `re.finditer(r'\s+')` is problematic because it would require scanning forward from the current position until the first non-whitespace character, which could be inefficient if whitespace is sparse. Additionally, `finditer` would not handle the case where there's no whitespace at all (i.e., when the next non-whitespace character is immediately adjacent) properly, since it matches one or more whitespace characters and would skip past the first non-whitespace character. Also, the regex engine overhead might not be justified for simple whitespace skipping.
+STEELMAN: A better approach is to use `re.match(r'\s*', text, pos)` which matches zero or more whitespace characters starting at `pos`, then return `pos + match.end()` to get the next non-whitespace position. This avoids the iteration overhead and is more efficient than the current loop-based approach, while correctly handling the case where there is no whitespace at all.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    return pos + match.end() if match else pos
+>>>>>>> REPLACE
+```

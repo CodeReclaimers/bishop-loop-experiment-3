@@ -1,0 +1,57 @@
+CRITIQUE: The suggestion to replace per-character whitespace skipping with a regex match would be inefficient because it introduces regex compilation overhead and doesn't fully address the performance bottleneck. The regex approach still requires scanning the entire input string from the current position, which can be slower than a simple loop for small amounts of whitespace. Additionally, it could break the existing error handling or fail to integrate cleanly with the rest of the parser's state management.
+STEELMAN: A better approach is to precompile the whitespace regex once and use it to skip multiple whitespace characters at once, but integrate it carefully into the existing parsing logic to maintain performance while keeping error reporting intact. The key is to avoid repeated regex compilation and reduce the number of individual character checks, but still allow the parser to continue efficiently after skipping whitespace.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+# Precompile the regex for skipping whitespace to avoid repeated compilation cost
+import re
+_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

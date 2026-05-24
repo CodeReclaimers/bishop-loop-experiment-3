@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to precompute non-whitespace character indices and use binary search would require storing O(n) additional space for the indices, and the binary search overhead would likely negate any gains for typical JSON documents where whitespace is sparse. It also doesn't address the core issue that whitespace skipping is already O(k) in the worst case, and the proposed approach would still require a full pass over the string to build the index list.
+STEELMAN: A better approach would be to use a single regex-based skip operation that finds the next non-whitespace character, which avoids the Python loop and set membership checks while maintaining O(1) per segment behavior without requiring additional memory proportional to input size.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the regex for skipping whitespace
+_WS_SKIP_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one operation
+    match = _WS_SKIP_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

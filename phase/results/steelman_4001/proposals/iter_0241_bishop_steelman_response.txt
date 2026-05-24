@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `int()` and `float()` directly on number strings is problematic because it bypasses the existing regex-based token recognition that already identifies the full number literal. This would require re-parsing the same text and could miss edge cases like invalid formats that the regex already handles. Additionally, it doesn't address the performance bottleneck of character-by-character scanning in number parsing, which is the core issue.
+STEELMAN: The steelman is to leverage Python's built-in `int()` and `float()` functions but only after using the existing regex to extract the complete number token, ensuring correct parsing and avoiding redundant work while benefiting from the optimized C implementations of these built-ins.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.match(_WS_RE, text, pos)` and rely on its end position would not work correctly because the regex pattern `[ \t\n\r]*` only matches zero or more whitespace characters, but it doesn't account for the fact that the current `_skip_ws` function skips *all* whitespace characters (including multiple consecutive ones) and returns the position just after the last whitespace. The regex approach would require a different pattern or logic to properly advance through the string. Additionally, the regex approach could be slower in practice due to regex compilation overhead and the fact that simple character lookup is often faster than regex matching for this use case.
+
+STEELMAN: A better approach would be to use the precompiled regex `_WS_RE` to match the leading whitespace at a given position, and then advance the position by the length of the matched whitespace. This preserves the intent of using regex for performance while avoiding the Python loop overhead, and it correctly handles the position advancement in a single step.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

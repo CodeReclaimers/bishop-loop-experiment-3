@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call is problematic because `re.search()` starts matching from the given position but doesn't guarantee it will consume all consecutive whitespace — it may stop at the first non-whitespace character and return the end position of the first match, not the full contiguous whitespace run. Additionally, this approach would not handle the case where the input ends with whitespace properly, potentially leading to incorrect position tracking or index errors.
+
+STEELMAN: The steelman version uses `_WS_RE.match(text, pos)` instead of `search`, which ensures the regex matches from the exact position and consumes all leading whitespace. It also includes a fallback to the original loop for cases where the regex might not behave as expected, maintaining correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for performance
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to manual check in case of unexpected behavior
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

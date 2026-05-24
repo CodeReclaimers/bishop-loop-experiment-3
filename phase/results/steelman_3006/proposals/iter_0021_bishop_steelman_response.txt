@@ -1,0 +1,43 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find` is problematic because `text.find` scans linearly and returns the index of the first occurrence of any character from a set, but the current implementation needs to skip *all* whitespace characters, not just the first non-whitespace one. Additionally, `text.find` would require constructing a string of all whitespace characters to search for, which defeats the purpose of using sets for O(1) membership checks and could be slower than the existing loop.
+STEELMAN: A better approach is to use `text.find` to locate the first non-whitespace character, but only if the current position is not already at a non-whitespace character; otherwise, we fall back to the existing loop for performance. This preserves the intent of leveraging C-level string operations while maintaining correctness and avoiding unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    # but optimize by using text.find when possible
+    if pos >= len(text):
+        return pos
+    # If current character is not whitespace, return as-is
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Otherwise, use find to skip ahead to the first non-whitespace
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        # No space found, check for other whitespace chars
+        next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\r', pos)
+                if next_non_ws == -1:
+                    return len(text)
+    # Find the earliest non-whitespace character
+    for ch in _WS_CHARS:
+        idx = text.find(ch, pos)
+        if idx != -1 and (next_non_ws == -1 or idx < next_non_ws):
+            next_non_ws = idx
+    if next_non_ws == -1:
+        return len(text)
+    # Skip all whitespace up to next_non_ws
+    while pos < next_non_ws:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

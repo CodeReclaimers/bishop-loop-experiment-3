@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion fails because it would only strip leading whitespace once at the top level, but the parser recursively processes nested structures like objects and arrays. Whitespace between tokens within these structures would still require repeated `_skip_ws` calls. Additionally, the approach doesn't account for the fact that `_skip_ws` is called at multiple strategic points throughout parsing logic, not just at the beginning.
+
+STEELMAN: A better approach is to preprocess the input string to remove all leading whitespace once at the start, but also ensure that internal parsing functions like `_parse_value`, `_parse_object`, and `_parse_array` do not call `_skip_ws` at the beginning of their execution. Instead, they should assume that the position passed to them is already whitespace-free, and only handle whitespace when necessary within the parsing loop.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    text = text.lstrip(' \t\n\r')
+    if not text:
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, 0)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

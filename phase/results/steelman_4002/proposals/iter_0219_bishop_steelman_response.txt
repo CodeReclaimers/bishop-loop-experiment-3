@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to avoid `IndexError` handling in whitespace skipping is problematic because the current implementation already uses a `try/except IndexError` pattern which is actually quite efficient and idiomatic in Python for this kind of operation. Replacing it with a bounds check would likely introduce overhead from repeated conditionals. Additionally, the idea to skip escaped unicode characters directly within the loop is unclear and could break the existing logic for handling complex escape sequences like Unicode surrogates.
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a more efficient loop structure that minimizes bounds checking while preserving the existing robust error handling. For the Unicode handling, we can improve performance by using `str.find()` or `str.index()` with a precomputed skip table for common ASCII characters, reducing the number of individual character checks in hot paths.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

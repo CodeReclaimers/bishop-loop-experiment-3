@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with an inline loop is problematic because it ignores the existing performance optimization of precompiling the regex `_WS_RE` and using it via `_skip_ws(text, 0)` at the start of `parse`. Removing the regex entirely would mean losing that optimization. Additionally, the naive loop approach would still be slower than the optimized regex for large amounts of whitespace due to Python's loop overhead.
+
+STEELMAN: The steelman version of the suggestion is to replace the regex-based `_skip_ws` with a more efficient inline loop that uses a precomputed frozenset for whitespace character checks, avoiding both regex overhead and redundant membership tests. This preserves the core idea of avoiding regex calls while maintaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

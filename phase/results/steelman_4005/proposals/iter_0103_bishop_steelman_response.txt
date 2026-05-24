@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use Python's built-in string methods for whitespace skipping is unworkable because it fails to address the core issue of efficient position tracking. Built-in methods like `str.lstrip()` or `str.strip()` would require creating new string views or copying data, which defeats the purpose of avoiding redundant operations. Additionally, these methods don't provide fine-grained control over the parsing position, making them unsuitable for a streaming parser that needs to maintain precise character-level position tracking.
+
+STEELMAN: The steelman version of this suggestion would leverage Python's `str.find()` or `str.translate()` methods in a way that maintains the existing position-tracking semantics while reducing the number of individual character checks. Specifically, we could use `str.translate()` to efficiently skip whitespace characters by mapping them to a sentinel value, then use `str.find()` to locate the next non-whitespace character, thereby minimizing bounds checking overhead without sacrificing performance or correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create translation table to map whitespace to None (removes them)
+    # Then find first non-whitespace character
+    if pos >= len(text):
+        return pos
+    # Use translate to remove whitespace, then find first non-whitespace
+    # This avoids repeated bounds checking and character lookups
+    whitespace_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    stripped = text[pos:].translate(whitespace_table)
+    # Calculate how many characters were stripped
+    return pos + (len(text[pos:]) - len(stripped))
+>>>>>>> REPLACE
+```

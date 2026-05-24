@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single `re.search` call is flawed because `re.search(_WS_RE, text[pos:])` will match zero or more whitespace characters, not just the leading ones, and the `.start()` method returns the position relative to the sliced string, not the original. Additionally, this approach would cause performance regressions due to regex overhead for short whitespace sequences and doesn't handle the case where no whitespace is found correctly.
+STEELMAN: A better approach is to use `re.match(_WS_RE, text[pos:])` which matches from the start of the string slice and returns the correct offset, but only when the match succeeds; otherwise, we fall back to the original loop logic for better performance on short inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency on large whitespace runs
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

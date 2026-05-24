@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it would skip over ALL whitespace characters at once, not just the leading ones. This could incorrectly advance the position past the end of the input or misinterpret the input stream, especially when there are non-whitespace characters mixed in. It also fails to account for the fact that `_skip_ws` is used in multiple contexts where partial skipping is needed.
+
+STEELMAN: A better approach is to use `text.find` to find the first non-whitespace character, but still ensure that we only advance by the correct number of whitespace characters. We can compute the first non-whitespace character using `text.find(''.join(_WS_CHARS), pos)` and then check if it's actually beyond the current position, or if it's -1 (meaning no more whitespace). If the result is -1, we return the end of string; otherwise, we return the position after that character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to locate the next non-whitespace character efficiently
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # Return the position right after the last whitespace character
+    return next_non_ws
+>>>>>>> REPLACE
+```

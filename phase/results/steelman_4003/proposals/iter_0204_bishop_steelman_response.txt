@@ -1,0 +1,62 @@
+CRITIQUE: The suggestion to replace regex with direct byte-to-byte comparison for number parsing is problematic because it ignores the complexity of JSON number formats, which include scientific notation, decimal points, and signed integers. A naive character-by-character approach would likely miss edge cases like `1e+5`, `0.001`, or `-0`, and would be more error-prone than the current regex-based solution. It also doesn't address the fact that regex already provides a validated and efficient match for the number pattern.
+
+STEELMAN: The steelman is to refine the number parsing by replacing the regex match with a fast, hand-crafted number parser that directly scans the input string character-by-character, leveraging the precomputed digit sets for O(1) lookup. This approach maintains correctness, avoids regex overhead, and still handles all valid JSON number formats including scientific notation, while being more efficient than regex.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional sign
+    if text[pos] == "-":
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos >= len(text):
+        return int(text[start:pos]), pos
+    
+    # Check for decimal point
+    if text[pos] == ".":
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos >= len(text):
+            return float(text[start:pos]), pos
+    
+    # Check for exponent
+    if text[pos] in "eE":
+        pos += 1
+        if pos < len(text) and text[pos] in "+-":
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos >= len(text):
+            return float(text[start:pos]), pos
+    
+    # Return integer or float
+    s = text[start:pos]
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` is problematic because `str.find` searches for the first occurrence of any character in the whitespace set, but the current implementation needs to skip ALL consecutive whitespace characters, not just stop at the first non-whitespace. Using `str.find` would require multiple calls or complex logic to skip runs of whitespace, defeating the purpose of simplification. Additionally, `str.find` is not necessarily faster than a tight loop for small amounts of whitespace, and the approach doesn't account for the fact that the loop already uses an efficient set lookup.
+
+STEELMAN: A better approach is to use `str.translate` and `str.lstrip` with a translation table that maps all whitespace characters to a single sentinel character (like a null byte), then use `str.lstrip` to skip the sentinel characters. This leverages C-level optimizations while maintaining correctness and simplicity. However, since the suggestion emphasizes `str.find`, a practical steelman is to use `str.find` in a loop to skip whitespace, but to avoid the per-character loop by using `str.find` with a precomputed string of whitespace characters, and to cache the result of `str.find` to avoid repeated calls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace efficiently
+    ws_set = ''.join(_WS_CHARS)
+    while pos < len(text):
+        next_non_ws = text.find(ws_set, pos)
+        if next_non_ws == -1:
+            return len(text)
+        if next_non_ws == pos:
+            pos += 1
+        else:
+            return next_non_ws
+    return pos
+>>>>>>> REPLACE
+```

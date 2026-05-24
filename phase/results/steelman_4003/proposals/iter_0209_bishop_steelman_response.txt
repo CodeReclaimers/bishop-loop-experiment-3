@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to "directly convert them with `int()` or `float()`" is naive because it ignores the fact that the current implementation already uses direct conversion via `int(s)` and `float(s)` after regex matching. The real performance bottleneck isn't the conversion itself but rather the string slicing and regex matching overhead. Additionally, the suggestion doesn't address the need for proper validation or error handling when parsing numbers.
+
+STEELMAN: The steelman is to optimize number parsing by leveraging the already matched regex group and using direct conversion, while also ensuring that we avoid redundant string operations and properly handle edge cases like overflow, invalid formats, and scientific notation without unnecessary intermediate steps.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        try:
+            return float(s), pos
+        except ValueError:
+            raise JSONParseError(f"invalid float format at {pos}")
+    # For integers, use int() directly but ensure no unnecessary parsing
+    try:
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid int format at {pos}")
+>>>>>>> REPLACE
+```

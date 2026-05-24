@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the regex with a frozenset lookup is flawed because it ignores the performance characteristics of the existing `_skip_ws` implementation, which already uses O(1) frozenset lookups. The proposed change would not eliminate regex overhead since `_WS_RE` is unused in the current code. Additionally, the suggestion doesn't address the actual bottleneck in whitespace skipping, which is the loop overhead, not regex compilation.
+
+STEELMAN: The steelman version would improve the whitespace skipping by eliminating the redundant regex and using a more efficient direct while-loop with frozenset checks, but it should preserve the existing `_skip_ws` function's interface and ensure that the performance gain is actually realized by avoiding unnecessary function calls and reducing the overhead of repeated character checks.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

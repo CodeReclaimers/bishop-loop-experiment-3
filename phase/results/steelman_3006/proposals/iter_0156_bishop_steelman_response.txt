@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` returns the index of the first occurrence of any whitespace character, but the current implementation needs to skip *all* consecutive whitespace characters, not just stop at the first one. Additionally, `find()` will return -1 if no whitespace is found, which would break the logic and cause incorrect behavior when parsing.
+STEELMAN: A better approach is to use `text.find()` to locate the first non-whitespace character, but handle the case where no such character exists (i.e., end of string) by using a fallback strategy that continues to process the string until the end, while still avoiding per-character membership checks for performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    if pos >= len(text):
+        return pos
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

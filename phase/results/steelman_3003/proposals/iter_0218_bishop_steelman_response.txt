@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex match would break correctness because the regex `r"[ \t\n\r]*"` only matches zero or more whitespace characters at the current position, not the *next* non-whitespace character. This would cause the parser to skip the wrong number of characters, potentially leading to incorrect parsing or crashes. Additionally, using regex for such a simple operation introduces overhead compared to the current efficient frozenset lookup.
+
+STEELMAN: The steelman is to use the precompiled regex `_WS_RE` to find the next non-whitespace character by matching from the current position and advancing `pos` to the end of the match. This preserves the performance benefits of regex while maintaining correctness, as the regex will correctly skip all leading whitespace and return the position of the first non-whitespace character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precompiled regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `str.find` with a threshold for switching from character-by-character scanning to regex is problematic because `str.find` is not inherently faster than a tight loop for small skips, and adding a threshold logic introduces complexity without clear performance gains. It also fails to address the core inefficiency of the current `_skip_ws` implementation, which repeatedly calls `text[pos]` in a loop without leveraging bulk operations. Additionally, the suggestion doesn't account for the fact that regex compilation and execution overhead can outweigh benefits for small inputs.
+
+STEELMAN: A better approach is to optimize `_skip_ws` by using a hybrid strategy: for short skips, continue with the current character-by-character loop; for longer skips, switch to a bulk `str.find` or `str.translate` method to locate the next non-whitespace character, while maintaining the same performance characteristics for small inputs and avoiding regex entirely.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use hybrid approach: short skips with loop, longer skips with str.find
+    if pos + 10 < len(text):
+        # Look for next non-whitespace character using str.find for bulk skip
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            return len(text)
+        return next_non_ws
+    else:
+        # Fall back to character-by-character scanning for small skips
+        while pos < len(text):
+            if text[pos] not in ' \t\n\r':
+                return pos
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

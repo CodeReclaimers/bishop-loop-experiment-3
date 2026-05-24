@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `_is_hex4` with `int(hex4, 16)` is problematic because `int()` will silently accept non-hex characters (like 'g' or 'z') and convert them as if they were zero, leading to incorrect behavior. It also doesn't validate that the input is exactly 4 digits, which is required for valid Unicode escapes. Additionally, `int()` raises `ValueError` on invalid input, but the current code raises `JSONParseError` with a specific message, so the error handling would need to be adjusted.
+
+STEELMAN: The steelman version would use `int(hex4, 16)` but first validate that the string is exactly 4 characters and contains only valid hex digits using a regex or a set check, ensuring correctness while leveraging the performance benefit of the built-in conversion.
+
+```python
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    try:
+        int(s, 16)
+        return all(ch in _HEX_CHARS for ch in s)
+    except ValueError:
+        return False
+>>>>>>> REPLACE
+```

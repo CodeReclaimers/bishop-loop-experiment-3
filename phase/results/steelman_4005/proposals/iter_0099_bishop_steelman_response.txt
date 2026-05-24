@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion is vague and fails to address the actual performance bottlenecks in the parser. It mentions using regex for whitespace skipping but the current implementation already uses a precompiled regex `_WS_PATTERN`, so this is not a meaningful optimization. Additionally, it suggests reducing "redundant whitespace handling" without identifying where that redundancy actually occurs, which could lead to incorrect behavior or missed optimizations.
+
+STEELMAN: A stronger version of the suggestion would focus on optimizing the whitespace skipping by leveraging the existing precomputed character sets more effectively, and improving number parsing by avoiding unnecessary string slicing and conversion steps. Specifically, we can refine the `_skip_ws` function to use the precomputed `_WS_CHARS` more efficiently, and ensure number parsing directly uses `int`/`float` conversion without intermediate string building where possible.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip whitespace using precomputed set and avoid IndexError
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

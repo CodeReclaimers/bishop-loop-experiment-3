@@ -1,0 +1,72 @@
+CRITIQUE: The suggestion to use `int()` and `float()` directly is flawed because it ignores the need to validate that the input is a valid JSON number, not just a valid Python number. It also fails to account for the fact that the parser needs to track the exact position in the input string after parsing, which these functions don't provide. Additionally, it doesn't consider that the current implementation already handles edge cases like leading zeros and invalid number formats properly.
+
+STEELMAN: A better approach would be to use Python's built-in `int()` and `float()` functions but only after carefully extracting the number substring and validating it against a regex pattern that matches valid JSON number formats, ensuring the position tracking remains accurate and malformed numbers are still properly rejected.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match valid JSON number format
+    import re
+    number_pattern = re.compile(r'^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+    n = len(text)
+    start = pos
+    # Skip whitespace to find start of number
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Find the end of the number using regex
+    match = number_pattern.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    end = pos + len(s)
+    try:
+        # Validate and parse the number
+        if '.' in s or 'e' in s.lower():
+            return float(s), end
+        return int(s), end
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

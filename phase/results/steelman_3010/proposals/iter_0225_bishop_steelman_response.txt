@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.search` for whitespace skipping would be inefficient because it would require a full regex match on every call, even when only a few whitespace characters exist. It also fails to handle the case where the regex doesn't find a match (i.e., at end of string) and doesn't properly return the position after the whitespace run. Additionally, the regex approach introduces overhead that likely negates any performance gains from avoiding the character-by-character loop.
+
+STEELMAN: The steelman version would use `re.search` to find the first non-whitespace character, but only when there's actual whitespace to skip. If no whitespace is found, it should return the original position. This approach should be applied selectively — only when there's a significant run of whitespace — and still maintain correctness and performance by avoiding repeated character checks in tight loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace if there's a run of it
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

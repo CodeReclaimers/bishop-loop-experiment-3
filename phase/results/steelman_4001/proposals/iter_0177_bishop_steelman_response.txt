@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with string slicing is problematic because it fails to address the core performance issue: the current `_skip_ws` function already uses a simple loop over a frozenset lookup, which is already quite efficient. The suggestion doesn't clarify how slicing would be used to skip whitespace, and simply switching to slicing without proper bounds checking or handling of edge cases would likely introduce bugs or regress performance. Additionally, the regex is already precompiled, so the main cost isn't recompilation but rather the matching logic itself.
+
+STEELMAN: A better approach would be to optimize the `_skip_ws` function by using a more efficient loop structure that minimizes the number of bounds checks and leverages Python's optimized string operations. Instead of repeatedly checking `pos < n` and `text[pos] in _WS_CHARS`, we could unroll the loop a bit and use a more direct indexing strategy that avoids redundant conditionals, while still maintaining correctness and readability.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized version that reduces redundant checks
+    n = len(text)
+    while pos < n:
+        if text[pos] not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

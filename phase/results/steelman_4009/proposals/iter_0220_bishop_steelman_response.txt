@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use regex for skipping whitespace is problematic because regex engines have significant overhead and are not faster than optimized inline loops for simple character class checks. Additionally, the suggestion doesn't address the main performance bottlenecks like string concatenation in `_parse_string` or the repeated calls to `_skip_ws` that could be batched. Using regex would also make the code less predictable and harder to debug.
+
+STEELMAN: The core idea of precomputing character sets is sound and already implemented, but we can optimize the whitespace skipping by using a more efficient loop that processes longer runs of whitespace at once, potentially using `str.find` or similar techniques to skip large blocks. The key is to maintain the existing API and correctness while improving performance through smarter iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop with early exit for non-whitespace
+    while pos < len(text):
+        if text[pos] not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

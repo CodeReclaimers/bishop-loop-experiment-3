@@ -1,0 +1,53 @@
+CRITIQUE: The suggestion to use a pre-computed `next_non_ws` table is unworkable because it would require building a table of size O(n) for each parse operation, which defeats the purpose of optimization by adding O(n) setup overhead. It also fails to account for the fact that whitespace skipping is not a fixed operation but depends on the actual input string, making a static lookup table infeasible. Additionally, it doesn't consider that the table would need to be built for every parse, negating any performance gains from the O(1) lookups.
+
+STEELMAN: A better approach is to precompute a single lookup table for whitespace characters once during module initialization, then use a fast loop that jumps over consecutive whitespace using this table. This maintains O(1) per-whitespace-character lookup while avoiding per-parse overhead, and still allows for efficient index-based advancement through the input string.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute a lookup table for whitespace characters for fast skipping
+_WS_TABLE = [0] * 256
+for i in range(256):
+    _WS_TABLE[i] = 1 if chr(i) in _WS_CHARS else 0
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+>>>>>>> REPLACE
+```

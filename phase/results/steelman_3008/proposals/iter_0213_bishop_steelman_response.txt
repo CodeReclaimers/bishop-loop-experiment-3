@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find` with a generator expression is unworkable because `str.find` cannot accept a generator expression as its argument; it only takes a literal string or character. Additionally, using `find` in this way would not properly handle the case where whitespace characters are not contiguous, and it would not integrate well with the existing logic that needs to advance position by one character at a time.
+STEELMAN: A better approach would be to use `str.translate` and `str.maketrans` to efficiently remove whitespace characters from the input, or alternatively, use `itertools.dropwhile` to skip whitespace in a more efficient Python-level loop that still avoids the overhead of repeated membership checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use itertools.dropwhile to efficiently skip whitespace
+    from itertools import dropwhile
+    # Create an iterator starting at pos, then drop while characters are whitespace
+    it = dropwhile(lambda i: i < len(text) and text[i] in _WS_CHARS, range(pos, len(text)))
+    try:
+        # Get the first non-whitespace position
+        return next(it)
+    except StopIteration:
+        # If we've reached the end, return len(text)
+        return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `next((c for c in text[pos:] if c not in _WS_CHARS), None)` is flawed because it creates a generator expression that still iterates character-by-character in Python, negating any performance benefit from delegating to C-level `find`. Additionally, it doesn't return an index, so the logic for computing the new position would be incorrect and require complex rework.
+STEELMAN: A better approach is to use `text.find` with a custom function or precompute the first non-whitespace character index by scanning forward in chunks or using `str.find` with a negated set lookup, ensuring we delegate to C-level optimizations while maintaining correct index tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    # Find the first character not in _WS_CHARS
+    while pos < len(text):
+        if text[pos] not in _WS_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

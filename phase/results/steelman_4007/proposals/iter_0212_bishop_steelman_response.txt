@@ -1,0 +1,50 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with an inline loop is misguided because the current implementation already uses an optimized inline loop in `_skip_ws`—it's not using regex at all. The suggestion appears to misunderstand the existing code structure and offers no real improvement over what's already implemented. Additionally, the proposed change would require duplicating logic across multiple functions, violating DRY principles and increasing maintenance burden.
+
+STEELMAN: The strongest version of this suggestion would recognize that while `_skip_ws` is already optimized, the repeated calls to this function throughout the parser could benefit from a more aggressive inlining strategy or a hybrid approach where the whitespace skipping is done directly in the calling functions, reducing function call overhead and enabling better compiler optimizations. This approach maintains the existing performance of `_skip_ws` while minimizing call overhead in tight parsing loops.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Inline whitespace skipping to reduce function call overhead
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

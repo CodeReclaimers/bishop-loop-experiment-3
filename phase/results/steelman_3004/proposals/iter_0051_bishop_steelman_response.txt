@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to use a precomputed `ws_table` array assumes that a lookup-based approach can be directly applied to whitespace skipping without considering that the whitespace characters are not contiguous or uniformly distributed in memory. Additionally, it ignores the fact that the current `_skip_ws` function is already quite efficient due to the use of a `frozenset` for membership checks, and replacing it with an array lookup would add complexity and potentially slow down the common case where only a few whitespace characters need to be skipped. A naive array-based lookup would also require precomputing an array of size equal to the maximum possible ASCII character value, which is wasteful.
+
+STEELMAN: A better approach would be to precompute a boolean lookup table for ASCII whitespace characters, and then use a fast loop that skips consecutive whitespace characters by checking this table, which maintains the O(1) per-character lookup while avoiding the overhead of repeated set membership checks and enabling optimizations like early termination or SIMD-style batching.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+# Precompute a lookup table for ASCII whitespace characters
+_WS_TABLE = [False] * 128
+for char in _WS_CHARS:
+    _WS_TABLE[ord(char)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast skip using precomputed table
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

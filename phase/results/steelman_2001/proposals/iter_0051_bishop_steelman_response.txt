@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.find(''.join(_WS_CHARS), pos)` is problematic because it would only find the first whitespace character, not skip an entire run of whitespace. Simply calling `find` once and then looping would still be inefficient and doesn't address the core issue of avoiding per-character Python loops. Additionally, the approach of using `str.find` with a concatenated string of all whitespace characters is likely to be slower than the current set-based lookup due to string construction overhead and the fact that `find` has to scan character-by-character for each character in the pattern.
+
+STEELMAN: The steelman is to replace the per-character loop in `_skip_ws` with a more efficient approach that uses `str.find` to locate the first non-whitespace character, but does so in a way that avoids repeated string operations. We can use `str.find` with a set-based approach to skip runs of whitespace by finding the first non-whitespace character directly, avoiding the Python loop entirely. The key insight is to use `str.find` to jump to the next non-whitespace character and then return that position, which is more efficient than scanning character-by-character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace efficiently
+    while pos < len(text):
+        # Find the first non-whitespace character
+        next_non_ws = text.find(''.join(_WS_CHARS), pos)
+        if next_non_ws == -1:
+            # No more whitespace, return current position
+            return pos
+        if next_non_ws == pos:
+            # Current character is whitespace, move past it
+            pos += 1
+        else:
+            # Found non-whitespace at next_non_ws, return that position
+            return next_non_ws
+    return pos
+>>>>>>> REPLACE
+```

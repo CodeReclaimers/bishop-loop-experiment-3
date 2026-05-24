@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace slice comparisons with character-by-character checks is problematic because it doesn't account for bounds checking — if the string is shorter than "true" or "null", direct indexing will raise an IndexError. Additionally, it fails to consider that the current implementation already uses efficient string literals and the performance gain from avoiding slices may be negligible compared to the complexity added.
+STEELMAN: A robust version of the suggestion would use bounded character-by-character comparisons with proper length checks to ensure safety, while still avoiding full string slicing. This preserves the intent of reducing overhead without introducing runtime errors.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    # Check "true" (4 chars)
+    if (pos + 4 <= len(text) and
+        text[pos] == 't' and text[pos+1] == 'r' and text[pos+2] == 'u' and text[pos+3] == 'e'):
+        return True, pos + 4
+    # Check "false" (5 chars)
+    if (pos + 5 <= len(text) and
+        text[pos] == 'f' and text[pos+1] == 'a' and text[pos+2] == 'l' and text[pos+3] == 's' and text[pos+4] == 'e'):
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `text[pos] in _WS_CHARS` with a more efficient loop is problematic because it fails to address the core issue of bounds checking — the loop would still need to check `pos < len(text)` repeatedly, and the proposed optimization doesn't eliminate the fundamental overhead of character access. Additionally, the current `_skip_ws` implementation already uses an `IndexError`-based approach which is actually quite efficient for this use case.
+STEELMAN: The steelman version would retain the existing `IndexError`-based approach but refine it to avoid redundant bounds checks by ensuring that the loop condition is optimized to minimize repeated index access and by making sure that the bounds check is only performed once per iteration, not on every character lookup.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while True:
+            if text[pos] not in _WS_CHARS:
+                break
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

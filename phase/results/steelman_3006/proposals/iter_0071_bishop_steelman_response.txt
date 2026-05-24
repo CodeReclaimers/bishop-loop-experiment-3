@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find(lambda c: c not in _WS_CHARS, pos)` is fundamentally flawed because `str.find()` doesn't accept a lambda function — it only accepts substrings or characters. Additionally, even if such a method existed, it wouldn't be efficient for large whitespace runs since `find()` still needs to scan character-by-character until it finds a match, negating the intended performance benefit.
+
+STEELMAN: A better approach would be to precompute a set of all non-whitespace characters and use `text.find()` with a string containing all non-whitespace characters, or more practically, to implement a hybrid method that uses `str.find()` to locate the first non-whitespace character by scanning a small window or using a lookup table, while falling back to the current loop for short runs to avoid overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to jump directly to the next non-whitespace character
+    # for long whitespace runs, falling back to loop for short ones
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

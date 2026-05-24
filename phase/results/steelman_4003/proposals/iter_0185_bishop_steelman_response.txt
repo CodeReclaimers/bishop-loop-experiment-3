@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to avoid `float()` and `int()` entirely by manually parsing digits is overly simplistic and fails to account for the complexity of JSON number formats, including scientific notation, decimal points, and sign handling. It would require implementing a full numeric parser from scratch, which is error-prone and likely less efficient than the standard library functions. The approach also ignores that `float()` and `int()` are highly optimized and handle edge cases like overflow, underflow, and invalid inputs correctly.
+
+STEELMAN: A better approach would be to leverage the existing regex pattern matching to extract the full number string, then use `int()` or `float()` directly on that string — avoiding the overhead of re-parsing or manual digit conversion while still benefiting from the performance of built-in functions. This preserves the efficiency of the regex-based lookahead but uses standard library parsing for correctness and speed.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion for correctness and performance
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

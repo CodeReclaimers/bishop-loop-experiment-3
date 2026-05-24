@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `lstrip` for whitespace skipping is fundamentally flawed because `lstrip` removes all leading characters from a set, not just whitespace, and cannot be made to work correctly with a position-based parser that needs to advance through the input incrementally. It would also break the requirement to return the new position after skipping whitespace, and `lstrip` is not efficient for this use case since it processes the entire leading substring at once rather than stopping at the first non-whitespace character.
+
+STEELMAN: A better approach is to replace the manual loop in `_skip_ws` with a more efficient method that still respects the position-based parsing model, such as using `str.find` or a regex-based approach that matches only the leading whitespace, but still maintains the incremental position tracking needed for the recursive descent parser.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip leading whitespace efficiently
+    import re
+    match = re.match(r'^[ \t\n\r]*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

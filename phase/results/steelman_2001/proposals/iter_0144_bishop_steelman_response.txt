@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace per-call `_skip_ws` loops with `text.find(''.join(_WS_CHARS), pos)` is flawed because it would skip over entire sequences of whitespace in one go, potentially jumping past the end of the input or misaligning the parser's position when parsing subsequent tokens. It also fails to account for the fact that `_skip_ws` is called in contexts where the parser expects to process individual characters, not just skip ahead to the next non-whitespace character.
+
+STEELMAN: A better approach is to use `text.find(''.join(_WS_CHARS), pos)` to find the first non-whitespace character, but only when we know that the current position is at a whitespace character. This avoids the Python loop while preserving correct parsing behavior by ensuring that we still advance through the input correctly and do not skip past valid tokens or misalign the parser.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

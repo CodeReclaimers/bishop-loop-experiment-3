@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `text.find()` with a generator is fundamentally flawed because `text.find()` cannot search for a set of characters directly — it only finds the first occurrence of a substring. The proposed approach of `text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))` would fail if the first non-whitespace character is not found (returning -1) or if it's not a single character. Additionally, the logic doesn't properly handle the case where `pos` is already at a non-whitespace character, leading to incorrect behavior.
+STEELMAN: A better approach is to use a hybrid method: first attempt to skip whitespace using `str.find()` to locate the next non-whitespace character, then fall back to the existing while loop for small skips or when the character is already non-whitespace. This avoids the overhead of repeated set membership checks while maintaining correctness and performance for both short and long whitespace runs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: str.find for long runs, fallback to while loop
+    if pos >= len(text):
+        return pos
+    # Find next non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+    if next_non_ws == -1:
+        return len(text)
+    # If the character at pos is already non-whitespace, return pos directly
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Otherwise, advance to the found position
+    return next_non_ws
+>>>>>>> REPLACE
+```

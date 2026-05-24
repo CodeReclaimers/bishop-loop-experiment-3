@@ -1,0 +1,110 @@
+CRITIQUE: The suggestion to replace repeated whitespace checks with a single linear skip table is problematic because it assumes all whitespace sequences are contiguous and doesn't account for the fact that `_skip_ws` is called at multiple granular positions (after parsing keys, values, commas, etc.), not just once per token. Additionally, building a full skip table for every parse call would be memory-inefficient and not amortized, negating any performance gains. It also fails to consider that the current implementation already uses O(1) set lookups for whitespace characters, which is already quite fast.
+
+STEELMAN: A better approach would be to precompute a "skip table" that marks the end position of contiguous whitespace runs in the input string, and then use this table to jump over whitespace in constant time, avoiding repeated membership checks. This can be done once per parse call and leverages the fact that whitespace sequences are often long and contiguous. The table can be built in O(n) time and used to skip large chunks of whitespace in O(1) time, reducing the number of character-by-character checks significantly.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O1 membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, skip_table)
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table to quickly jump over whitespace."""
+    skip_table = [0] * len(text)
+    i = len(text) - 1
+    while i >= 0:
+        if text[i] in _WS_CHARS:
+            if i + 1 < len(text):
+                skip_table[i] = skip_table[i + 1]
+            else:
+                skip_table[i] = i + 1
+        else:
+            skip_table[i] = i
+        i -= 1
+    return skip_table
+
+
+def _skip_ws_with_table(text: str, pos: int, skip_table: list[int]) -> int:
+    """Skip whitespace using precomputed skip table."""
+    if pos >= len(text):
+        return pos
+    return skip_table[pos]
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

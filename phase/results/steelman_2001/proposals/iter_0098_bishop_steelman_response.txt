@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` is flawed because `str.find` scans sequentially and doesn't skip multiple whitespace characters at once; it would still require repeated calls to skip all leading whitespace. Additionally, `str.find` has overhead from C-level function calls and doesn't handle the case where no whitespace is present efficiently. It also doesn't account for the fact that the loop is already optimized with a set lookup for O(1) membership testing.
+
+STEELMAN: A better approach is to use a regex-based skip function that leverages `re.search` or a compiled regex pattern to skip all leading whitespace in one go, or alternatively, precompute a "skip to next non-whitespace" offset using a C-level string scan, avoiding repeated Python loop overhead while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a regex to skip all leading whitespace in one operation
+    import re
+    match = re.match(r'^\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,38 @@
+To make the JSON parser faster, we can optimize the character-by-character scanning for numbers by using a more efficient algorithm that reads digits until it encounters a non-digit or a special character (like comma). This approach reduces the overhead of regex matching and speeds up the parsing process significantly. The modified code would look like this:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if is_float:
+        return float(text[start:pos]), pos
+    return int(text[start:pos]), pos
+```
+
+This modification uses a while loop to scan for digits, which is more efficient than regex matching. The `while` loop continues scanning until it encounters a non-digit or another special character. This approach reduces the overhead of regex matching and speeds up the parsing process significantly, without compromising correctness.

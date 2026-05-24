@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex match would break the incremental parsing model, since the regex would consume all whitespace at once and return a final position, losing the ability to handle streaming or incremental parsing. Additionally, the regex approach would likely be slower than the current O(1) set membership checks for small whitespace runs, and could introduce performance regressions due to regex overhead.
+STEELMAN: The steelman is to use the regex to skip whitespace, but only when we're not in a tight loop where we need to maintain precise position tracking, and to ensure that the regex is used in a way that preserves the performance benefits of avoiding repeated character-by-character checks while maintaining the correct parsing flow.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one atomic operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

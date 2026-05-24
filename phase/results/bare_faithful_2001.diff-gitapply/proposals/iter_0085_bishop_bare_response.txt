@@ -1,0 +1,46 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -17,12 +17,10 @@
+ 
+ def _skip_ws(text: str, pos: int) -> int:
+     # Use a faster loop with direct indexing
+-    try:
+-        while text[pos] in _WS_CHARS:
+-            pos += 1
+-    except IndexError:
+-        pass
++    next_non_ws = text.find(''.join(_WS_CHARS), pos)
++    if next_non_ws == -1:
++        return len(text)
++    return next_non_ws
+ 
+ 
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+@@ -136,16 +136,13 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     n = len(text)
+     start = pos
+-    if pos < n and text[pos] == "-":
+-        pos += 1
+-    if pos >= n:
+-        raise JSONParseError(f"bad number at {pos}")
+-    if text[pos] == "0":
+-        pos += 1
+-    elif text[pos] in _DIGIT_CHARS:
+-        while pos < n and text[pos] in _DIGIT_CHARS:
+-            pos += 1
+-    else:
+-        raise JSONParseError(f"bad number at {pos}")
++    if pos < n and text[pos] == "-":
++        pos += 1
++    if pos >= n:
++        raise JSONParseError(f"bad number at {pos}")
++    end = text.find(''.join(_DIGIT_CHARS), pos)
++    if end == -1:
++        raise JSONParseError(f"bad number at {pos}")
++    pos = end
+     is_float = False
+     if pos < n and text[pos] == ".":
+         is_float = True
+```

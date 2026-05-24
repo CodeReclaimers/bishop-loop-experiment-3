@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a single regex call is flawed because `_WS_RE.span(pos, 0)` will always return `(0, 0)` due to the second argument being 0, and the regex engine won't advance past the first whitespace character. Additionally, using regex for this operation introduces overhead that negates performance gains, especially since the current O(1) set lookups are already optimal for this use case.
+
+STEELMAN: The steelman version would use a regex that matches zero or more whitespace characters starting at the given position, and then advance the position by the match length. This approach leverages the regex engine's ability to skip large runs of whitespace while maintaining correctness and performance by avoiding repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficient bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

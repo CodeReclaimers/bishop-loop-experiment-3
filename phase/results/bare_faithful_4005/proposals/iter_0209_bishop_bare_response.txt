@@ -1,0 +1,105 @@
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    try:
+        return float(s) if is_float else int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    sign = 1
+    if pos < n and text[pos] == "-":
+        sign = -1
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse integer part
+    integer_part = 0
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            integer_part = integer_part * 10 + (ord(text[pos]) - ord('0'))
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse fractional part
+    fractional_part = 0
+    fractional_digits = 0
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            fractional_part = fractional_part * 10 + (ord(text[pos]) - ord('0'))
+            fractional_digits += 1
+            pos = pos + 1
+    
+    # Parse exponent
+    exponent = 0
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        exp_sign = 1
+        if pos < n and text[pos] in ("+", "-"):
+            if text[pos] == "-":
+                exp_sign = -1
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            exponent = exponent * 10 + (ord(text[pos]) - ord('0'))
+            pos = pos + 1
+        exponent *= exp_sign
+    
+    # Construct the final number
+    if is_float:
+        # Build float manually to avoid string conversion
+        result = sign * (integer_part + fractional_part / (10 ** fractional_digits)) * (10 ** exponent)
+        return result, pos
+    else:
+        # For integers, we can directly use the integer_part
+        result = sign * integer_part
+        if exponent != 0:
+            # Handle cases like 1e5
+            result *= (10 ** exponent)
+        return result, pos
+>>>>>>> REPLACE
+```

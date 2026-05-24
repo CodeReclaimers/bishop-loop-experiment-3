@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find(..., 0)` with a translation table won't work because `str.find()` returns the index of the first occurrence of a substring, not a set of characters, and translation tables map characters to replacements, not to `None`. Additionally, `find()` only finds the first whitespace character, not all leading whitespace.
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a sentinel value (like `'\x00'`) and then use `str.translate()` to replace all whitespace with that sentinel, followed by `str.find()` to locate the first non-sentinel character, effectively skipping all leading whitespace in one operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute translation table to map whitespace to null byte
+    _WS_TRANSLATE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+    # Translate all whitespace to null bytes
+    translated = text[pos:].translate(_WS_TRANSLATE)
+    # Find first non-null byte (first non-whitespace character)
+    first_non_ws = translated.find('\x00')
+    if first_non_ws == -1:
+        # All remaining text is whitespace
+        return len(text)
+    # Return original position plus offset
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

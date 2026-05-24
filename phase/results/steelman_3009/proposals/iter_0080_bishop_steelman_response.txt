@@ -1,0 +1,93 @@
+CRITIQUE: The suggestion to directly use `int` or `float` conversion on the extracted substring `s` fails to account for the fact that the current implementation carefully validates and handles malformed numbers during parsing, such as leading zeros, invalid exponents, and malformed Unicode escapes. Direct conversion would bypass these checks and likely cause incorrect behavior or silent failures for edge cases. Additionally, it doesn't consider that the original code handles different numeric formats (like scientific notation) by building the string incrementally and then converting, which allows for more precise error handling.
+
+STEELMAN: The steelman version of the suggestion is to extract the numeric substring `s` as currently done, but then validate it against the expected format before passing it to `int` or `float`. This preserves the existing validation logic while leveraging fast native conversion for the final step. It should still detect malformed numbers like leading zeros or invalid exponents, and ensure that only valid numeric strings are converted, maintaining correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    # Validate numeric format before conversion
+    if is_float:
+        # Ensure the string is a valid float
+        try:
+            result = float(s)
+        except ValueError:
+            raise JSONParseError(f"bad number at {start}")
+        return result, pos
+    else:
+        # Ensure the string is a valid int and check for leading zeros
+        if len(s) > 1 and s[0] == "0":
+            raise JSONParseError(f"bad number at {start}")
+        try:
+            result = int(s)
+        except ValueError:
+            raise JSONParseError(f"bad number at {start}")
+        return result, pos
+>>>>>>> REPLACE
+```

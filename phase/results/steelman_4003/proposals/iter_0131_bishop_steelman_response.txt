@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to avoid float conversion entirely is problematic because it ignores the complexity of JSON number formats, which include scientific notation, very large integers, and precise decimal representations. Attempting to manually parse all numeric formats without leveraging Python's built-in `int()` and `float()` functions risks introducing bugs, performance regressions, and incorrect handling of edge cases like overflow or precision loss. It also fails to address the actual performance bottleneck, which is likely in the regex matching and string parsing rather than the final conversion step.
+
+STEELMAN: A more robust approach would be to optimize number parsing by using a hybrid strategy: leverage the existing regex to validate the number format, then use direct arithmetic for integer parsing (avoiding float overhead for integer values) while still relying on `int()` and `float()` for correctness and handling of edge cases like scientific notation or very large numbers.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use direct conversion, but optimize for integers to avoid float overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly for floats or scientific notation
+        return float(s), pos
+    else:
+        # For integers, use int() directly but avoid unnecessary parsing
+        return int(s), pos
+>>>>>>> REPLACE
+```

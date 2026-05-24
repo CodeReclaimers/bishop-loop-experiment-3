@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion incorrectly describes `str.find(None, pos)` as a valid operation - `str.find()` doesn't accept `None` as a substring argument and would raise a TypeError. Additionally, the idea of using `str.find()` directly on whitespace without translation is fundamentally flawed since `find()` searches for substrings, not character sets. The core logic for skipping whitespace using a sentinel approach is not properly explained.
+
+STEELMAN: The correct approach is to use `str.translate()` to map all whitespace characters to a single sentinel character (like `'\0'`), then use `str.find()` to locate the first non-sentinel character. This leverages C-optimized string operations while maintaining correctness. The translation must be done carefully to avoid modifying the original string and to properly handle the sentinel mapping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to map whitespace to sentinel, then str.find for fast skip
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping all whitespace to null character
+    whitespace_trans = str.maketrans(' \t\n\r', '\0\0\0\0')
+    # Translate the text from current position onward
+    translated = text[pos:].translate(whitespace_trans)
+    # Find first non-null character (which was non-whitespace)
+    end_pos = translated.find('\0')
+    if end_pos == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + end_pos
+>>>>>>> REPLACE
+```

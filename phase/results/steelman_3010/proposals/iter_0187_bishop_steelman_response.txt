@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual while-loop in `_skip_ws` with a single regex search has a critical flaw: it doesn't account for the fact that the current implementation advances the position pointer incrementally and returns the new position, whereas a regex-based approach would require parsing the entire whitespace sequence and then computing the new position from the match, which could be less efficient than the current O(1) character-by-character check. Additionally, the regex approach would not integrate well with the existing parser logic that relies on incremental position tracking.
+STEELMAN: A better approach would be to leverage the precompiled regex `_WS_PATTERN` to find the next non-whitespace character directly, using `re.match` or `re.search` to advance the position in one step, while still maintaining the existing position-tracking semantics and ensuring correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one jump
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

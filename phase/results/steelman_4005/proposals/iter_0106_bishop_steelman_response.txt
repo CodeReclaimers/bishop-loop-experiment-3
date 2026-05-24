@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.translate()` in `_skip_ws()` is unworkable because it would remove all whitespace characters from the string, not just skip them at the beginning, which would corrupt the input for subsequent parsing. Additionally, `str.translate()` is not designed for incremental parsing and cannot be used to advance a position pointer through the string. It also doesn't integrate with the existing bounds-checking logic and would break the parsing state management.
+
+STEELMAN: A better approach would be to use `str.lstrip()` to efficiently skip leading whitespace, but still maintain the position tracking logic by computing the new position as the difference between the original and stripped string lengths. This preserves the core idea of using built-in methods for efficiency while respecting the existing parsing architecture.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.lstrip for efficient whitespace skipping
+    stripped = text[pos:].lstrip()
+    return pos + len(text[pos:]) - len(stripped)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion mentions optimizing string concatenation to avoid rebuilding lists, but the current implementation already uses `out.append(value)` for arrays and `out[key] = value` for objects, which are already efficient operations. The suggestion also references "built-in functions for number conversion" but the code already uses `float(s)` and `int(s)` which are highly optimized. The suggestion lacks specificity about the actual bottlenecks and doesn't address the main performance issues like redundant whitespace skipping or the inefficient character-by-character parsing of numbers.
+
+STEELMAN: The core insight should focus on eliminating redundant whitespace skipping and optimizing number parsing by leveraging precompiled regex patterns more effectively, while maintaining the existing efficient list/dict operations. The suggestion should emphasize reducing the overhead of repeated whitespace checks and improving number parsing efficiency through better regex utilization.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one go
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `text[pos].isspace()` would be suboptimal because `str.isspace()` is not significantly faster than set membership for single characters, and the overhead of repeated method calls and string indexing could hurt performance. Additionally, `str.isspace()` handles a broader set of Unicode whitespace characters than the original `_WS_CHARS`, which could break correctness for inputs that contain non-ASCII whitespace not intended to be treated as JSON whitespace.
+
+STEELMAN: The steelman is to use `str.isspace()` but only for the specific case where we're dealing with ASCII whitespace characters, ensuring correctness by checking that the character is within ASCII range before calling `isspace()`. This preserves the performance benefit of the C-level implementation while maintaining compatibility with the JSON specification's strict whitespace handling.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed lookup for digit and hex characters for fast membership testing
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-level str.isspace() for fast whitespace skipping
+    # Only call it on ASCII characters to maintain correctness
+    while pos < len(text) and text[pos].isspace() and ord(text[pos]) < 128:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

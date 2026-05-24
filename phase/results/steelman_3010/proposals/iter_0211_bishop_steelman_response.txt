@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find()` is flawed because `text.find()` searches for a substring, not individual characters, so it cannot efficiently locate the next non-whitespace character using the precomputed set. Additionally, `text.find()` would require constructing a string of all whitespace characters to search for, which defeats the purpose of using a set for O(1) membership checks and could be slower than the current approach.
+STEELMAN: A better approach would be to use `str.translate()` with a translation table to efficiently skip whitespace by replacing all whitespace characters with a sentinel, then use `str.find()` to locate the first non-sentinel character. This leverages C-level optimizations while still using the precomputed set for membership testing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to efficiently skip whitespace using precomputed set
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with a sentinel
+    trans_table = str.maketrans({char: '\x00' for char in _WS_CHARS})
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    new_pos = translated.find('\x00')
+    if new_pos == -1:
+        # All characters were whitespace
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

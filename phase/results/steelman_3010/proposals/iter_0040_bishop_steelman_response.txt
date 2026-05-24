@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual whitespace skip with a single regex match fails because `_WS_PATTERN.match(text, pos)` will only match at the beginning of the string, not at an arbitrary position. Additionally, it doesn't handle the case where the regex doesn't match (i.e., no whitespace at `pos`) and would require error handling or could silently return incorrect results. It also introduces regex overhead that may not be faster than the current O(1) set membership checks.
+STEELMAN: The steelman version uses `_WS_PATTERN.search(text, pos)` instead of `match`, which can find whitespace starting at any position. It also adds a check to ensure the match succeeded and handles the case where no whitespace is found by returning the original position. This preserves the intent of using regex for efficiency while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one step
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

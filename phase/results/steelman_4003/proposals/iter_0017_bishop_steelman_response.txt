@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `re.fullmatch()` instead of `re.match()` is misguided because the current implementation already uses `re.match()` with a pattern that starts at a specific position, which is the correct approach for incremental parsing. Using `fullmatch()` would require matching the entire string from the start, which breaks the existing parsing logic. Additionally, the suggestion to avoid string concatenation by directly using `int()` and `float()` is irrelevant since the current code already parses the matched string into a number using those functions — the suggestion doesn't address the actual bottleneck.
+STEELMAN: The core idea should focus on improving the regex pattern to be more efficient and reducing redundant operations. Instead of matching the entire number string and then parsing it, we can optimize the regex to capture the number and directly parse it using `int()` or `float()` in a single step, avoiding intermediate string operations. This approach preserves the existing logic while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Directly parse the matched string to avoid redundant operations
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

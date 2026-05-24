@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a single regex match using `\s*` is problematic because it would require changing the interface of `_skip_ws` to return the new position, but the current implementation tightly integrates whitespace skipping into the parsing logic at multiple levels. Additionally, using a regex for whitespace skipping could actually be slower in practice due to regex engine overhead, especially for small amounts of whitespace, and would not address the core performance bottlenecks like repeated string concatenation or inefficient number parsing.
+STEELMAN: A better approach is to optimize `_skip_ws` by using a compiled regex to skip all leading whitespace in one operation, but still maintain the existing function signature and integration points. This preserves the current parsing structure while reducing the overhead of repeatedly checking individual characters, and can be done efficiently by matching a prefix of whitespace characters and advancing the position accordingly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all leading whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+=======
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+# Precompile regex for skipping whitespace
+_WS_RE = re.compile(r'\s*')
+>>>>>>> REPLACE
+```

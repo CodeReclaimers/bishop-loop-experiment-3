@@ -1,0 +1,66 @@
+CRITIQUE: The suggestion to use `text.find` to locate the end of a numeric literal is flawed because it doesn't account for the complex structure of JSON numbers, which can include exponents, decimal points, and signs in specific valid combinations. Using `find` on arbitrary characters like `.` or `e` would incorrectly identify positions within the number, and it would fail to handle invalid number formats properly. It also ignores that numbers may contain multiple parts (integer, fractional, exponent) that must be parsed in sequence according to JSON grammar.
+STEELMAN: The steelman version of the suggestion is to identify the end of the numeric literal by scanning for the first character that cannot be part of a number (like a non-digit, non-decimal point, non-exponent character), then extract the substring and parse it using Python's built-in `int` or `float` functions, which correctly handle all valid JSON number formats while avoiding per-character loops.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # Skip optional minus sign
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Find end of number by scanning for invalid characters
+    while pos < n:
+        c = text[pos]
+        if c not in _DIGIT_CHARS and c != '.' and c not in 'eE':
+            break
+        pos += 1
+
+    s = text[start:pos]
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

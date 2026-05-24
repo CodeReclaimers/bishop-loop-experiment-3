@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while-loop with a single regex call is flawed because `re.search()` starts matching from the given position but doesn't guarantee it will match the longest possible sequence of whitespace characters, especially if there are intervening non-whitespace characters. Additionally, the regex approach would not handle the case where the input ends abruptly after whitespace, potentially causing IndexError or incorrect behavior. It also doesn't leverage the precomputed frozenset for O(1) lookup, which is already an optimization.
+
+STEELMAN: A better approach is to use `re.match()` with the regex anchored to the start of the string, which will match the longest consecutive sequence of whitespace characters starting at `pos`, and then return the end position of that match. This preserves the intent of skipping all whitespace at once while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

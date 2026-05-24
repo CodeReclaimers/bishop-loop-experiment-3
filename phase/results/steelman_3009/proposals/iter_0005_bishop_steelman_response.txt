@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with `text.find(next_char, pos)` is flawed because it assumes whitespace characters are the only things to skip, but the parser needs to skip all non-whitespace characters until one is found. Also, `find` would require knowing the next non-whitespace character in advance, which isn't known until after parsing a value or key. This approach would break the current logic flow and likely cause incorrect parsing.
+STEELMAN: A better approach would be to use a regex-based skip function that finds the next non-whitespace character using `re.search(r'[^\s]', text, pos)` or similar, which efficiently skips all whitespace in one C-level operation while preserving the existing control flow and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to find the next non-whitespace character for fast skipping
+    import re
+    match = re.search(r'[^\s]', text, pos)
+    return match.start() if match else len(text)
+>>>>>>> REPLACE
+```

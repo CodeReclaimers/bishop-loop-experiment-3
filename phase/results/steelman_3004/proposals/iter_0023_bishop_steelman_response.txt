@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with a regex match would break the parser's behavior because the regex pattern `[ \t\n\r]*` only matches zero or more whitespace characters but doesn't advance the position correctly in all cases. It would fail to properly handle cases where the regex engine doesn't consume all leading whitespace due to how `re.match` works, potentially leaving the parser in an inconsistent state. Additionally, using `end()` from a regex match would not account for the fact that `re.match` starts at the beginning of the string, not at the current position.
+
+STEELMAN: The steelman version of this idea is to use `re.match` with the precompiled `_WS_PATTERN` starting from the current position, and then advance the position by the match's length. This preserves the performance benefits of regex while ensuring correct behavior by leveraging the match object's `end()` method to correctly advance the parsing index.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

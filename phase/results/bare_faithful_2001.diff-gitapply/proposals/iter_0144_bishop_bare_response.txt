@@ -1,0 +1,282 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,7 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+ 
+ This is the starting point for the optimization loop. It is correct against
++`json.loads` on the full corpus but is intentionally written in a way that
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+ 
+@@ -10,6 +11,10 @@
+ from typing import Any
+ 
+ 
++class Token:
++    def __init__(self, type, value, pos):
++        self.type = type
++        self.value = value
++        self.pos = pos
++
++
+ class JSONParseError(ValueError):
+     """Raised when the input is not valid JSON."""
+ 
+@@ -14,6 +19,10 @@
+ _DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+ _HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+               "A", "B", "C", "D", "E", "F"}
++_TOKEN_TYPES = {
++    "{": "LBRACE",
++    "}": "RBRACE",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ":": "COLON",
++    ",": "COMMA",
++}
+ 
+ 
+ def parse(text: str) -> Any:
+@@ -21,21 +28,52 @@
+     return value
+ 
+ 
+-def _skip_ws(text: str, pos: int) -> int:
+-    # Use a faster loop with direct indexing
+-    try:
+-        while text[pos] in _WS_CHARS:
+-            pos += 1
+-    except IndexError:
+-        pass
+-    return pos
+-
+-
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+-    pos = _skip_ws(text, pos)
+-    if pos >= len(text):
+-        raise JSONParseError("unexpected end of input")
+-    c = text[pos]
+-    if c == "{":
+-        return _parse_object(text, pos)
+-    if c == "[":
+-        return _parse_array(text, pos)
+-    if c == '"':
+-        return _parse_string(text, pos)
+-    if c == "t" or c == "f":
+-        return _parse_bool(text, pos)
+-    if c == "n":
+-        return _parse_null(text, pos)
+-    if c == "-" or c in _DIGIT_CHARS:
+-        return _parse_number(text, pos)
+-    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
++    tokens = _tokenize(text)
++    pos = 0
++    value, pos = _parse_value_token(tokens, pos)
++    if pos != len(tokens):
++        raise JSONParseError(f"trailing content at position {tokens[pos].pos}")
++    return value
++
++
++def _tokenize(text: str) -> list:
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        c = text[pos]
++        if c in _WS_CHARS:
++            pos += 1
++            continue
++        if c in _TOKEN_TYPES:
++            tokens.append(Token(_TOKEN_TYPES[c], c, pos))
++            pos += 1
++        elif c == '"':
++            # Parse string
++            start = pos
++            pos += 1
++            while pos < len(text):
++                if text[pos] == '"':
++                    tokens.append(Token("STRING", text[start:pos+1], start))
++                    pos += 1
++                    break
++                elif text[pos] == '\\':
++                    pos += 2
++                else:
++                    pos += 1
++            else:
++                raise JSONParseError("unterminated string")
++        elif c in _DIGIT_CHARS or c == '-':
++            # Parse number
++            start = pos
++            if c == '-':
++                pos += 1
++            if pos < len(text) and text[pos] == '0':
++                pos += 1
++            elif pos < len(text) and text[pos] in _DIGIT_CHARS:
++                while pos < len(text) and text[pos] in _DIGIT_CHARS:
++                    pos += 1
++            if pos < len(text) and text[pos] == '.':
++                pos += 1
++                while pos < len(text) and text[pos] in _DIGIT_CHARS:
++                    pos += 1
++            if pos < len(text) and text[pos] in ('e', 'E'):
++                pos += 1
++                if pos < len(text) and text[pos] in ('+', '-'):
++                    pos += 1
++                while pos < len(text) and text[pos] in _DIGIT_CHARS:
++                    pos += 1
++            tokens.append(Token("NUMBER", text[start:pos], start))
++        elif c == 't':
++            if text[pos:pos+4] == 'true':
++                tokens.append(Token("BOOL", True, pos))
++                pos += 4
++            else:
++                raise JSONParseError(f"bad bool at {pos}")
++        elif c == 'f':
++            if text[pos:pos+5] == 'false':
++                tokens.append(Token("BOOL", False, pos))
++                pos += 5
++            else:
++                raise JSONParseError(f"bad bool at {pos}")
++        elif c == 'n':
++            if text[pos:pos+4] == 'null':
++                tokens.append(Token("NULL", None, pos))
++                pos += 4
++            else:
++                raise JSONParseError(f"bad null at {pos}")
++        else:
++            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
++    return tokens
++
++
++def _parse_value_token(tokens: list, pos: int) -> tuple[Any, int]:
++    if pos >= len(tokens):
++        raise JSONParseError("unexpected end of input")
++    token = tokens[pos]
++    if token.type == "LBRACE":
++        return _parse_object_token(tokens, pos)
++    if token.type == "LBRACKET":
++        return _parse_array_token(tokens, pos)
++    if token.type == "STRING":
++        return token.value, pos + 1
++    if token.type == "BOOL":
++        return token.value, pos + 1
++    if token.type == "NULL":
++        return token.value, pos + 1
++    if token.type == "NUMBER":
++        # Convert to int or float
++        s = token.value
++        try:
++            if '.' in s or 'e' in s.lower():
++                return float(s), pos + 1
++            else:
++                return int(s), pos + 1
++        except ValueError:
++            raise JSONParseError(f"bad number at {token.pos}")
++    raise JSONParseError(f"unexpected token {token.type} at position {token.pos}")
+ 
+ 
+ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+@@ -47,22 +85,30 @@
+     return out, pos + 1
+ 
+ 
+-def _parse_object(text: str, pos: int) -> tuple[dict, int]:
++def _parse_object_token(tokens: list, pos: int) -> tuple[dict, int]:
+     if tokens[pos].type != "LBRACE":
+         raise JSONParseError(f"expected '{{' at {tokens[pos].pos}")
+     pos += 1
+     out: dict = {}
+-    pos = _skip_ws(text, pos)
+-    if pos < len(text) and text[pos] == "}":
+-        return out, pos + 1
++    if pos < len(tokens) and tokens[pos].type == "RBRACE":
++        return out, pos + 1
+     while True:
+-        pos = _skip_ws(text, pos)
+-        if pos >= len(text) or text[pos] != '"':
++        if pos >= len(tokens) or tokens[pos].type != "STRING":
+             raise JSONParseError(f"expected string key at {tokens[pos].pos if pos < len(tokens) else 'end'}")
+-        key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+-        if pos >= len(text) or text[pos] != ":":
++        key = tokens[pos].value
++        pos += 1
++        if pos >= len(tokens) or tokens[pos].type != "COLON":
+             raise JSONParseError(f"expected ':' at {tokens[pos].pos if pos < len(tokens) else 'end'}")
+         pos += 1
+-        pos = _skip_ws(text, pos)
+-        value, pos = _parse_value(text, pos)
++        value, pos = _parse_value_token(tokens, pos)
+         # Use direct dict assignment instead of rebuilding
+         out[key] = value
+-        pos = _skip_ws(text, pos)
++        if pos >= len(tokens):
++            raise JSONParseError("unterminated object")
++        if tokens[pos].type == "COMMA":
++            pos += 1
++            continue
++        if tokens[pos].type == "RBRACE":
++            return out, pos + 1
+         c = text[pos]
+         if c == ",":
+             pos += 1
+             continue
+         if c == "}":
+             return out, pos + 1
+         raise JSONParseError(f"expected ',' or '}}' at {pos}")
+ 
+ 
+-def _parse_array(text: str, pos: int) -> tuple[list, int]:
++def _parse_array_token(tokens: list, pos: int) -> tuple[list, int]:
+     if tokens[pos].type != "LBRACKET":
+         raise JSONParseError(f"expected '[' at {tokens[pos].pos}")
+     pos += 1
+     out: list = []
+-    pos = _skip_ws(text, pos)
+-    if pos < len(text) and text[pos] == "]":
+-        return out, pos + 1
++    if pos < len(tokens) and tokens[pos].type == "RBRACKET":
++        return out, pos + 1
+     while True:
+-        pos = _skip_ws(text, pos)
+-        value, pos = _parse_value(text, pos)
++        value, pos = _parse_value_token(tokens, pos)
+         # Use append instead of list concatenation
+         out.append(value)
+-        pos = _skip_ws(text, pos)
++        if pos >= len(tokens):
++            raise JSONParseError("unterminated array")
++        if tokens[pos].type == "COMMA":
++            pos += 1
++            continue
++        if tokens[pos].type == "RBRACKET":
++            return out, pos + 1
+         c = text[pos]
+         if c == ",":
+             pos += 1
+             continue
+         if c == "]":
+             return out, pos + 1
+         raise JSONParseError(f"expected ',' or ']' at {pos}")
+ 
+ 
+ def _parse_string(text: str, pos: int) -> tuple[str, int]:
+@@ -72,7 +118,7 @@
+     return True, pos + 4
+ 
+ 
+-def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
++def _parse_bool_token(tokens: list, pos: int) -> tuple[bool, int]:
+     if text[pos : pos + 4] == "true":
+         return True, pos + 4
+     if text[pos : pos + 5] == "false":
+@@ -82,7 +129,7 @@
+     return None, pos + 4
+ 
+ 
+-def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
++def _parse_number_token(tokens: list, pos: int) -> tuple[float | int, int]:
+     n = len(text)
+     start = pos
+     if pos < n and text[pos] == "-":
+```

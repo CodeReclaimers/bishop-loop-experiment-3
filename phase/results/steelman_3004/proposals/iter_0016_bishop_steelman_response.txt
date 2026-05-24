@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex search would break the parser's ability to handle malformed input correctly, since `search()` finds the first match starting at `pos` but doesn't advance `pos` to the end of the whitespace run in a way that preserves the parser's state tracking. Additionally, the regex approach would not integrate cleanly with the existing logic that requires precise position tracking and error reporting at specific character offsets.
+STEELMAN: A better approach would be to use `_WS_PATTERN.search(text, pos)` to find the end of whitespace, but then manually advance `pos` to that position and still validate that the match is actually a contiguous run of whitespace characters from the current position. This preserves the performance benefits while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

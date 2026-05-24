@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(_WS_PATTERN)` is fundamentally flawed because `str.find()` does not work with compiled regex patterns — it only accepts literal strings or characters. Additionally, even if it did work, `find()` would return the position of the first match of the pattern, not the position of the first non-whitespace character, and the pattern `[ \t\n\r]*` would match zero or more whitespace characters, not the first non-whitespace character after the match.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` with the precompiled `_WS_PATTERN` to find the longest match of whitespace starting at the current position, then advance the position by the length of that match. This preserves the intent of leveraging the compiled regex for efficient whitespace skipping while correctly advancing the parser position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

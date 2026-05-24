@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion fails to account for the fact that whitespace skipping is not a uniform operation — it depends on the actual content of the input string, so a precomputed table cannot be reused across different inputs. Additionally, the proposed approach would require O(N) space for the table and would not reduce the cost of parsing non-whitespace content, making it suboptimal for inputs with sparse whitespace. The idea also doesn't consider that the parser already uses efficient O(1) set lookups for whitespace characters, which already provides good performance.
+STEELMAN: The steelman version would precompute a "whitespace jump table" that maps each index to the number of consecutive whitespace characters starting at that index, but only for the specific input string being parsed. This allows the parser to skip whitespace blocks in constant time by jumping ahead, while maintaining the same logic flow and not adding significant overhead for non-whitespace parsing.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    ws_table = _build_ws_table(text)
+    pos = _skip_ws_with_table(text, 0, ws_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, pos, ws_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+>>>>>>> REPLACE
+```

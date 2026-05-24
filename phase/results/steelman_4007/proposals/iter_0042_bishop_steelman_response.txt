@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace per-character whitespace skipping with regex-based bulk scanning is problematic because regex overhead would likely negate any gains, especially since whitespace skipping is already optimized inline. It doesn't address the real bottlenecks like string concatenation or redundant parsing steps, and could introduce complexity without performance benefit. Additionally, regex-based approaches are generally slower for simple character-class matching and may not be suitable for the tight loop performance requirements.
+
+STEELMAN: A better approach would be to use a single regex to skip whitespace in bulk, but only when there's a significant amount of whitespace to process. This preserves the performance benefit of bulk operations while avoiding regex overhead for small skips, and still maintains the existing structure and correctness of the parser.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Precompile regex for skipping whitespace in bulk
+_WS_REGEX = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    # Bulk skip using regex when there's significant whitespace
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        match = _WS_REGEX.match(text, pos)
+        if match:
+            pos = match.end()
+    return pos
+>>>>>>> REPLACE
+```

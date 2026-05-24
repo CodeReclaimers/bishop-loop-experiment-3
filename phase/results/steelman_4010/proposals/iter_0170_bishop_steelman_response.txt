@@ -1,0 +1,139 @@
+CRITIQUE: The suggestion to precompute `str.isalpha()`, `str.isdigit()`, and `str.isalnum()` checks is unworkable because these methods are not actually used in the current implementation—only set membership checks against precomputed character sets like `_DIGIT_CHARS` are performed. The suggestion also fails to address the real performance bottlenecks such as repeated string concatenation, excessive function calls, and inefficient parsing logic. Additionally, the idea of precomputing character classifications doesn't align with the current code's use of `in` checks against sets.
+
+STEELMAN: The strongest version of this idea is to optimize the existing character classification checks by precomputing and caching the results for all possible ASCII characters, replacing the current `in` checks against sets with fast array lookups. This directly addresses the performance overhead of repeated membership tests while maintaining the existing logic flow and correctness.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+# Precompute character classification arrays for performance
+_WS_ARRAY = [False] * 128
+_DIGIT_ARRAY = [False] * 128
+_HEX_ARRAY = [False] * 128
+
+for i in range(128):
+    c = chr(i)
+    _WS_ARRAY[i] = c in _WS_CHARS
+    _DIGIT_ARRAY[i] = c in _DIGIT_CHARS
+    _HEX_ARRAY[i] = c in _HEX_CHARS
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for common case: skip whitespace using a loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for common case: skip whitespace using a loop
+    while pos < len(text) and _WS_ARRAY[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and _DIGIT_ARRAY[ord(text[pos])]:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or not _DIGIT_ARRAY[ord(text[pos])]:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and _DIGIT_ARRAY[ord(text[pos])]:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or not _DIGIT_ARRAY[ord(text[pos])]:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and _DIGIT_ARRAY[ord(text[pos])]:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not _HEX_ARRAY[ord(ch)]:
+            return False
+    return True
+>>>>>>> REPLACE
+```

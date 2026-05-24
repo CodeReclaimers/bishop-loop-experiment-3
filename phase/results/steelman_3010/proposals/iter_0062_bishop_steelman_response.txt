@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with `re.search` is problematic because `re.search` would only find the first whitespace run, not continue past it to skip all whitespace. Additionally, it doesn't integrate well with the existing `_skip_ws` function's interface, which expects to return the next non-whitespace position, and the regex approach would not preserve the same performance characteristics for small whitespace runs. It also introduces regex overhead for a simple character check that's already optimized.
+
+STEELMAN: The steelman version would use `re.match` or `re.search` with a pattern that matches the longest possible whitespace sequence starting at the current position, and then return the index after that match. This preserves the intent of skipping all whitespace in one operation, while still maintaining the function's interface and performance characteristics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip all whitespace using precompiled regex for efficiency
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

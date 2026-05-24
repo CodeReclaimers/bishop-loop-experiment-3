@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the `_skip_ws` loop with a generator expression is unworkable because it fundamentally misunderstands how the function is used — it's called once per parsing step and must return an updated position, not yield characters. A generator would require collecting all results to advance the position, defeating the purpose of efficient streaming parsing. Additionally, the performance benefit of a generator over a simple while-loop is negligible and could introduce overhead from function call stack management.
+
+STEELMAN: The core idea should be to optimize `_skip_ws` by using a more efficient approach than a character-by-character loop, such as leveraging `str.lstrip()` or a compiled regex for whitespace skipping, while still maintaining the same interface and behavior for the parser. This preserves the intent of improving performance without changing the function's contract or introducing unnecessary complexity.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.lstrip with a set of whitespace chars for faster skipping
+    # We can't directly use lstrip since it skips leading chars until a non-match
+    # Instead, we use a regex that matches leading whitespace
+    import re
+    _WS_RE = re.compile(r'^[ \t\n\r]*')
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

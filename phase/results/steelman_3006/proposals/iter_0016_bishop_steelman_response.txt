@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace the while-loop with multiple `text.find` calls is flawed because it doesn't correctly handle the case where whitespace characters appear in arbitrary order or when there are no non-whitespace characters left — it would require complex logic to determine the minimum index among all whitespace types and properly handle edge cases like reaching end-of-string. Additionally, the performance benefit is not guaranteed since `find` calls are still O(n) in worst-case scenarios and the overhead of multiple calls could outweigh any gains.
+
+STEELMAN: A better approach is to use a hybrid method where we first check for a sequence of whitespace characters using `str.find` to locate the first non-whitespace character, but fall back to the current while-loop approach only when necessary. This preserves the performance gains from optimized string operations while maintaining correctness and avoiding complex logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to quickly skip whitespace, falling back to loop for edge cases
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character using find
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\r', pos)
+                if next_non_ws == -1:
+                    return pos
+    else:
+        # Check if any of the other whitespace chars occur earlier
+        next_tab = text.find('\t', pos)
+        if next_tab != -1 and next_tab < next_non_ws:
+            next_non_ws = next_tab
+        next_nl = text.find('\n', pos)
+        if next_nl != -1 and next_nl < next_non_ws:
+            next_non_ws = next_nl
+        next_cr = text.find('\r', pos)
+        if next_cr != -1 and next_cr < next_non_ws:
+            next_non_ws = next_cr
+    return next_non_ws if next_non_ws != -1 else pos
+>>>>>>> REPLACE
+```

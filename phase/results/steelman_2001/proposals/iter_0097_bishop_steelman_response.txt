@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `text.translate` would not work because it would remove all whitespace characters from the input string, which would corrupt the parsing logic by destroying the original text structure. Additionally, `translate` operates on the entire string at once, but the parser needs to advance through the text incrementally, not skip all whitespace at once.
+STEELMAN: A better approach is to precompute a translation table that maps whitespace characters to a single sentinel character (like a space), then use `str.translate` to efficiently skip leading whitespace in one C-level operation while preserving the original string structure for subsequent parsing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip leading whitespace in one C-level operation
+    # Create a translation table that maps all whitespace characters to a single sentinel
+    # character (a space), then skip leading sentinels to find the next non-whitespace
+    if pos >= len(text):
+        return pos
+    # Precompute translation table for whitespace characters
+    _WS_TRANSLATE_TABLE = str.maketrans({ch: " " for ch in _WS_CHARS})
+    # Translate the substring starting from pos
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    # Count leading spaces in the translated string
+    i = 0
+    while i < len(translated) and translated[i] == " ":
+        i += 1
+    return pos + i
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.search()` with a precompiled regex for whitespace skipping is flawed because `re.search()` scans forward until it finds the *first* non-matching character, which means it will not efficiently skip over long runs of whitespace. Additionally, it doesn't handle the case where the input is exhausted properly, and the regex engine may not be faster than a simple loop for short whitespace runs. The approach also introduces a performance regression in cases where there is little or no whitespace.
+
+STEELMAN: A better approach would be to use `re.match()` on the precompiled pattern to find the longest contiguous run of whitespace starting at `pos`, and then advance `pos` by the matched length. This preserves the intent of leveraging the regex engine for efficiency while correctly handling the position advancement and avoiding unnecessary overhead from scanning beyond the whitespace run.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

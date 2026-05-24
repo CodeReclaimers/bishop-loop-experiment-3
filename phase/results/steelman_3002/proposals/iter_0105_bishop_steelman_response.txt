@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a tight loop checking `text[pos] in ' \t\n\r'` is problematic because it fails to handle the case where `pos` exceeds the string length, leading to an index error. Additionally, it doesn't account for the fact that the original implementation uses `str.find` to skip whitespace, which is more efficient for large amounts of consecutive whitespace. The proposed tight loop would degrade performance on inputs with many consecutive whitespace characters.
+
+STEELMAN: The steelman version should implement a tight loop that safely checks character membership while ensuring `pos` doesn't exceed the string bounds, and should also handle the common case of multiple consecutive whitespace characters efficiently by using a lookup set for membership testing, similar to the existing `_DIGIT_CHARS` and `_HEX_CHARS`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use a frozenset for fast membership testing
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

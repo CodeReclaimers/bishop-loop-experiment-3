@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.strip()` for whitespace skipping is fundamentally flawed because `strip()` removes ALL leading/trailing whitespace, not just from the current position, and it doesn't handle the incremental parsing required when whitespace appears within the input. Additionally, replacing manual number parsing with built-in `int()`/`float()` functions would be a performance regression since those functions do not leverage the existing parsing state and would require re-parsing the entire number string instead of incrementally building the value.
+STEELMAN: A better approach would be to optimize whitespace skipping by using a regex pattern to match consecutive whitespace characters starting at the current position, which maintains the incremental parsing behavior while being faster than character-by-character loops. For number parsing, we can improve performance by using `int()` and `float()` but only when we have a complete number string, not during incremental parsing, so we'd need to collect the digits first and then convert.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping using regex for better performance
+    import re
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

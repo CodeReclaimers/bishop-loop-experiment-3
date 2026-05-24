@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace the while loop with `str.translate` is unworkable because `str.translate` removes characters rather than advancing a position, so it cannot return the correct new position after skipping whitespace. It would also require creating a translation table for all whitespace characters, which is inefficient and doesn't integrate with the existing parsing logic that needs to track position.
+STEELMAN: The steelman version uses `str.translate` to efficiently strip leading whitespace from a substring, but then calculates the new position by comparing the original and translated strings, preserving the existing API and position-tracking behavior while leveraging C-level performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip leading whitespace
+    # by removing all whitespace chars from the start of the string
+    # and calculating the new position from the difference
+    if pos >= len(text):
+        return pos
+    # Create translation table to delete whitespace chars
+    whitespace_trans = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Strip leading whitespace from the substring starting at pos
+    stripped = text[pos:].translate(whitespace_trans)
+    # Calculate new position as original pos plus the difference in length
+    new_pos = pos + (len(text[pos:]) - len(stripped))
+    return new_pos
+>>>>>>> REPLACE
+```

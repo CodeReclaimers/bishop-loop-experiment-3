@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a manual loop is problematic because it fails to account for the fact that the current implementation uses `_WS_RE.search` which is not actually used in the way described — the regex is precompiled but not used in `_skip_ws`. The manual loop approach would be correct only if the whitespace characters are exactly `' \t\n\r'`, but this is not guaranteed by the current logic. Additionally, the suggestion omits any consideration of performance characteristics of the existing approach or how to properly benchmark it.
+
+STEELMAN: The steelman version of the suggestion is to replace the current `_skip_ws` function with a direct character-by-character loop that compares each character against the known whitespace set `' \t\n\r'`. This preserves the intent of avoiding regex overhead while ensuring correctness and maintaining the same performance characteristics for typical JSON whitespace patterns. The implementation should be simple, fast, and avoid unnecessary regex machinery.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

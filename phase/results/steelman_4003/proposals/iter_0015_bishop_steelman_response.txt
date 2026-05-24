@@ -1,0 +1,64 @@
+CRITIQUE: The suggestion to avoid regex for number parsing is sound in principle, but directly converting strings to numbers without proper validation risks parsing invalid inputs or missing edge cases like overflow, underflow, or malformed scientific notation. It also ignores the complexity of JSON number format, which includes various valid representations that regex handles correctly.
+
+STEELMAN: A better approach would be to implement a direct string-to-number conversion that still validates the input format step-by-step, avoiding regex but ensuring correctness by checking for valid digit sequences, decimal points, and exponent markers in a structured way before performing the actual conversion.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == "-":
+        pos += 1
+        if pos >= len(text):
+            raise JSONParseError(f"bad number at {start}")
+    
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos == start + 1 and text[start] == "0":
+            raise JSONParseError(f"bad number at {start}")
+
+    # Parse fractional part
+    has_fraction = False
+    if pos < len(text) and text[pos] == ".":
+        has_fraction = True
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+
+    # Parse exponent
+    has_exponent = False
+    if pos < len(text) and text[pos].lower() == "e":
+        has_exponent = True
+        pos += 1
+        if pos < len(text) and text[pos] in "+-":
+            pos += 1
+        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+
+    # Validate that we consumed at least one digit
+    if pos == start:
+        raise JSONParseError(f"bad number at {start}")
+
+    s = text[start:pos]
+    if has_fraction or has_exponent:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

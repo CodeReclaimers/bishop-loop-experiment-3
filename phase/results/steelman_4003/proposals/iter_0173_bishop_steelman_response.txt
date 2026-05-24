@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace character set lookup with regex or direct digit checking is problematic because it doesn't address the actual performance bottleneck. The current implementation already uses `frozenset` for O(1) lookup, which is optimal. Replacing this with regex matching or function calls would likely introduce overhead from regex compilation or function call costs, especially in tight loops like `_parse_number` or `_skip_ws`. The suggestion fails to recognize that the current approach is already efficient.
+
+STEELMAN: A better approach would be to optimize the digit character checking specifically within number parsing by using a direct character range check (e.g., `c >= '0' and c <= '9'`) instead of set membership, since digit checking is performed very frequently and the range check is faster than set lookup in Python for single characters.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,235 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    parser = _JSONParser(text)
+    value = parser.parse_value()
+    parser.skip_whitespace()
+    if parser.pos != len(parser.text):
+        raise JSONParseError(f"trailing content at position {parser.pos}")
+    return value
+
+
+class _JSONParser:
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+
+    def skip_whitespace(self):
+        # Use isspace() to skip whitespace - much faster than character-by-character
+        while self.pos < len(self.text) and self.text[self.pos].isspace():
+            self.pos = self.pos + 1
+
+    def parse_value(self) -> Any:
+        self.skip_whitespace()
+        if self.pos >= len(self.text):
+            raise JSONParseError("unexpected end of input")
+        c = self.text[self.pos]
+        if c == "{":
+            return self.parse_object()
+        if c == "[":
+            return self.parse_array()
+        if c == '"':
+            return self.parse_string()
+        if c == "t" or c == "f":
+            return self.parse_bool()
+        if c == "n":
+            return self.parse_null()
+        if c == "-" or c in "0123456789":
+            return self.parse_number()
+        raise JSONParseError(f"unexpected character {c!r} at position {self.pos}")
+
+    def parse_object(self) -> dict:
+        if self.text[self.pos] != "{":
+            raise JSONParseError(f"expected '{{' at {self.pos}")
+        self.pos = self.pos + 1
+        out = {}
+        self.skip_whitespace()
+        if self.pos < len(self.text) and self.text[self.pos] == "}":
+            self.pos = self.pos + 1
+            return out
+        while True:
+            self.skip_whitespace()
+            if self.pos >= len(self.text) or self.text[self.pos] != '"':
+                raise JSONParseError(f"expected string key at {self.pos}")
+            key = self.parse_string()
+            self.skip_whitespace()
+            if self.pos >= len(self.text) or self.text[self.pos] != ":":
+                raise JSONParseError(f"expected ':' at {self.pos}")
+            self.pos = self.pos + 1
+            self.skip_whitespace()
+            value = self.parse_value()
+            out[key] = value
+            self.skip_whitespace()
+            if self.pos >= len(self.text):
+                raise JSONParseError("unterminated object")
+            c = self.text[self.pos]
+            if c == ",":
+                self.pos = self.pos + 1
+                continue
+            if c == "}":
+                self.pos = self.pos + 1
+                return out
+            raise JSONParseError(f"expected ',' or '}}' at {self.pos}")
+
+    def parse_array(self) -> list:
+        if self.text[self.pos] != "[":
+            raise JSONParseError(f"expected '[' at {self.pos}")
+        self.pos = self.pos + 1
+        out = []
+        self.skip_whitespace()
+        if self.pos < len(self.text) and self.text[self.pos] == "]":
+            self.pos = self.pos + 1
+            return out
+        while True:
+            self.skip_whitespace()
+            value = self.parse_value()
+            out.append(value)
+            self.skip_whitespace()
+            if self.pos >= len(self.text):
+                raise JSONParseError("unterminated array")
+            c = self.text[self.pos]
+            if c == ",":
+                self.pos = self.pos + 1
+                continue
+            if c == "]":
+                self.pos = self.pos + 1
+                return out
+            raise JSONParseError(f"expected ',' or ']' at {self.pos}")
+
+    def parse_string(self) -> str:
+        if self.text[self.pos] != '"':
+            raise JSONParseError(f"expected '\"' at {self.pos}")
+        self.pos = self.pos + 1
+        n = len(self.text)
+        out = []
+        while self.pos < n:
+            c = self.text[self.pos]
+            if c == '"':
+                self.pos = self.pos + 1
+                return ''.join(out)
+            if c == "\\":
+                self.pos = self.pos + 1
+                if self.pos >= n:
+                    raise JSONParseError("unterminated string escape")
+                esc = self.text[self.pos]
+                if esc == '"':
+                    out.append('"')
+                elif esc == '\\':
+                    out.append('\\')
+                elif esc == '/':
+                    out.append('/')
+                elif esc == 'b':
+                    out.append('\b')
+                elif esc == 'f':
+                    out.append('\f')
+                elif esc == 'n':
+                    out.append('\n')
+                elif esc == 'r':
+                    out.append('\r')
+                elif esc == 't':
+                    out.append('\t')
+                elif esc == 'u':
+                    if self.pos + 4 >= n:
+                        raise JSONParseError(f"bad unicode escape at {self.pos}")
+                    hex4 = self.text[self.pos + 1 : self.pos + 5]
+                    if not self._is_hex4(hex4):
+                        raise JSONParseError(f"bad unicode escape at {self.pos}")
+                    cp = int(hex4, 16)
+                    if 0xD800 <= cp <= 0xDBFF:
+                        if self.pos + 5 >= n or self.text[self.pos + 5] != "\\" or self.pos + 6 >= n or self.text[self.pos + 6] != "u":
+                            raise JSONParseError(f"unpaired high surrogate at {self.pos}")
+                        if self.pos + 10 >= n:
+                            raise JSONParseError(f"bad low surrogate at {self.pos}")
+                        hex4b = self.text[self.pos + 7 : self.pos + 11]
+                        if not self._is_hex4(hex4b):
+                            raise JSONParseError(f"bad low surrogate at {self.pos + 7}")
+                        cp2 = int(hex4b, 16)
+                        if not (0xDC00 <= cp2 <= 0xDFFF):
+                            raise JSONParseError(f"bad low surrogate at {self.pos + 7}")
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                        out.append(chr(cp))
+                        self.pos = self.pos + 11
+                        continue
+                    out.append(chr(cp))
+                    self.pos = self.pos + 4
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {self.pos}")
+                self.pos = self.pos + 1
+                continue
+            if ord(c) < 0x20:
+                raise JSONParseError(f"unescaped control character at {self.pos}")
+            out.append(c)
+            self.pos = self.pos + 1
+        raise JSONParseError("unterminated string")
+
+    def _is_hex4(self, s: str) -> bool:
+        if len(s) != 4:
+            return False
+        return all(c in "0123456789abcdefABCDEF" for c in s)
+
+    def parse_bool(self) -> bool:
+        if self.text[self.pos : self.pos + 4] == "true":
+            self.pos = self.pos + 4
+            return True
+        if self.text[self.pos : self.pos + 5] == "false":
+            self.pos = self.pos + 5
+            return False
+        raise JSONParseError(f"bad bool at {self.pos}")
+
+    def parse_null(self) -> None:
+        if self.text[self.pos : self.pos + 4] == "null":
+            self.pos = self.pos + 4
+            return None
+        raise JSONParseError(f"bad null at {self.pos}")
+
+    def parse_number(self) -> float | int:
+        n = len(self.text)
+        start = self.pos
+        if self.pos < n and self.text[self.pos] == "-":
+            self.pos = self.pos + 1
+        if self.pos >= n:
+            raise JSONParseError(f"bad number at {self.pos}")
+        if self.text[self.pos] == "0":
+            self.pos = self.pos + 1
+        elif self.text[self.pos] in "0123456789":
+            while self.pos < n and self.text[self.pos] in "0123456789":
+                self.pos = self.pos + 1
+        else:
+            raise JSONParseError(f"bad number at {self.pos}")
+        is_float = False
+        if self.pos < n and self.text[self.pos] == ".":
+            is_float = True
+            self.pos = self.pos + 1
+            if self.pos >= n or self.text[self.pos] not in "0123456789":
+                raise JSONParseError(f"bad number fractional at {self.pos}")
+            while self.pos < n and self.text[self.pos] in "0123456789":
+                self.pos = self.pos + 1
+        if self.pos < n and self.text[self.pos] in ("e", "E"):
+            is_float = True
+            self.pos = self.pos + 1
+            if self.pos < n and self.text[self.pos] in ("+", "-"):
+                self.pos = self.pos + 1
+            if self.pos >= n or self.text[self.pos] not in "0123456789":
+                raise JSONParseError(f"bad number exponent at {self.pos}")
+            while self.pos < n and self.text[self.pos] in "0123456789":
+                self.pos = self.pos + 1
+        s = self.text[start:self.pos]
+        if is_float:
+            return float(s)
+        return int(s)
+```

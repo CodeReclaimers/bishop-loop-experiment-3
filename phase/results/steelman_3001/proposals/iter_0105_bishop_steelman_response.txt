@@ -1,0 +1,79 @@
+CRITIQUE: The suggestion to replace character-by-character scanning with `text.find` is problematic because it doesn't account for the fact that `text.find` will return the position of the *next* delimiter, not the position after skipping whitespace. Additionally, it fails to consider that `text.find` will return -1 for not found, which must be handled carefully to avoid incorrect behavior or crashes. The approach also ignores that the current implementation already uses `text.find` in `_skip_ws` for whitespace skipping, so this would be a redundant change.
+STEELMAN: The steelman version improves the approach by using `text.find` to locate the next delimiter in a smarter way, avoiding repeated Python-level loops, but still properly handling edge cases like reaching the end of the string or encountering invalid input. It should be applied to both the object and array parsing logic to skip delimiters efficiently, while preserving all error handling and correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment to existing dictionary.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment to existing dictionary.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        # Use text.find to efficiently locate next delimiter
+        next_delim_pos = text.find(',', pos)
+        end_pos = text.find('}', pos)
+        if next_delim_pos == -1:
+            next_delim_pos = end_pos
+        elif end_pos != -1:
+            next_delim_pos = min(next_delim_pos, end_pos)
+        if next_delim_pos == -1:
+            raise JSONParseError("unterminated object")
+        c = text[next_delim_pos]
+        if c == ",":
+            pos = next_delim_pos + 1
+            continue
+        if c == "}":
+            return out, next_delim_pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

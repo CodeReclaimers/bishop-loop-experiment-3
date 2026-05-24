@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex match would eliminate the ability to handle malformed input gracefully, since regex matching doesn't provide character-level position tracking for error reporting. Additionally, the regex approach would likely be slower in practice due to the overhead of regex engine invocation and backtracking, especially for small amounts of whitespace. It also doesn't account for the fact that whitespace skipping is often a frequent operation and micro-optimizations like avoiding per-character checks are valuable.
+
+STEELMAN: The steelman version would use the regex to efficiently skip large blocks of whitespace while still preserving precise error reporting by using the regex match's end position and falling back to the current O(1) character-by-character loop for the final few characters or in cases where the regex doesn't fully cover the remaining input, maintaining both performance and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip large blocks of whitespace, falling back to manual loop
+    # for precise error reporting and small remaining whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        new_pos = match.end()
+        # If we skipped all the way to the end, return early
+        if new_pos == len(text):
+            return new_pos
+        # If the next non-whitespace character is not in _WS_CHARS, return
+        if text[new_pos] not in _WS_CHARS:
+            return new_pos
+        # Otherwise, fall back to the manual loop for the remaining characters
+        pos = new_pos
+    # Manual loop for remaining whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

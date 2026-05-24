@@ -1,0 +1,46 @@
+CRITIQUE: The suggestion to use a precompiled regex for whitespace skipping is problematic because it doesn't address the core performance bottleneck of character-by-character parsing in the JSON grammar. Additionally, regex-based skipping would still require scanning the entire string sequentially, not skipping in bulk, and could introduce overhead from regex engine setup or backtracking. It also fails to consider that the current implementation already uses O(1) set membership checks for whitespace, which is already quite efficient.
+
+STEELMAN: The strongest version of this idea is to replace the character-by-character loop in `_skip_ws` with a more efficient approach that skips large chunks of whitespace at once, potentially using a regex or a fast string scanning method that identifies the next non-whitespace character without repeatedly checking each one. This should maintain the O(1) membership check for individual characters but reduce the number of iterations in the loop.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

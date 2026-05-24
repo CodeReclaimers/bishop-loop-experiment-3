@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the loop in `_skip_ws` with a single regex call is problematic because `re.compile(r'\s*')` will match zero or more whitespace characters, including the empty string, which means it won't advance the position correctly in all cases. Additionally, using `span()` or `sub()` would require re-parsing or repositioning logic that doesn't integrate cleanly with the existing parser's position-tracking mechanism, potentially causing incorrect advancement or missed positions.
+
+STEELMAN: A better approach is to use the pre-compiled regex `_WS_RE` to find the next non-whitespace character by calling `match()` at the current position and advancing by the matched length. This preserves the performance benefit of regex while maintaining correct position tracking and avoiding the pitfalls of zero-length matches or incorrect advancement.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

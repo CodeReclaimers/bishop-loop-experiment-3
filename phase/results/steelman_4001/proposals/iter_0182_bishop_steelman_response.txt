@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to use fixed-width buffers for number parsing is problematic because it doesn't align with the current implementation's design where numbers are parsed as strings and then converted using `int()`/`float()` — the buffer approach would require significant reworking of the parsing logic and wouldn't necessarily reduce overhead since string-to-number conversion is already highly optimized. Additionally, the idea of using bitwise operations for parsing binary literals is irrelevant since JSON only supports decimal numbers, making this part of the suggestion nonsensical.
+
+STEELMAN: A better approach would be to optimize the existing number parsing by precomputing a lookup table for digit characters to avoid repeated character comparisons, and to optimize whitespace skipping by using a more efficient method like `str.find()` or a compiled regex with a larger buffer size for bulk skipping, while still preserving the current string-based parsing logic that leverages Python's built-in number conversion.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+=======
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+# Precompile regex for efficient whitespace skipping
+import re
+_WS_RE = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

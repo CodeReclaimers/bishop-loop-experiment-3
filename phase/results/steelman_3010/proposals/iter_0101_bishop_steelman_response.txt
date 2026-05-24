@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop would eliminate function call overhead but fails to account for the fact that `_skip_ws` is called in multiple places with different control flow patterns, making inlining risky and potentially error-prone. It also doesn't consider that the current implementation already uses an efficient precomputed frozenset for membership testing, which is the real performance benefit, not just eliminating function calls. Additionally, inlining would reduce code clarity and maintainability.
+
+STEELMAN: The steelman version of this idea is to inline the whitespace skipping logic directly into the functions that call it, but only where it's safe and beneficial, preserving the precomputed character set optimization while reducing function call overhead in tight loops. This should be done carefully to avoid code duplication and ensure correctness.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

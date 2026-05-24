@@ -1,0 +1,79 @@
+CRITIQUE: The suggestion to use regex for number parsing is problematic because it doesn't address the core issue of inefficient whitespace handling, and regex matching would likely be slower than the current character-by-character approach for simple cases. It also fails to consider that the current parser already skips whitespace efficiently with `_skip_ws`, and applying regex at this stage would add overhead without clear benefit. Additionally, regex-based number parsing could introduce performance regressions due to backtracking or repeated compilation.
+
+STEELMAN: A better approach is to use a regex to identify the full number token (including sign, digits, decimal point, and exponent) in one pass, then validate and convert it to an integer or float. This preserves the performance gains from avoiding character-by-character scanning while still leveraging the existing efficient whitespace skipping and maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+import re
+
+# Precompile the number regex for performance
+_NUMBER_RE = re.compile(r"""
+    ^                           # Start of string
+    (?P<sign>[-+])?             # Optional sign
+    (?P<integer>0|[1-9][0-9]*)  # Integer part (0 or non-zero followed by digits)
+    (?P<decimal>\.[0-9]+)?      # Optional decimal part
+    (?P<exponent>[eE][+-]?[0-9]+)? # Optional exponent
+    """, re.VERBOSE)
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # Skip any leading whitespace (if any)
+    pos = _skip_ws(text, pos)
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Match the number using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos += len(s)
+    try:
+        # Determine if it's a float or int
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

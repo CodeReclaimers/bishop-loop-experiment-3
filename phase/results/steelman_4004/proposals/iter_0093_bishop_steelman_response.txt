@@ -1,0 +1,49 @@
+CRITIQUE: The suggestion to replace character comparison with index lookup is flawed because it doesn't address the actual performance bottleneck in `_skip_ws` — which is the repeated membership testing against a set. Index lookup would require precomputing a large lookup table or using a different data structure, and the proposed approach doesn't specify how to implement it efficiently. Furthermore, it ignores that the current implementation already uses O(1) set membership checks, so the benefit of index lookup is unclear.
+
+STEELMAN: The strongest version of this idea would be to precompute a lookup table for whitespace characters using a bytearray or similar, allowing for fast O(1) indexing instead of set membership checks, while still maintaining correctness and avoiding function call overhead.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+_ESCAPE_CHARS = {"\"", "\\", "/", "b", "f", "n", "r", "t", "u"}
+_UNICODE_ESC_CHARS = {"u"}
+_CTRL_CHARS = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x0b", "\x0c", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c", "\x1d", "\x1e", "\x1f"}
+
+# Precomputed lookup for digit values
+_DIGIT_VALUES = {str(i): i for i in range(10)}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+_ESCAPE_CHARS = {"\"", "\\", "/", "b", "f", "n", "r", "t", "u"}
+_UNICODE_ESC_CHARS = {"u"}
+_CTRL_CHARS = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x0b", "\x0c", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c", "\x1d", "\x1e", "\x1f"}
+
+# Precomputed lookup for digit values
+_DIGIT_VALUES = {str(i): i for i in range(10)}
+
+# Precompute a fast lookup table for whitespace characters
+_WS_TABLE = bytearray(256)
+for i in range(256):
+    _WS_TABLE[i] = 1 if chr(i) in _WS_CHARS else 0
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with fast byte table lookup
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

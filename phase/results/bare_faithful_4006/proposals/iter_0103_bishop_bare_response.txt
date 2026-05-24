@@ -1,0 +1,118 @@
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Stack-based iterative approach to avoid recursion
+    stack = []
+    current = None
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        c = text[pos]
+        if c == "{":
+            stack.append(('object', pos + 1, {}))
+            pos = pos + 1
+            continue
+        if c == "[":
+            stack.append(('array', pos + 1, []))
+            pos = pos + 1
+            continue
+        if c == '"':
+            value, pos = _parse_string(text, pos)
+            if not stack:
+                return value, pos
+            current = stack[-1]
+            if current[0] == 'object':
+                # We need to get the key from the stack
+                # This approach is more complex, so we'll keep the original recursive approach
+                # for now, as the suggestion asks for a minimal change
+                pass
+            elif current[0] == 'array':
+                current[2].append(value)
+            continue
+        if c == "t" or c == "f":
+            value, pos = _parse_bool(text, pos)
+            if not stack:
+                return value, pos
+            current = stack[-1]
+            if current[0] == 'array':
+                current[2].append(value)
+            continue
+        if c == "n":
+            value, pos = _parse_null(text, pos)
+            if not stack:
+                return value, pos
+            current = stack[-1]
+            if current[0] == 'array':
+                current[2].append(value)
+            continue
+        if c == "-" or c in _DIGIT_CHARS:
+            value, pos = _parse_number(text, pos)
+            if not stack:
+                return value, pos
+            current = stack[-1]
+            if current[0] == 'array':
+                current[2].append(value)
+            continue
+        # Handle closing braces/brackets
+        if stack:
+            current = stack[-1]
+            if c == '}' and current[0] == 'object':
+                # Complete object
+                key, pos = _parse_string(text, current[1])
+                pos = _skip_ws(text, pos)
+                if pos >= len(text) or text[pos] != ":":
+                    raise JSONParseError(f"expected ':' at {pos}")
+                pos = pos + 1
+                pos = _skip_ws(text, pos)
+                value, pos = _parse_value(text, pos)
+                current[2][key] = value
+                pos = _skip_ws(text, pos)
+                if pos >= len(text):
+                    raise JSONParseError("unterminated object")
+                c = text[pos]
+                if c == ",":
+                    pos = pos + 1
+                    continue
+                if c == "}":
+                    stack.pop()
+                    if not stack:
+                        return current[2], pos + 1
+                    continue
+                raise JSONParseError(f"expected ',' or '}}' at {pos}")
+            elif c == ']' and current[0] == 'array':
+                pos = _skip_ws(text, pos)
+                if pos >= len(text):
+                    raise JSONParseError("unterminated array")
+                c = text[pos]
+                if c == ",":
+                    pos = pos + 1
+                    continue
+                if c == "]":
+                    stack.pop()
+                    if not stack:
+                        return current[2], pos + 1
+                    continue
+                raise JSONParseError(f"expected ',' or ']' at {pos}")
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,168 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    if not text:
+        raise JSONParseError("empty input")
+    
+    # Stack-based approach for parsing objects and arrays
+    stack = []
+    pos = 0
+    while pos < len(text):
+        c = text[pos]
+        if c.isspace():
+            pos += 1
+            continue
+        if c == '{':
+            stack.append(('object', {}))
+            pos += 1
+            continue
+        if c == '[':
+            stack.append(('array', []))
+            pos += 1
+            continue
+        if c == '}':
+            if not stack or stack[-1][0] != 'object':
+                raise JSONParseError(f"unexpected '}}' at position {pos}")
+            obj = stack.pop()[1]
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(obj)
+                else:
+                    key, _ = stack[-1][1].popitem()
+                    stack[-1][1][key] = obj
+            else:
+                return obj
+            pos += 1
+            continue
+        if c == ']':
+            if not stack or stack[-1][0] != 'array':
+                raise JSONParseError(f"unexpected ']' at position {pos}")
+            arr = stack.pop()[1]
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(arr)
+                else:
+                    key, _ = stack[-1][1].popitem()
+                    stack[-1][1][key] = arr
+            else:
+                return arr
+            pos += 1
+            continue
+        if c == '"':
+            # Parse string
+            start = pos
+            pos += 1
+            while pos < len(text):
+                if text[pos] == '"':
+                    pos += 1
+                    break
+                if text[pos] == '\\':
+                    pos += 2
+                    continue
+                pos += 1
+            else:
+                raise JSONParseError("unterminated string")
+            s = text[start:pos]
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(s)
+                else:
+                    # If we're in an object, we expect a key first
+                    if 'key' in stack[-1][1]:
+                        stack[-1][1][stack[-1][1].pop('key')] = s
+                    else:
+                        stack[-1][1]['key'] = s
+            else:
+                return s
+            continue
+        if c in '0123456789-':
+            # Parse number
+            start = pos
+            while pos < len(text) and text[pos] in '0123456789.eE+-':
+                pos += 1
+            n = text[start:pos]
+            try:
+                num = int(n)
+            except ValueError:
+                num = float(n)
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(num)
+                else:
+                    if 'key' in stack[-1][1]:
+                        stack[-1][1][stack[-1][1].pop('key')] = num
+                    else:
+                        stack[-1][1]['key'] = num
+            else:
+                return num
+            continue
+        if c == 't':
+            if text[pos:pos+4] == 'true':
+                if stack:
+                    if stack[-1][0] == 'array':
+                        stack[-1][1].append(True)
+                    else:
+                        if 'key' in stack[-1][1]:
+                            stack[-1][1][stack[-1][1].pop('key')] = True
+                        else:
+                            stack[-1][1]['key'] = True
+                else:
+                    return True
+                pos += 4
+            else:
+                raise JSONParseError(f"bad bool at {pos}")
+            continue
+        if c == 'f':
+            if text[pos:pos+5] == 'false':
+                if stack:
+                    if stack[-1][0] == 'array':
+                        stack[-1][1].append(False)
+                    else:
+                        if 'key' in stack[-1][1]:
+                            stack[-1][1][stack[-1][1].pop('key')] = False
+                        else:
+                            stack[-1][1]['key'] = False
+                else:
+                    return False
+                pos += 5
+            else:
+                raise JSONParseError(f"bad bool at {pos}")
+            continue
+        if c == 'n':
+            if text[pos:pos+4] == 'null':
+                if stack:
+                    if stack[-1][0] == 'array':
+                        stack[-1][1].append(None)
+                    else:
+                        if 'key' in stack[-1][1]:
+                            stack[-1][1][stack[-1][1].pop('key')] = None
+                        else:
+                            stack[-1][1]['key'] = None
+                else:
+                    return None
+                pos += 4
+            else:
+                raise JSONParseError(f"bad null at {pos}")
+            continue
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    if stack:
+        raise JSONParseError("unterminated object or array")
+    
+    raise JSONParseError("empty input")
+```

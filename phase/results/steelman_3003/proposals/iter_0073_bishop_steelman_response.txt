@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to use a `skip_table` assumes that a lookup table can be built once and reused across all parses, but the table would need to be computed per-input string since it depends on the actual characters present. Additionally, building such a table would require scanning the entire input once upfront, negating any performance gains from skipping whitespace. Finally, the table-based approach doesn't handle the case where the input string is very short or has no whitespace, making the lookup overhead unjustified.
+
+STEELMAN: A better approach is to precompute a skip table that maps each character to the number of consecutive whitespace characters starting at that position, and use this to skip multiple whitespace characters in one step. This avoids repeated character-by-character checks and maintains O(1) per-whitespace-sequence skipping, while still being efficient for small inputs and avoiding the overhead of rebuilding tables per parse.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

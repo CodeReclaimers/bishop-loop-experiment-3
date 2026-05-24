@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex search has a critical flaw: it doesn't account for the fact that the regex would need to be applied to the entire remaining string `text[pos:]` on every call, which could be inefficient for large inputs with many leading whitespace characters. Additionally, the regex approach doesn't integrate well with the existing parser's incremental parsing model where `pos` is updated and passed around, making it hard to maintain the same performance characteristics.
+
+STEELMAN: A better approach would be to precompile a regex pattern that matches zero or more whitespace characters starting from a given position, and use `re.match()` or `re.search()` to find the first non-whitespace character index. This allows the regex engine to leverage optimized C-level matching while still maintaining incremental parsing semantics, and avoids recompiling the pattern on every call.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

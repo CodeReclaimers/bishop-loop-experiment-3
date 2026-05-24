@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use `str.find` for bulk whitespace skipping is problematic because it doesn't actually skip large segments efficiently — `str.find` still scans character-by-character until it finds the first non-whitespace, which doesn't avoid the per-character loop overhead. Additionally, it fails to account for the fact that the current `_skip_ws` function already uses a direct loop, so replacing it with `str.find` would not improve performance and could even degrade it due to function call overhead.
+
+STEELMAN: A better approach would be to implement a hybrid whitespace skipping strategy that uses `str.find` to locate the first non-whitespace character, but only after checking for a bulk segment of whitespace, thereby avoiding the per-character loop in `_skip_ws` while maintaining correctness and readability.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip large segments of whitespace efficiently
+    # while avoiding per-character loop overhead
+    if pos >= len(text):
+        return pos
+    # Skip whitespace by finding the first non-whitespace character
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        # No space found, check for other whitespace chars
+        next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\r', pos)
+                if next_non_ws == -1:
+                    return pos
+    # If we found a whitespace char, return its position
+    if next_non_ws != -1 and next_non_ws > pos:
+        return next_non_ws
+    # If no whitespace found, continue with character-by-character check
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

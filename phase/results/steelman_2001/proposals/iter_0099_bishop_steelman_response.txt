@@ -1,0 +1,22 @@
+CRITIQUE: The suggested implementation `text.find((c for c in _WS_CHARS) if c not in _WS_CHARS, pos)` is syntactically invalid and will not compile. The `find` method doesn't accept a generator expression as its first argument, and the logic is fundamentally flawed. Even if corrected, using `find` with a set of characters would not work as intended since `find` searches for a substring, not individual characters. Additionally, `find` returns the index of the first occurrence of any character in a string, but here we want to skip all whitespace characters, not just the first non-whitespace one.
+
+STEELMAN: A better approach would be to use `re.search` with a regex pattern that matches one or more whitespace characters, or alternatively, use a loop with `str.translate` and `str.lstrip` for efficient skipping. However, the core idea of avoiding a per-character Python loop in favor of a C-level scan is sound, so we can use `re.search` to find the first non-whitespace character efficiently, or we can use a precomputed translation table to efficiently skip whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to find the first non-whitespace character
+    match = re.search(r'[^' + ''.join(_WS_CHARS) + r']', text, pos)
+    if match:
+        return match.start()
+    return len(text)
+>>>>>>> REPLACE
+```

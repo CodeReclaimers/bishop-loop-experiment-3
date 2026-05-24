@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while loop with a single scan is problematic because it doesn't actually eliminate the per-iteration overhead in the way described — the loop still needs to check each character individually, and the proposed "single call" isn't clearly defined. Additionally, it fails to account for the fact that `_skip_ws` is called frequently and performance-critical in parsing, so any change must preserve correctness while reducing function call overhead and improving cache locality.
+
+STEELMAN: The steelman version of the suggestion is to implement a more efficient inner loop that uses a direct character-by-character scan with early termination, avoiding repeated function calls and reducing the number of conditional checks per character. This can be done by using a simple for-loop that scans forward until a non-whitespace character is found, and then returning the position — this approach is both more efficient and maintains the same performance characteristics as the original while loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a for loop to scan forward until non-whitespace is found
+    for i in range(pos, len(text)):
+        if text[i] not in _WS_CHARS:
+            return i
+    return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use a dedicated regex for number parsing is naive because it ignores the fact that the current implementation already uses a precompiled regex `_NUMBER_RE` and the performance bottleneck lies elsewhere, such as in the repeated calls to `_skip_ws` and the inefficient string building. Additionally, regex-based number parsing introduces overhead from match validation and backtracking that can be slower than direct numeric parsing for simple cases.
+
+STEELMAN: The steelman version of the suggestion would be to optimize the existing regex-based number parsing by ensuring it's used efficiently, avoiding redundant matches, and possibly combining it with other optimizations like caching or reducing function call overhead, while preserving the core idea of leveraging precompiled regex for performance.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

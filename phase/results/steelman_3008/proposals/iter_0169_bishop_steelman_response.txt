@@ -1,0 +1,100 @@
+CRITIQUE: The suggestion to replace set membership checks with translation tables is flawed because it misunderstands the performance characteristics of Python sets — they are already O(1) and highly optimized with minimal hash overhead. Additionally, creating translation tables for 16+ characters would require 256 entries (one per ASCII char) and complicate the code without clear benefit. The proposed approach doesn't address the real bottlenecks in the parser, which are primarily in string handling and recursion, not character membership tests.
+
+STEELMAN: The core idea of optimizing character checks is sound, but should focus on reducing redundant work in hot loops. A better approach is to precompute a single boolean lookup table for all relevant characters (digits, hex, whitespace) using `str.translate` or a compact lookup array, while keeping the existing set-based logic for less frequent cases. This preserves the performance gains from avoiding repeated hash computations while maintaining code clarity.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute lookup tables for performance
+def _make_char_table(chars: set[str]) -> list[bool]:
+    table = [False] * 256
+    for char in chars:
+        table[ord(char)] = True
+    return table
+
+_WS_TABLE = _make_char_table(_WS_CHARS)
+_DIGIT_TABLE = _make_char_table(_DIGIT_CHARS)
+_HEX_TABLE = _make_char_table(_HEX_CHARS)
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with precomputed table for performance
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not _HEX_TABLE[ord(ch)]:
+            return False
+    return True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        if pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos >= n:
+            raise JSONParseError(f"bad number at {pos}")
+        if text[pos] == "0":
+            pos += 1
+        elif text[pos] in _DIGIT_CHARS:
+            while pos < n and text[pos] in _DIGIT_CHARS:
+                pos += 1
+        else:
+            raise JSONParseError(f"bad number at {pos}")
+=======
+        if pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+        if pos >= n:
+            raise JSONParseError(f"bad number at {pos}")
+        if text[pos] == "0":
+            pos += 1
+        elif _DIGIT_TABLE[ord(text[pos])]:
+            while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+                pos += 1
+        else:
+            raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+=======
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or not _DIGIT_TABLE[ord(text[pos])]:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+>>>>>>> REPLACE
+```

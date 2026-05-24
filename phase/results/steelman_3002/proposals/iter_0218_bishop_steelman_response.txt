@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to inline whitespace skipping eliminates function call overhead but ignores that `_skip_ws` is called in many different contexts with varying surrounding code patterns, making naive inlining likely to bloat code size and reduce maintainability. It also fails to consider that the current implementation already uses efficient character-by-character checks with a frozenset, which may already be optimized by the Python interpreter. Additionally, the suggestion doesn't address potential performance regressions from code duplication or reduced readability.
+
+STEELMAN: The strongest version of this idea would be to refactor `_skip_ws` into a tight loop that can be inlined at strategic points in the parsing logic, while preserving the existing helper function for code clarity and reuse in cases where inlining isn't beneficial. This approach maintains performance gains where they matter most without sacrificing maintainability.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline whitespace skipping
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

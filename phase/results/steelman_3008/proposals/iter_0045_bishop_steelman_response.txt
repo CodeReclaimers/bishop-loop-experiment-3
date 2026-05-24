@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `re.finditer` for skipping whitespace is flawed because regex matching is not O(1) and introduces overhead from regex compilation and state management. It also fails to handle the case where no whitespace is found, since `next(re.finditer(...))` would raise a `StopIteration` and the proposed fallback `or pos` doesn't work as intended. Additionally, the performance gain from C-level scanning is negated by the regex engine's complexity and the fact that this optimization is only beneficial for long sequences of whitespace.
+
+STEELMAN: A better approach would be to use a compiled regex pattern to skip whitespace, but only when there's a significant amount of leading whitespace to skip. We can precompile the regex once and reuse it, avoiding repeated compilation overhead. The function should still fall back to the existing loop-based approach for small or no whitespace, as regex is not always faster. The core idea of leveraging optimized C-level scanning is kept, but implemented in a way that avoids regex pitfalls.
+
+```python
+<<<<<<< SEARCH
+"""Fast JSON parser implementing the optimization target.
+
+This is a rewrite of the deliberately slow parser to improve performance
+while maintaining correctness against json.loads on the full corpus.
+"""
+from __future__ import annotations
+
+from typing import Any
+=======
+"""Fast JSON parser implementing the optimization target.
+
+This is a rewrite of the deliberately slow parser to improve performance
+while maintaining correctness against json.loads on the full corpus.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+```

@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion fails to recognize that the code already implements the proposed optimization using `frozenset` for character sets like `_WS_CHARS`, `_DIGIT_CHARS`, and `_HEX_CHARS`. Additionally, it overlooks that the performance bottleneck in parsing isn't just membership checks, but also the overhead of repeated string slicing, bounds checking, and function call overhead. The suggestion also doesn't consider that `frozenset` membership is only faster when the set is large; for small sets, the overhead of creating and accessing the frozenset can be worse than direct string membership.
+
+STEELMAN: The strongest version of the suggestion would be to ensure that all character membership checks in the parser consistently use precomputed `frozenset` lookups, and to verify that these lookups are actually being used in performance-critical paths like `_skip_ws`, `_parse_string`, and `_parse_number`. It should also ensure that the sets are properly sized and that no redundant checks or conversions are performed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

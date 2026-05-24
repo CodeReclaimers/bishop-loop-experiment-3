@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use a "sliding window" for whitespace skipping is unclear and likely unhelpful since the current implementation already uses efficient O(1) set membership checks via `_WS_CHARS`. The idea of "scanning numbers character-by-character without explicit predicates" contradicts the existing approach which already avoids regex and uses set membership. The mention of "keeping track of escape sequence length" is vague and doesn't address the actual performance bottlenecks in the current code.
+STEELMAN: A better approach would be to replace the per-character loop in `_skip_ws` with a regex-based skip that processes large chunks of whitespace at once, and to optimize number parsing by using `str.find` or `str.split` to locate delimiters rather than checking each character individually. For escape handling, we can precompute common escape sequences and avoid repeated string operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for reuse
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in large chunks
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

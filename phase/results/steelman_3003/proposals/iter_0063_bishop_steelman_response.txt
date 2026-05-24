@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `text.find` is flawed because `text.find` would require scanning the entire string from the current position to find the next non-whitespace character, which is O(n) worst-case and defeats the purpose of optimization. It also doesn't handle the case where the entire remainder of the string is whitespace, which would cause `find` to return the end of the string and not properly signal an error. Additionally, `find` is not guaranteed to be faster than a simple loop in practice due to overhead.
+
+STEELMAN: A better approach is to use a hybrid strategy where we first try to find the next non-whitespace character using `text.find` with a set of whitespace characters, but fall back to the existing loop when the string is short or when `find` returns the end of the string, ensuring both performance and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using a hybrid approach for performance
+    if pos >= len(text):
+        return pos
+    # Use find to quickly skip whitespace, but fall back to loop if needed
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

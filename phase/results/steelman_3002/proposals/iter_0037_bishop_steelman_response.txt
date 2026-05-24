@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `_WS_RE.span('')` is fundamentally flawed because `span()` doesn't work that way — it finds the span of a match for a regex in a string, but passing an empty string `''` will always match at position 0, not skip whitespace. Additionally, the regex `r'\s*'` matches zero or more whitespace characters, but it would need to be applied to the substring starting at `pos` to skip forward correctly.
+
+STEELMAN: A better approach is to use the precompiled regex to find the span of whitespace starting from the current position, then advance `pos` by that amount. This avoids character-by-character iteration while preserving correctness, and can be done efficiently using `re.match()` or `re.search()` with a slice of the string starting at `pos`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

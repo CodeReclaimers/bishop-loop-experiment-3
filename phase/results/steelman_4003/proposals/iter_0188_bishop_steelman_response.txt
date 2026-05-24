@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to "directly use Python's built-in `int()` or `float()` functions after validating the pattern with regex" is problematic because it doesn't address the core inefficiency in the current implementation: the regex matching is done on the full input string repeatedly, which can be slow for large inputs. Additionally, the suggestion ignores that the current approach already uses regex for number parsing and simply extracts the matched substring to convert it, which is already optimal in terms of avoiding string concatenation.
+
+STEELMAN: The steelman version of the suggestion is to refine the number parsing by leveraging the already matched regex group directly and ensuring that the conversion to int or float is performed with minimal overhead, preserving the current performance gains from regex validation while making sure the conversion step is as efficient as possible.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

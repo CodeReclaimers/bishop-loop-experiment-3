@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with a regex search would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same detailed error reporting as character-by-character checking. Additionally, it could introduce performance regressions due to regex overhead when whitespace is sparse or when the parser frequently encounters non-whitespace characters immediately after whitespace. The regex approach also fails to integrate cleanly with the existing `_skip_ws` function's interface, which expects to return the next valid position after skipping whitespace.
+
+STEELMAN: A better approach is to use the regex to efficiently skip whitespace, but still maintain the same function signature and error behavior. We can leverage the regex to find the next non-whitespace position, then adjust the logic to ensure that the parser continues to work correctly and errors are still reported at the correct positions.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

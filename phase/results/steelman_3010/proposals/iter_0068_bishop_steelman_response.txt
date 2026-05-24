@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.scan` (which doesn't exist) or `re.match`/`re.search` for bulk whitespace skipping is flawed because regex methods like `match` or `search` don't provide a way to advance the position past a matched pattern in a single step without re-parsing. Additionally, the regex engine will still need to process each character in the matched run, so the performance benefit of avoiding Python loops is not realized. The approach also fails to account for the fact that `re` methods return match objects, not the index after the match.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with the compiled `_WS_PATTERN` to find the longest contiguous whitespace run starting at the current position, then advance the position by the length of that match. This avoids the Python loop overhead by letting the regex engine do the work, while still correctly advancing the parser position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

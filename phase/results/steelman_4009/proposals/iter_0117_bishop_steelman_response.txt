@@ -1,0 +1,25 @@
+CRITIQUE: Using a precompiled regex for whitespace skipping would likely introduce overhead from regex compilation and matching that outweighs any gains, especially since the current inline loop is already optimized. The regex approach would also complicate error handling and make debugging harder due to less predictable behavior. Additionally, regex-based skipping would not integrate well with the existing position-tracking system, potentially causing issues with precise error reporting.
+
+STEELMAN: The steelman is to replace the inline whitespace skipping loop with a more efficient approach using `str.lstrip()` or a compiled regex that only matches the specific whitespace characters, but still maintains the exact same error reporting and position tracking behavior by using a hybrid approach where the regex handles bulk skipping while preserving the original position tracking for error contexts.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently, but still track position correctly
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

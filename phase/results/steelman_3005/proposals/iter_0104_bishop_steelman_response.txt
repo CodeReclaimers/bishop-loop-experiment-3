@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace the regex-based `_skip_ws` with a simple `while` loop is naive because it fails to account for the performance benefits of regex's optimized C implementation. The regex approach can skip large blocks of whitespace in a single operation, while a Python loop would process each character individually, leading to significant slowdowns on large inputs. Additionally, the current implementation uses a pre-compiled regex pattern, which is already optimized and avoids repeated compilation overhead.
+
+STEELMAN: The steelman version would retain the core idea of replacing regex with a manual loop but improve performance by using a more efficient character checking mechanism—specifically, by pre-computing a set of whitespace characters and checking membership instead of calling `isspace()` repeatedly, which is slower due to method dispatch overhead.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WHITESPACE_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos] in _WHITESPACE_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

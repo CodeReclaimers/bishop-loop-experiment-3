@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.find` with a translation table is unworkable because `str.find` cannot efficiently locate the next non-whitespace character when whitespace characters are mapped to a sentinel — it would require scanning from the current position, defeating the purpose. Additionally, building a translation table for all whitespace characters and then using `str.find` introduces unnecessary complexity and overhead compared to the existing direct loop approach.
+STEELMAN: A better approach would be to precompute a set of whitespace characters and use `str.translate` with a translation table that maps all whitespace to a single sentinel character, then use `str.find` to locate the next non-sentinel character. This avoids the Python loop overhead while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using translation table
+    whitespace_set = frozenset(' \t\n\r')
+    # Create translation table mapping whitespace to a sentinel
+    trans_table = str.maketrans({c: '\x00' for c in whitespace_set})
+    # Translate the text starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    next_non_ws = translated.find('\x00')
+    if next_non_ws == -1:
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

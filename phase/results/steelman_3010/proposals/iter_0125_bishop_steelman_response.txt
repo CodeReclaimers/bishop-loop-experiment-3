@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with `re.find` is problematic because `re.find` would only find the next non-whitespace character, not skip all consecutive whitespace characters in one go. Additionally, the regex engine would need to re-scan from the current position each time, negating any performance gains from avoiding the Python loop. It also introduces complexity in correctly advancing the position pointer.
+
+STEELMAN: A better approach is to use `re.match` or `re.search` with the precompiled `_WS_PATTERN` to skip all leading whitespace in one efficient step, which matches the behavior of the manual loop but with the speed of the C-level regex engine. This avoids the Python-level loop while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip all leading whitespace using precompiled regex for performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

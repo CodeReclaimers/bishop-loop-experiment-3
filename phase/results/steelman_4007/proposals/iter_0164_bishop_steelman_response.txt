@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with an inline loop is misguided because the current implementation already uses an optimized inline loop in `_skip_ws` that's already O(1) per character. The suggestion fails to address that the real performance bottlenecks are elsewhere (e.g., string concatenation, repeated parsing of boolean/null values, and inefficient number parsing). It also incorrectly assumes that avoiding `re.search` is the primary optimization, when the existing loop already avoids that overhead.
+
+STEELMAN: A better approach would be to refine the inline whitespace skipping to avoid redundant character checks by using `ord()` to directly test for whitespace characters, and to precompute or cache character classifications (like digit/hex) for faster lookups during parsing. This preserves the inline loop strategy while improving performance by reducing per-character overhead and avoiding redundant checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping using ord() for speed
+    try:
+        while ord(text[pos]) in (32, 9, 10, 13):  # space, tab, newline, carriage return
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

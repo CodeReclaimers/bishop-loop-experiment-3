@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to use `_WS_PATTERN.span(pos)` would not work correctly because the regex pattern `[ \t\n\r]*` is greedy and would match zero or more whitespace characters, but it doesn't advance the position correctly in all cases. Additionally, calling `span()` on a regex that matches zero characters would not advance `pos`, leading to an infinite loop. The current manual loop correctly handles each character and advances properly.
+
+STEELMAN: A better approach is to use the regex to find the end of a whitespace run by calling `match` or `search` starting at `pos`, then advance `pos` by the length of the matched whitespace. This preserves the performance benefit of regex-based skipping while ensuring correct advancement.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

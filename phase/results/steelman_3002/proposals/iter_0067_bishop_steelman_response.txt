@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex match would break correctness because the regex `\s*` matches zero or more whitespace characters, but the current implementation advances through whitespace one character at a time to handle potential errors or edge cases. Using a regex would skip all whitespace at once, losing the ability to detect malformed input or provide precise error locations. Additionally, regex matching introduces overhead that could slow down the parser in cases where there's little or no whitespace.
+
+STEELMAN: The steelman version would use the precompiled regex `_WS_RE` to skip whitespace, but still ensure that it only advances the position to the first non-whitespace character, preserving the exact same behavior and error reporting as the original loop-based implementation. This approach retains the performance benefit of regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all consecutive whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use a pre-computed skip table would not work because it assumes a fixed mapping from each character to the next non-whitespace position, which is fundamentally flawed since whitespace sequences can be of arbitrary length. The table approach would require a massive lookup table (one entry per possible character position) and would not scale well with input size or memory constraints. Additionally, it doesn't account for the fact that whitespace skipping is context-dependent and can vary based on the current position in the string.
+
+STEELMAN: A better approach would be to build a simple skip table that maps each position in the input string to the next position after any trailing whitespace, computed once at the start of parsing. This table would be used by `_skip_ws` and other parsing functions to jump ahead efficiently without regex overhead, while still maintaining correctness and linear time complexity.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = [0] * len(text)
+    i = len(text) - 1
+    while i >= 0:
+        if text[i] in _WS_CHARS:
+            skip_table[i] = skip_table[i + 1] if i + 1 < len(text) else i + 1
+        else:
+            skip_table[i] = i + 1
+        i -= 1
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, skip_table)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

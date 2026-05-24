@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `_WS_RE.span('')[1]` directly is flawed because `re.match` or `re.search` with `span()` doesn't advance the position correctly in the context of a streaming parser. It would require re-parsing the same text from the start, negating performance gains. Also, `span('')` is invalid — `span()` takes a group name or number, and group 0 is the entire match, not a specific capture group.
+
+STEELMAN: The steelman is to use `re.match(_WS_RE, text, pos)` to find the next non-whitespace character, then advance the position to the end of the match. This preserves the intent of skipping whitespace efficiently in one operation while correctly advancing the parser's position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

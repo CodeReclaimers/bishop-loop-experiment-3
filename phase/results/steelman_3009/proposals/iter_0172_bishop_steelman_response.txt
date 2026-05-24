@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the per-character loop with `text.find` is problematic because `find` will return the index of the first non-whitespace character, but it won't handle the case where the entire remainder of the string is whitespace — the function would need special handling to detect end-of-input. Additionally, replacing character-by-character number parsing with `int()`/`float()` conversion risks losing the ability to precisely control error messages and edge cases like invalid number formats that are explicitly checked in the current code.
+STEELMAN: A better approach is to use `text.find` to locate the next non-whitespace character, but only after checking that the current position is not already at the end of the string; for number parsing, we can identify the full number slice first and then use `int()`/`float()` conversion, but still validate that the slice conforms to JSON number rules (e.g., no leading zeros, valid exponent syntax) to maintain correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace in one go, but avoid OOB access
+    if pos >= len(text):
+        return pos
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

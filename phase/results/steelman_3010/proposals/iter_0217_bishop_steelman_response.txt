@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex `search` call would be flawed because `re.search(r'[ \t\n\r]*', text, pos)` would match zero or more whitespace characters starting at `pos`, not the *next* non-whitespace character. This would cause incorrect behavior when there's no whitespace, or when the regex engine matches a zero-length match and advances the position incorrectly. Additionally, it would not preserve the existing behavior of skipping exactly the whitespace characters, as the regex would not be anchored to skip only the leading whitespace.
+
+STEELMAN: A better approach is to use `re.match` or `re.search` with a pattern that finds the *first* non-whitespace character starting from `pos`, and then compute the index of that character. This can be done by using `re.search(r'[ \t\n\r]+', text, pos)` to match one or more whitespace characters, and advancing `pos` by the match length, or by using `re.match` to find the next non-whitespace character and compute the difference.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, leveraging compiled pattern for performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

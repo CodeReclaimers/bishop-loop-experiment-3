@@ -1,0 +1,53 @@
+To improve performance, we can use a more efficient way to skip whitespace characters in `json_parser.py`. We can utilize Python's built-in `str.isspace()` method instead of manually iterating through each character. This method checks if the character is a whitespace character and returns `True` if it is, otherwise `False`. By using this method, we can significantly reduce the number of iterations required to skip whitespace characters, resulting in faster parsing times.
+
+Here's how you can implement this change:
+
+```python
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    tokenizer = Tokenizer(text)
+    try:
+        value = tokenizer.parse_value()
+        if not tokenizer.is_eof():
+            raise JSONParseError(f"trailing content at position {tokenizer.pos}")
+        return value
+    except IndexError:
+        raise JSONParseError("unexpected end of input")
+
+
+class Tokenizer:
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+
+    def is_eof(self) -> bool:
+        return self.pos >= len(self.text)
+
+
+# ...
+# (function at lines 42-59)
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace character-by-character using isspace()
+    while pos < len(text) and text[pos].isspace():
+        pos = pos + 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+
+
+```
+
+This change optimizes the whitespace skipping by leveraging Python's built-in `str.isspace()` method, which is implemented in C and optimized for speed.

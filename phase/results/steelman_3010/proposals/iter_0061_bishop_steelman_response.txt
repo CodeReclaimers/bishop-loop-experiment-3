@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to remove `_WS_PATTERN` and rely solely on `_WS_CHARS` is problematic because it ignores the performance characteristics of the existing `_skip_ws` implementation, which already uses a tight loop with O(1) membership checks. Removing the regex and switching to a character-by-character loop would likely regress performance, especially for large amounts of whitespace, since the regex engine is optimized for such operations. Additionally, the suggestion doesn't consider that `_skip_ws` is called frequently and could benefit from the regex's ability to skip large contiguous whitespace blocks in one go.
+
+STEELMAN: The steelman version of the suggestion is to keep the regex-based approach for `_skip_ws` but make it more efficient by reusing a single compiled regex object (already present) and avoiding redundant compilations. This preserves the performance benefits of regex skipping while eliminating any unnecessary overhead from repeated compilation steps.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace for performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

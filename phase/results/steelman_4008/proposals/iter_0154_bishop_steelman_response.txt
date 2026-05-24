@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use "character-by-character scan instead of regex for large segments of whitespace" is unworkable because it fails to address the actual performance bottleneck — the regex engine overhead is minimal compared to the per-character loop in `_skip_ws`. Additionally, a naive character-by-character scan without any optimization for large contiguous whitespace blocks will be slower than the current implementation. The suggestion also lacks a fallback mechanism, which means it would perform poorly on inputs with long runs of whitespace.
+
+STEELMAN: The steelman version improves whitespace skipping by using a hybrid approach: a fast character-by-character scan for small whitespace segments, but switching to a bulk scan (e.g., using `str.find` or a loop that jumps ahead) when encountering large contiguous whitespace. This avoids both the regex overhead and the inefficiency of scanning each character individually in long runs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: fast scan for small runs, bulk skip for large runs
+    while pos < len(text):
+        c = text[pos]
+        if c not in ' \t\n\r':
+            return pos
+        # Skip large contiguous whitespace blocks efficiently
+        pos += 1
+        if pos < len(text) and text[pos] in ' \t\n\r':
+            # Bulk skip: find the end of this whitespace run
+            while pos < len(text) and text[pos] in ' \t\n\r':
+                pos += 1
+        else:
+            # Small run, continue with single-character check
+            continue
+    return pos
+>>>>>>> REPLACE
+```

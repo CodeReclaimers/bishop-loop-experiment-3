@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace the while-loop with `str.find` is problematic because `str.find` searches for the first occurrence of any character in the provided string, but the whitespace characters in `_WS_CHARS` are stored as a list, not a single concatenated string. Additionally, this approach would not handle the case where the input is entirely whitespace correctly, as `str.find` would return 0 for the first whitespace character instead of skipping all of them. The suggestion also fails to consider that `str.find` is not necessarily faster than the optimized loop for small inputs and could introduce overhead.
+
+STEELMAN: The steelman version of the suggestion would use `str.translate` and `str.maketrans` to efficiently skip whitespace by creating a translation table that maps all whitespace characters to a single sentinel character, then use `str.find` to locate the first non-sentinel character. This preserves the core idea of eliminating per-character iteration while correctly handling edge cases and maintaining performance characteristics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    if pos >= n:
+        return pos
+    # Create translation table to map whitespace to a sentinel character
+    ws_set = set(_WS_CHARS)
+    trans_table = str.maketrans(ws_set, ["\x00"] * len(ws_set))
+    # Translate the text starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    new_pos = translated.find("\x00")
+    if new_pos == -1:
+        # All characters are whitespace
+        return n
+    return pos + new_pos
+>>>>>>> REPLACE
+```

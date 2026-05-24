@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace string membership testing with byte-wise integer comparisons is flawed because it ignores that the input is a Unicode string, not a byte array, and `ord(c)` will still need to compute the Unicode code point for each character. Additionally, the proposed approach would require pre-computing a tuple of integer ordinals, which doesn't significantly improve performance over the existing membership test, and could even be slower due to the overhead of integer comparisons and tuple lookups.
+
+STEELMAN: A better approach would be to precompute a frozenset of the whitespace characters (as is already done for digits and hex chars) and use `c in _WHITESPACE_CHARS` for fast membership testing, which is both readable and efficient. This preserves the intent of avoiding repeated string construction while leveraging Python's optimized set membership checks.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WHITESPACE_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

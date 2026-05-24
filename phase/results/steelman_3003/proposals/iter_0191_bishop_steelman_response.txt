@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex match would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same error reporting granularity as character-by-character scanning. Additionally, it would complicate the logic flow in `_parse_value` and other functions that rely on the current behavior of `_skip_ws` returning the exact position after whitespace. The regex approach also risks performance degradation on small inputs due to regex overhead.
+STEELMAN: A better approach is to use the regex to skip leading whitespace at the beginning of `parse` and in key parsing functions, but still use the existing `_skip_ws` for incremental whitespace skipping within loops, preserving correctness while improving performance for large amounts of leading whitespace.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _WS_RE.match(text, 0).end()
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _WS_RE.match(text, pos).end()
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

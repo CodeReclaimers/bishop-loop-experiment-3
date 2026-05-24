@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work because it fundamentally changes the semantics of skipping whitespace — the function needs to return the final position after skipping, not replace characters. Additionally, `str.translate` cannot be used to skip characters without replacement; it's designed for character mapping, not position advancement. The idea of making it O(1) per run is also flawed since `str.translate` still processes the entire string segment, and the overhead of creating the translation table may not be worth it for small inputs.
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character, then use `str.translate` to efficiently convert the string, followed by `str.index` or a simple loop to find the first non-sentinel character. However, since we need the position, we can instead use `str.find` on the translated string to locate the first non-whitespace character, which avoids repeated membership checks while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace by mapping to a sentinel
+    # and then find the first non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to a sentinel character
+    whitespace_trans = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(whitespace_trans)
+    # Find the first non-sentinel character
+    first_non_ws = translated.find(" ")
+    if first_non_ws == -1:
+        # All characters are whitespace
+        return len(text)
+    # Return original position + first_non_ws
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

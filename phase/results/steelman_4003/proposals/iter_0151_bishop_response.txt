@@ -1,0 +1,19 @@
+To speed up the JSON parser, we can use a more efficient method for parsing numbers by directly converting them to integers or floats when possible. This approach avoids unnecessary overhead associated with float-to-string conversion and directly handles integer values efficiently. By modifying the `_parse_number` function as follows:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    else:
+        # Convert directly to int using the precomputed mapping for efficiency
+        return _HEX_TO_INT[s], pos  # Assuming we have a predefined mapping from hexadecimal strings to integers
+```
+
+We use a predefined dictionary `_HEX_TO_INT` where keys are hexadecimal string representations of numbers and values are their corresponding integer equivalents. This allows us to convert the number directly in constant time, improving the parsing speed without increasing memory usage or complexity of the code.

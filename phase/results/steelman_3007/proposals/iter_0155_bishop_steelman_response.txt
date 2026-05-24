@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to replace per-character whitespace skipping with a precomputed skip table is flawed because it misunderstands the problem: `_skip_ws` already uses O(1) set membership checks via `_WS_CHARS`. Building a skip table would require precomputing a table of size O(n) for each input, which is wasteful and doesn't address the actual bottleneck. Additionally, a skip table approach would not be practical for dynamic inputs and would complicate the parsing logic unnecessarily.
+STEELMAN: The steelman version would be to recognize that the current `_skip_ws` function already performs efficiently with set-based lookups, but we can further optimize by avoiding repeated calls to `_skip_ws` in tight loops. Instead, we can inline the whitespace skipping logic directly in the parsing functions where whitespace is encountered, reducing function call overhead and improving performance in hot paths.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

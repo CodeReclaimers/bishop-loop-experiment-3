@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `re` for whitespace skipping is problematic because regex engines have significant overhead for simple character matching, and the performance gain from avoiding a Python loop is negated by regex compilation and matching costs. Additionally, this approach would not scale well for small inputs where the loop overhead is negligible, and it doesn't address the core issue that whitespace skipping is only a small part of the parsing bottleneck.
+STEELMAN: A better approach is to use a hybrid strategy where a fast inline loop handles small amounts of whitespace, and a regex is used only when a large contiguous block of whitespace is detected, effectively combining the low-overhead nature of the loop for short skips with the efficiency of regex for large skips.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping with hybrid approach
+    try:
+        # Fast inline loop for small skips
+        while text[pos] in _WS_CHARS:
+            pos += 1
+        # If we've skipped a lot, use regex for efficiency
+        if pos > 0 and pos - 1 > 100:
+            import re
+            match = re.match(r'^\s*', text[pos:])
+            if match:
+                pos += len(match.group(0))
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

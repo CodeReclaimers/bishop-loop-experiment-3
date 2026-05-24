@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the loop with a regex match would not work correctly because `_WS_RE` is compiled to match zero or more whitespace characters (`\s*`), which would skip zero whitespace characters if the input doesn't start with whitespace, and it doesn't advance `pos` properly for the next parsing step. Additionally, using regex for simple whitespace skipping introduces overhead and complexity that negates the performance benefits of the current O(1) set-based approach.
+STEELMAN: A better approach is to use `re.match` or `re.search` to find the end of the whitespace sequence starting at `pos`, and advance `pos` to that index. This maintains the performance goal of skipping large blocks of whitespace efficiently while ensuring correctness and avoiding the overhead of repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficient skipping of large whitespace blocks
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

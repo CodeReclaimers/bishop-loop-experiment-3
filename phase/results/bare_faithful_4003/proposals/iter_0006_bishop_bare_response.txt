@@ -1,0 +1,222 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    return match.end() if match else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Use state machine approach to track parsing state
+    # and reduce redundant whitespace handling
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    # State machine: track whether we're expecting a key or a value
+    expecting_key = True
+    while True:
+        # Skip whitespace as needed
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if expecting_key and c == "}":
+            return out, pos + 1
+        if expecting_key and c == '"':
+            key, pos = _parse_string(text, pos)
+            # After parsing a key, expect a colon
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos = pos + 1
+            # After colon, expect a value
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+            # After value, expect comma or closing brace
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                expecting_key = True
+                continue
+            if c == "}":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+        elif not expecting_key and c == "}":
+            raise JSONParseError(f"unexpected '}}' at {pos}")
+        elif expecting_key and c != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        elif not expecting_key and c == ",":
+            pos = pos + 1
+            expecting_key = True
+            continue
+        elif not expecting_key and c == '"':
+            # This is a value, not a key
+            pos = pos - 1  # Rewind to reprocess
+            value, pos = _parse_value(text, pos)
+            out[key] = value  # This should not happen in standard JSON
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                expecting_key = True
+                continue
+            if c == "}":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    # State machine: track whether we're expecting a value
+    expecting_value = True
+    while True:
+        # Skip whitespace as needed
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if expecting_value and c == "]":
+            return out, pos + 1
+        if expecting_value:
+            value, pos = _parse_value(text, pos)
+            out.append(value)
+            # After value, expect comma or closing bracket
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated array")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                expecting_value = True
+                continue
+            if c == "]":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or ']' at {pos}")
+        elif not expecting_value and c == "]":
+            raise JSONParseError(f"unexpected ']' at {pos}")
+        elif not expecting_value and c == ",":
+            pos = pos + 1
+            expecting_value = True
+            continue
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,109 @@
+CRITIQUE: The suggestion fails to address the core performance issue: it still builds the number string `s = text[start:pos]` and then passes it to `float()` or `int()`, which is exactly the inefficient approach the original code was trying to avoid. Additionally, it doesn't fix the redundant leading zero skipping logic or the inefficient character-by-character scanning of digits. The performance gain from using built-in parsing functions is negated by the unnecessary string slicing and construction.
+
+STEELMAN: The steelman approach should eliminate the redundant string slicing and parsing by using a direct digit-by-digit arithmetic approach for integer parsing, and for floats, leverage Python's `float()` on the substring but avoid the inefficient leading zero skipping logic. We should also optimize the digit scanning to avoid repeated membership checks in `_DIGIT_CHARS` by using `str.isdigit()` or direct ASCII comparisons for better performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse integer part
+    int_part = 0
+    is_float = False
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            int_part = int_part * 10 + (ord(text[pos]) - ord('0'))
+            pos += 1
+    
+    # Check for fractional part
+    frac_part = 0
+    frac_digits = 0
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            frac_part = frac_part * 10 + (ord(text[pos]) - ord('0'))
+            frac_digits += 1
+            pos += 1
+    
+    # Check for exponent
+    exp_part = 0
+    exp_sign = 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            if text[pos] == "-":
+                exp_sign = -1
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            exp_part = exp_part * 10 + (ord(text[pos]) - ord('0'))
+            pos += 1
+    
+    # Build the number
+    if not is_float:
+        value = int_part
+    else:
+        # Build float from parts
+        value = int_part + frac_part / (10 ** frac_digits)
+        if exp_part:
+            value *= (10 ** (exp_sign * exp_part))
+    
+    # Handle negative sign
+    if text[start] == "-":
+        value = -value
+    
+    return value, pos
+>>>>>>> REPLACE
+```

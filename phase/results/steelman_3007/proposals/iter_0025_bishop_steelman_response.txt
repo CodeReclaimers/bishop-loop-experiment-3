@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the while-loop with `re.search(r'\S', text[pos:])` would be suboptimal because regex matching is slower than direct set membership for simple whitespace checks, especially when the majority of input is non-whitespace. It also introduces a performance regression for short inputs where the loop overhead is negligible. Additionally, this approach would not handle the case where the input is entirely whitespace correctly, as `re.search` would return `None` and cause an unhandled exception.
+STEELMAN: A better approach is to use a compiled regex that matches one or more whitespace characters (`r'\s+'`) and advance the position by the match length, leveraging the C-level regex engine for bulk skipping while preserving correct behavior for edge cases and avoiding the overhead of repeated Python-level checks.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s+')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a single `text.find` call is problematic because `text.find` will return the index of the first non-whitespace character, but it doesn't handle the case where the entire remainder of the string is whitespace — it would return `len(text)` which is not a valid position for parsing. Additionally, this approach doesn't account for the fact that `_skip_ws` is called in multiple places and needs to be robust to edge cases like empty strings or end-of-input conditions.
+
+STEELMAN: The steelman version of the suggestion is to use `text.find` to locate the next non-whitespace character, but to properly handle edge cases such as when the entire remaining string is whitespace (i.e., when `find` returns `len(text)`), we should check if that result is valid and adjust accordingly, ensuring that the function still correctly advances the position or raises an error if needed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    new_pos = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if new_pos == -1:
+        return n
+    return new_pos
+>>>>>>> REPLACE
+```

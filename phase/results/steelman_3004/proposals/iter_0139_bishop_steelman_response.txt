@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a pre-computed `skip_table` for whitespace skipping is unworkable because it would require generating a table of size proportional to the input length, which is memory-inefficient and doesn't scale. Additionally, it would not handle the case where the input string is not fully consumed, as the table would need to be rebuilt for each call or would need to be dynamically updated, which breaks the O(1) advantage claimed.
+STEELMAN: A better approach is to precompute a skip table that maps each position to the next non-whitespace character, but only for the specific input being parsed, avoiding the need for per-character loops while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute skip table for the current text
+    if not hasattr(_skip_ws, 'skip_table') or _skip_ws.skip_table_text != text:
+        _skip_ws.skip_table = [0] * len(text)
+        _skip_ws.skip_table_text = text
+        # Build skip table from right to left
+        skip_table = _skip_ws.skip_table
+        skip_table[-1] = len(text) - 1 if text[-1] in _WS_CHARS else len(text)
+        for i in range(len(text) - 2, -1, -1):
+            if text[i] in _WS_CHARS:
+                skip_table[i] = skip_table[i + 1]
+            else:
+                skip_table[i] = i + 1
+    # Use the skip table to advance position
+    pos = _skip_ws.skip_table[pos]
+    return pos
+>>>>>>> REPLACE
+```

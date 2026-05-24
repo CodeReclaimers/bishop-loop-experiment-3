@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion to use `while pos < len(text) and text[pos] in _WS_CHARS` is problematic because it requires creating and maintaining a `_WS_CHARS` set, which adds overhead. More critically, it doesn't actually improve performance over the existing character-by-character check since the lookup in a small frozenset is not significantly faster than the existing logic. Additionally, it introduces a subtle bug risk if the set is not properly defined or updated.
+
+STEELMAN: The steelman version would define a frozenset of whitespace characters once and use it in a tight loop, but the key improvement is to avoid repeated string indexing by caching `text[pos]` in a local variable, which reduces the number of attribute accesses and improves performance in the hot path.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r\f')
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

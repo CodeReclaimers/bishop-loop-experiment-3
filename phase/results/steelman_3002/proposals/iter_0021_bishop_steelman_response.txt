@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace the manual whitespace check with `text[pos].isspace()` is problematic because `str.isspace()` is significantly slower than direct character comparisons for JSON whitespace, which consists only of space, tab, line feed, and carriage return. Additionally, `isspace()` may behave differently with Unicode whitespace characters that are valid in JSON but not handled by the current implementation, potentially breaking compatibility or introducing subtle bugs. The performance gain from using `str.isspace()` is likely negated by its overhead compared to the optimized manual loop.
+
+STEELMAN: The steelman version would use a hybrid approach: leverage `str.isspace()` for its correctness and simplicity while maintaining a fast path for the common JSON whitespace characters (space, tab, newline, carriage return) by using direct comparisons, and only falling back to `str.isspace()` for edge cases or when the performance difference is negligible.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        elif c.isspace():
+            # Only use str.isspace() for non-standard whitespace
+            # that's not part of our JSON spec (e.g. Unicode spaces)
+            # but only if it's a single character and matches JSON spec
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

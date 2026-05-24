@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the regex with an inline while-loop is problematic because it fails to account for the fact that the current `_skip_ws` function is called repeatedly in tight loops during parsing, and the regex approach using `_WS_RE.match(text, pos)` is actually more efficient than a naive inline loop due to optimized C-level regex engine. Additionally, the suggestion omits handling of Unicode whitespace characters that JSON allows, which would break compatibility. The inline loop would also be less readable and maintainable.
+
+STEELMAN: The steelman version of the suggestion is to implement an optimized inline while-loop that checks for the specific JSON whitespace characters (`' '`, `'\t'`, `'\n'`, `'\r'`) directly using character comparisons, avoiding regex overhead while maintaining full compatibility and performance in the parsing loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

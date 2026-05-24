@@ -1,0 +1,54 @@
+To speed up the JSON parser, we can use a more efficient approach to skip whitespace, reducing the number of times `skip_ws` is called. One possible optimization is to use a regular expression to match all whitespace at once and then return the end position of the match instead of iterating through each character. This reduces the overhead of the loop and improves performance significantly for large input data.
+
+Here's the suggested change:
+
+```python
+import re
+
+# Define the regular expression pattern for matching whitespace
+_WS_RE = re.compile(r"^\s*")
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# Define the regular expression pattern for matching whitespace
+_WS_RE = re.compile(r"^\s*")
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+```
+
+This change eliminates the need for a loop and directly returns the position where the next non-whitespace character starts, making the `parse` function faster.

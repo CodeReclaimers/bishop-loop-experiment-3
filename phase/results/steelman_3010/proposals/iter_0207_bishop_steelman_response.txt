@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.find` with a generator expression is problematic because `str.find` only finds the first occurrence of any whitespace character, not the next non-whitespace character. Additionally, using a generator expression in this context would not provide O(1) jumps as claimed, since it would still require checking each character individually. The approach fails to account for the fact that whitespace skipping needs to advance past a sequence of consecutive whitespace characters, not just the first one.
+
+STEELMAN: A better approach would be to use `str.find` to locate the first non-whitespace character by searching for any character NOT in the whitespace set, and then advance the position by that amount. This leverages C-level string operations for performance while maintaining correctness, and can be made efficient by batching the search over larger chunks when possible.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to jump past whitespace, leveraging C-level string search
+    while pos < len(text):
+        next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+        if next_non_ws == -1:
+            return len(text)
+        return next_non_ws
+    return pos
+>>>>>>> REPLACE
+```

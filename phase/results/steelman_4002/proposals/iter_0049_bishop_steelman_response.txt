@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to "scan character-by-character without using a regular expression" is vague and potentially problematic because it doesn't address the core issue of redundant whitespace handling at every parsing level. Simply reducing `skip_ws` calls without proper coordination can lead to parsing errors when whitespace is skipped inappropriately between tokens, especially in nested structures. It also fails to consider that the current implementation already uses a fast loop for `skip_ws`, so the real bottleneck lies elsewhere.
+
+STEELMAN: The strongest version of this idea is to consolidate whitespace skipping into a single, centralized position-tracking mechanism that minimizes redundant calls while preserving correct parsing behavior. Instead of calling `skip_ws` at every parsing boundary, we maintain a global index and advance it only when necessary, ensuring that all parsing functions consume tokens in a consistent and predictable manner without sacrificing correctness.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

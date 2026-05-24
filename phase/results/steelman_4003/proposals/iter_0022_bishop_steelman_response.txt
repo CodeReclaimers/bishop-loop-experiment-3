@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `int()` or `float()` directly is problematic because it bypasses the necessary validation of JSON number format rules (like disallowing leading zeros, ensuring proper exponent syntax, etc.). It would also fail on malformed numbers that the regex pattern correctly rejects, such as "1.2.3" or "1e" — the built-in constructors would either accept them or raise unhelpful exceptions that don't provide clear error positions.
+STEELMAN: A better approach is to use `int()` or `float()` but only after validating the number string with a regex to ensure it conforms to valid JSON number syntax, and then using the parsed string to construct the number, so we preserve error messages and validation while benefiting from the speed of direct conversion.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    try:
+        if "." in s or "e" in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,37 @@
+To make this JSON parser faster, we can optimize by using a more efficient string concatenation technique. Instead of repeatedly concatenating strings in `out = out + [v]`, we can use list comprehension to create the list first and then convert it to a tuple or dictionary at the end. This avoids the overhead of repeated string concatenation operations, which can be expensive when dealing with large datasets.
+
+Specifically, we should change the `_parse_object` function as follows:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        value, pos = _parse_value(text, pos)
+        # Create the list of values first and then convert to a dictionary
+        out[key] = [value]
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+```
+
+This change eliminates the overhead of string concatenation and makes the parsing process faster.

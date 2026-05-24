@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find` with a pre-joined `_WS_CHARS` pattern is flawed because it doesn't account for the fact that `find` returns the position of the *first* occurrence of any whitespace character, not all consecutive whitespace. Additionally, this approach would require parsing tokens by slicing strings, which could lead to inefficient repeated substring operations and break the existing recursive descent structure that relies on maintaining a position pointer. It also doesn't address the core issue of avoiding repeated character-by-character checks in number parsing or other parts of the parser.
+
+STEELMAN: A better approach would be to use a regex-based `re.finditer` or `re.match` to skip all consecutive whitespace at once, which preserves the existing position-tracking paradigm while significantly reducing the number of individual character checks. This can be done by compiling a regex pattern like `r"[ \t\n\r]*"` once and reusing it, or by using `str.lstrip()` in a loop for simple cases, but more importantly, we should keep the recursive descent structure and avoid string slicing for token extraction to maintain performance and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

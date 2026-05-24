@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is problematic because `text.find` scans linearly from the current position until it finds a character *not* in `_WS_CHARS`, but this approach doesn't handle the case where the entire remainder of the string consists of whitespace — it would return `len(text)` and not raise an error as expected. Additionally, the suggestion assumes that `text.find` will be faster, but it doesn't consider that the current loop may be optimized by the Python interpreter for short whitespace sequences, and it ignores the fact that `find` is not necessarily faster for small inputs.
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character, but it must handle the edge case where the entire remainder is whitespace by raising a `JSONParseError`. It should also ensure that the logic remains correct for all parser paths, and avoid introducing performance regressions in cases where whitespace is minimal or absent.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to jump directly to the next non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        raise JSONParseError("unexpected end of input")
+    return next_non_ws
+>>>>>>> REPLACE
+```

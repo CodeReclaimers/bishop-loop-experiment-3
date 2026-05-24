@@ -1,0 +1,233 @@
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Replace regex with simple while-loop for whitespace skipping
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos = pos + 1
+    return pos
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+- Pre-computing whitespace character indices and using binary search
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+import bisect
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Pre-compute whitespace indices once
+    whitespace_indices = [i for i, c in enumerate(text) if c in ' \t\n\r']
+    pos = _skip_ws(text, 0, whitespace_indices)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, whitespace_indices)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int, whitespace_indices: list[int]) -> int:
+    # Binary search for the next non-whitespace character
+    if pos >= len(text):
+        return pos
+    # Find the first whitespace index >= pos
+    idx = bisect.bisect_left(whitespace_indices, pos)
+    if idx >= len(whitespace_indices):
+        return pos
+    # If the first whitespace is at pos, advance past it
+    if whitespace_indices[idx] == pos:
+        # Skip all consecutive whitespace characters
+        while idx < len(whitespace_indices) and whitespace_indices[idx] == pos:
+            pos += 1
+            idx += 1
+        return pos
+    # If the first whitespace is after pos, return pos
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use dict.update() to avoid rebuilding the dict each iteration
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    # Pre-compute whitespace indices once for this object
+    whitespace_indices = [i for i, c in enumerate(text) if c in ' \t\n\r']
+    pos = _skip_ws(text, pos, whitespace_indices)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos, whitespace_indices)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos, whitespace_indices)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos, whitespace_indices)
+        value, pos = _parse_value(text, pos)
+        # Use dict.update() to avoid rebuilding the dict each iteration
+        out[key] = value
+        pos = _skip_ws(text, pos, whitespace_indices)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use list.append() to avoid rebuilding the list each iteration
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    # Pre-compute whitespace indices once for this array
+    whitespace_indices = [i for i, c in enumerate(text) if c in ' \t\n\r']
+    pos = _skip_ws(text, pos, whitespace_indices)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos, whitespace_indices)
+        value, pos = _parse_value(text, pos)
+        # Use list.append() to avoid rebuilding the list each iteration
+        out.append(value)
+        pos = _skip_ws(text, pos, whitespace_indices)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

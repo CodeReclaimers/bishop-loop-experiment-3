@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `float(text[pos:])` directly is flawed because it bypasses the necessary parsing logic to advance the position pointer correctly, leading to incorrect parsing of subsequent tokens. It also ignores the need for precise number format validation and would fail on malformed numbers that the current regex-based approach properly rejects. Additionally, it doesn't account for the fact that the parser needs to handle both integers and floats efficiently, not just delegate everything to `float()`.
+
+STEELMAN: The steelman version would retain the regex-based number parsing for validation and position tracking, but optimize the conversion by using `int()` or `float()` directly on the matched substring, leveraging the already validated regex match to avoid redundant parsing overhead while preserving correct position advancement and error handling.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion using the already validated match
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

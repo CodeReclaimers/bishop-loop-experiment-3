@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `str.find` combined with heuristic switching between character-by-character and block skipping has several failure modes. First, `str.find` would need to search for all whitespace characters (' \t\n\r') separately or via regex, which doesn't leverage the existing performance optimizations of the current implementation. Second, the heuristic for switching approaches is poorly defined and could introduce overhead from unnecessary complexity. Third, the approach doesn't address the core inefficiency of repeatedly calling `_skip_ws` in tight loops, which is the main performance bottleneck.
+
+STEELMAN: A better approach would be to use a hybrid strategy where we first scan for a large block of non-whitespace characters using `str.find` to locate the next non-whitespace character, then fall back to the current character-by-character scanning only when needed. This minimizes the number of function calls while still handling arbitrary whitespace sequences efficiently. We should also optimize the current `_skip_ws` function to use `str.find` for large whitespace blocks, reducing the per-character overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use hybrid approach: find next non-whitespace character efficiently
+    # First, skip large blocks of whitespace using str.find
+    while pos < len(text):
+        # Look for the next non-whitespace character
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            # No more whitespace, return end of string
+            return len(text)
+        if text[next_non_ws] not in ' \t\n\r':
+            # Found a non-whitespace character
+            return next_non_ws
+        # Continue scanning from the found whitespace
+        pos = next_non_ws + 1
+    return pos
+>>>>>>> REPLACE
+```

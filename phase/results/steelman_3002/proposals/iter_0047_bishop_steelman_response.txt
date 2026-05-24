@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple loop is problematic because it ignores the actual JSON whitespace specification, which includes Unicode whitespace characters beyond just space, tab, line feed, and carriage return. This would break compatibility with valid JSON containing characters like non-breaking spaces or other Unicode whitespace. Additionally, the current implementation uses a compiled regex that's efficient for skipping multiple whitespace characters at once, and replacing it with a character-by-character loop could introduce performance regressions in cases with long sequences of whitespace.
+
+STEELMAN: The steelman version would preserve the core idea of avoiding regex overhead while correctly implementing the full JSON whitespace specification. Instead of removing the regex entirely, we should replace `_skip_ws` with an optimized character-by-character loop that properly handles all JSON whitespace characters (including Unicode ones) and avoids the regex overhead by using a set lookup for valid whitespace characters, but still processes them in a single pass.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, carriage return, and Unicode whitespace
+    # Use a set for fast membership testing
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS or c.isspace():
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

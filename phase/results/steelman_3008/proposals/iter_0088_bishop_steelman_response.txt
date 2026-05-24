@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` would fail because it only finds the first non-whitespace character, not the end of a whitespace run. It also doesn't handle the case where there are no more whitespace characters, which would cause `find` to return -1 and break the parser logic. Additionally, the `find` method isn't necessarily faster than a tight while loop for small whitespace runs, and could introduce overhead from string concatenation.
+
+STEELMAN: A better approach is to use `text.find` to locate the first non-whitespace character, but handle the edge case where no such character exists (i.e., `find` returns -1 or the end of the string). The logic should be: if `find` returns a valid index, advance to that position; otherwise, continue to the end of the string. This preserves the performance benefit of avoiding a Python loop while correctly handling all cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to jump to next non-whitespace character
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

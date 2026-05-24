@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to replace regex number parsing with built-in `float()`/`int()` is naive because it ignores the fact that the current implementation already uses a regex to find the number token's boundaries, then passes that substring to the built-in functions. Simply switching to built-in parsing without first extracting the token would cause incorrect parsing of numbers like `1.2e3` or `007` which are valid JSON but may not be parsed correctly by direct conversion. Additionally, it fails to consider that the regex approach already avoids the overhead of character-by-character scanning, so the benefit of using built-ins alone would be minimal.
+
+STEELMAN: The steelman version of this suggestion is to precompile the regex for number parsing (which is already done) and then use the extracted number string with Python's built-in `int()` and `float()` functions, ensuring that we maintain the correct token boundaries and avoid redundant parsing logic. This preserves the performance benefit of the regex for token detection while leveraging the optimized built-in conversion functions.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

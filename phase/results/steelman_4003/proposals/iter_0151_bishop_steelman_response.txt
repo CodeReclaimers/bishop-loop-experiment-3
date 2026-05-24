@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion fails because it assumes a predefined `_HEX_TO_INT` mapping that would need to contain all possible integer values, making it infeasibly large and memory-intensive. It also incorrectly assumes that integers can be represented as hexadecimal strings for direct lookup, ignoring that decimal integers like "123" cannot be directly mapped without parsing. Additionally, it ignores the fact that the current approach already uses efficient `int()` conversion and the proposed optimization doesn't actually improve performance.
+
+STEELMAN: A better approach would be to optimize the integer parsing by avoiding string conversion overhead when possible, using direct digit arithmetic or leveraging Python's built-in `int()` with appropriate base parameters, while keeping the existing regex-based number detection for correctness and performance. The core idea of avoiding unnecessary string-to-number conversions is sound, but should be implemented with realistic constraints.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    # The regex already ensures valid integer format, so int() is efficient
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple loop would eliminate the regex but introduces a naive approach that doesn't handle all JSON whitespace characters correctly—specifically, it misses the Unicode whitespace characters that are valid in JSON. Additionally, replacing frozenset membership checks with direct character comparisons in `_parse_number` could introduce performance regressions due to the lack of optimized hash-based lookups for digit validation.
+
+STEELMAN: The steelman version of the suggestion should retain the performance benefits of avoiding regex while correctly handling all JSON whitespace characters using a direct loop with proper Unicode whitespace support. For digit validation in `_parse_number`, we should use a more efficient lookup method like a precomputed boolean array or a direct character range check instead of frozenset lookups, which maintains performance without sacrificing correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, carriage return, and Unicode whitespace
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r' or c.isspace():
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

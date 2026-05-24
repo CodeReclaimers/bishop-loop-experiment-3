@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find` with a pre-compiled regex pattern is flawed because `text.find()` returns the index of the *first* match, not the index of the *first non-matching character*. Additionally, the regex pattern `[ \t\n\r]*` matches zero or more whitespace characters, so `find()` would return the position of the first non-whitespace character, which is exactly what we want, but it doesn't handle the case where the entire string is whitespace. Also, `find()` is not suitable for a regex with `*` quantifiers because it doesn't advance through the string in a way that aligns with the intended behavior.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the precompiled `_WS_PATTERN` to find the first non-whitespace character, and then return the position after the matched whitespace sequence. This preserves the intent of skipping all whitespace in one pass while correctly handling the edge cases and maintaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace in one pass
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

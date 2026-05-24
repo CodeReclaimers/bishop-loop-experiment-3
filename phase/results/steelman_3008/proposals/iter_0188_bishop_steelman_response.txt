@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `while pos < len(text) and text[pos] in _WS_CHARS` with `str.find` calls is problematic because it would require multiple separate `str.find` calls for each whitespace character, leading to inefficient forward scanning and potential performance degradation. It also fails to account for the fact that `str.find` returns the index of the first occurrence, but we need to skip all consecutive whitespace characters, not just the first one. Additionally, it doesn't handle the case where no whitespace is found, which would result in an error or incorrect behavior.
+
+STEELMAN: A better approach is to use `str.find` to locate the first occurrence of any whitespace character, then advance the position to that point, but only if such a character exists. This avoids the per-character set membership checks while still correctly skipping all consecutive whitespace. We can do this by finding the minimum index among all whitespace characters and advancing to that position, or by using `str.translate` and `str.lstrip` for a more efficient approach.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to jump to the first whitespace character
+    # and advance past all consecutive whitespace
+    while pos < len(text):
+        # Find the first occurrence of any whitespace character
+        next_ws = len(text)
+        for ws_char in _WS_CHARS:
+            idx = text.find(ws_char, pos)
+            if idx != -1 and idx < next_ws:
+                next_ws = idx
+        if next_ws == len(text):
+            break
+        pos = next_ws + 1
+    return pos
+>>>>>>> REPLACE
+```

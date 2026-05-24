@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `re.search(text, pos).end()` directly in `_skip_ws` is flawed because it doesn't handle the case where the regex matches zero whitespace characters (e.g., at the end of input or at a non-whitespace character), which would cause a `None` return and subsequent `AttributeError`. Additionally, it doesn't account for the fact that `re.search` is not guaranteed to be faster than a simple loop for small amounts of whitespace, and could introduce overhead.
+STEELMAN: The steelman version would use `re.match` or `re.search` with proper handling of `None` results, ensuring that when no match is found, the original character-by-character iteration is used as a fallback. This preserves the performance benefit for large whitespace runs while maintaining correctness and robustness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large runs, fallback to char-by-char
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to character-by-character skipping for small runs or edge cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

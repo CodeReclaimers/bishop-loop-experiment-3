@@ -1,0 +1,69 @@
+CRITIQUE: The suggestion to avoid regex for number parsing is sound in principle, but the proposed approach of "directly converting string representations using Python's built-in functions" is naive because it ignores the need for validation and precise parsing. The current implementation uses a regex to validate the number format before conversion, which prevents malformed inputs like `1.2.3` or `1e` from being passed to `int()` or `float()`. Simply removing the regex and calling `int()` or `float()` directly would lead to unhandled exceptions or incorrect behavior on invalid inputs.
+
+STEELMAN: The steelman approach is to retain the validation logic but optimize the number parsing by using a more efficient method than regex for matching valid number formats, such as manually scanning the string for valid number components while still ensuring that only well-formed numbers are passed to `int()` or `float()`. This preserves correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Parse number manually to avoid regex overhead while maintaining validation
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == '-':
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError(f"bad number at {start}")
+    # Parse integer part
+    if text[pos] == '0':
+        pos += 1
+    else:
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Check for exponent
+    if pos < len(text) and text[pos] in 'eE':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Validate that we've consumed at least one digit
+    if pos == start or (pos == start + 1 and text[start] == '-'):
+        raise JSONParseError(f"bad number at {start}")
+    s = text[start:pos]
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

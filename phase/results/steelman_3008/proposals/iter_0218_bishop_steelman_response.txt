@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is problematic because it would require remapping all whitespace characters to a sentinel value, which would fundamentally change the parsing logic. The current `_skip_ws` function returns the new position after skipping whitespace, but `translate` would need to be applied to the entire string or a slice, making it incompatible with the incremental parsing approach. Additionally, the performance benefit of `str.translate` is only realized when the entire string is processed in one go, not when skipping a prefix and continuing to parse.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (e.g., a space), then use `str.translate` to efficiently skip leading whitespace by finding the first non-sentinel character. This can be done by applying `translate` to a slice of the string starting at the current position and then using `str.find` to locate the first non-whitespace character, allowing for a fast C-level pass while maintaining the same API and behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip leading whitespace
+    if pos >= len(text):
+        return pos
+    # Precompute translation table mapping whitespace to a sentinel
+    # This allows fast C-level skip using translate + find
+    whitespace_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Apply translation to the remaining string and find first non-whitespace
+    translated = text[pos:].translate(whitespace_table)
+    new_pos = pos + len(translated) - len(translated.lstrip(" "))
+    return new_pos
+>>>>>>> REPLACE
+```

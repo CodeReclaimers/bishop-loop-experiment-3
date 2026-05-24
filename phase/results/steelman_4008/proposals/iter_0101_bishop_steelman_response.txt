@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace regex with built-in string methods for whitespace skipping is naive because it fails to address the actual performance bottleneck — the inefficient character-by-character scanning in `_skip_ws` which is called repeatedly. Simply switching to `str.lstrip()` or similar methods won't improve performance significantly since the core issue is the loop-based scanning, not regex usage. Additionally, the suggestion doesn't consider that the current implementation already avoids regex for `_skip_ws`, making this change redundant.
+
+STEELMAN: The strongest version of this suggestion would be to optimize `_skip_ws` by using `str.find()` or `str.index()` to locate the first non-whitespace character more efficiently, avoiding the explicit loop and reducing function call overhead. This preserves the intent of avoiding regex while improving the core performance bottleneck in whitespace handling.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() to efficiently skip whitespace
+    try:
+        return pos + text[pos:].index(next(c for c in text[pos:] if c not in ' \t\n\r'))
+    except ValueError:
+        return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.search` for whitespace skipping would fail because `_WS_RE` is compiled with `re.compile(r"[ \t\n\r]*")` which matches zero or more whitespace chars, but `search()` returns the first match starting at or after the position, not necessarily advancing past all consecutive whitespace. Also, the regex approach doesn't handle the case where `search()` returns `None` if no match is found, which would cause a crash.
+STEELMAN: The steelman version should use `re.match()` instead of `re.search()` and handle the case where no match is found by falling back to the original character-by-character approach, or better yet, use `re.search()` but ensure that it's used correctly to advance past all whitespace by leveraging `match.end()` when a match is found.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use a character type mapping set or dict instead of individual membership checks in `_skip_ws` is naive because it fails to consider that the current implementation already uses `_WS_CHARS` which is a set, and the loop is already O(1) per character. The suggestion doesn't address the real bottleneck, which is the repeated function call overhead and redundant whitespace skipping at every parsing level. It also doesn't account for the fact that the performance gain from such a change would be minimal compared to more impactful optimizations like eliminating redundant parsing steps or using compiled regexes.
+
+STEELMAN: The strongest version of this suggestion would be to precompute a lookup table or use a compiled regex for whitespace skipping, which would eliminate the per-character loop entirely and reduce function call overhead. This approach maintains the core idea of avoiding per-character membership checks while addressing the actual performance bottlenecks in the parsing pipeline.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a compiled regex for efficient whitespace skipping
+    import re
+    # Precompile the regex to avoid repeated compilation
+    _ws_pattern = re.compile(r'^\s*')
+    # Find the end of whitespace at current position
+    match = _ws_pattern.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

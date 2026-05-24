@@ -1,0 +1,53 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace removal is unworkable because it would eliminate all whitespace globally, which would corrupt the JSON structure by removing necessary separators between tokens like commas, colons, and brackets. Additionally, it doesn't account for the fact that whitespace handling is context-sensitive within the parser and must be preserved for valid parsing logic.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single placeholder character (like a space), then use `str.translate` to efficiently remove or normalize whitespace *before* parsing begins, while preserving the structure of the JSON string. This avoids repeated bounds checking and redundant parsing steps, while still maintaining syntactic correctness.
+
+```python
+<<<<<<< SEARCH
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+# Translation table to replace all whitespace with a single space for efficient pre-processing
+_WHITESPACE_TRANSLATION = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Preprocess the input to normalize whitespace
+    text = text.translate(_WHITESPACE_TRANSLATION)
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

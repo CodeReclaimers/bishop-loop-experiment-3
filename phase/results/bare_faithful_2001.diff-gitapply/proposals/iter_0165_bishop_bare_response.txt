@@ -1,0 +1,698 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,7 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+
+ This is the starting point for the optimization loop. It is correct against
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+ The optimization target is wall-clock time to parse the 200-case fixed
+ corpus. The candidate must keep `parse(text) -> Any` as the public entry
+ point and must raise `JSONParseError` for malformed inputs.
+ """
++import re
+ from __future__ import annotations
+
+ from typing import Any
+@@ -16,12 +17,15 @@
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+-    pos = _skip_ws(text, 0)
++    text = re.sub(r'\s+', '', text)
++    pos = 0
+     if pos >= len(text):
+         raise JSONParseError("empty input")
+     value, pos = _parse_value(text, pos)
+-    pos = _skip_ws(text, pos)
++    # pos = _skip_ws(text, pos)
+     if pos != len(text):
+         raise JSONParseError(f"trailing content at position {pos}")
+     return value
+@@ -50,13 +56,10 @@
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+-    pos = _skip_ws(text, pos)
+     if pos >= len(text):
+         raise JSONParseError("unexpected end of input")
+     c = text[pos]
+     if c == "{":
+         return _parse_object(text, pos)
+     if c == "[":
+         return _parse_array(text, pos)
+     if c == '"':
+         return _parse_string(text, pos)
+     if c == "t" or c == "f":
+         return _parse_bool(text, pos)
+     if c == "n":
+         return _parse_null(text, pos)
+     if c == "-" or c in _DIGIT_CHARS:
+         return _parse_number(text, pos)
+     raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+@@ -66,7 +69,6 @@
+ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+     if text[pos] != "{":
+         raise JSONParseError(f"expected '{{' at {pos}")
+     pos += 1
+-    pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "}":
+         return out, pos + 1
+     while True:
+@@ -76,7 +78,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -86,7 +87,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -96,7 +96,6 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+     pos += 1
+-    pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "]":
+         return out, pos + 1
+     while True:
+@@ -104,7 +100,6 @@
+         pos = _skip_ws(text, pos)
+         value, pos = _parse_value(text, pos)
+         # Use append instead of list concatenation
+         out.append(value)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+         c = text[pos]
+@@ -116,7 +112,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -124,7 +119,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -135,7 +130,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -147,7 +141,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -157,7 +150,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -167,7 +159,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -177,7 +168,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -187,7 +177,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -197,7 +186,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -207,7 +195,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -217,7 +204,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -227,7 +213,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -237,7 +222,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -247,7 +231,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -257,7 +240,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -267,7 +249,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -277,7 +258,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -287,7 +267,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -297,7 +276,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -307,7 +285,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -317,7 +294,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -327,7 +303,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -337,7 +312,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -347,7 +321,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -357,7 +330,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -367,7 +339,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -377,7 +348,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -387,7 +357,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -397,7 +366,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -407,7 +375,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -417,7 +384,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -427,7 +393,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -437,7 +402,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -447,7 +411,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -457,7 +420,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -467,7 +429,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -477,7 +438,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -487,7 +447,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -497,7 +456,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -507,7 +465,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -517,7 +474,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -527,7 +483,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -537,7 +492,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -547,7 +501,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -557,7 +510,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -567,7 +519,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -577,7 +528,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -587,7 +537,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -597,7 +546,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -607,7 +555,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -617,7 +564,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -627,7 +573,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -637,7 +582,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -647,7 +591,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -657,7 +600,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -667,7 +609,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -677,7 +618,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -687,7 +627,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -697,7 +636,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -707,7 +645,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -717,7 +654,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -727,7 +663,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -737,7 +672,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -747,7 +681,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -757,7 +690,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -767,7 +699,6 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -777,7 +708,

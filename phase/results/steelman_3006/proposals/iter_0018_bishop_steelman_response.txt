@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `text.find` on the entire substring `text[pos:]` is flawed because `find` will return the index of the first non-whitespace character, but it doesn't account for the fact that `find` will return the index within the full string, not the adjusted position. Additionally, if no whitespace is found (i.e., the first character is non-whitespace), `find` will return `pos`, leading to no advancement. The fallback loop would be redundant and potentially slower than the existing approach.
+STEELMAN: A better approach is to use `text.find` to locate the first non-whitespace character, but ensure that the result is properly adjusted relative to the starting position. If `find` returns `pos` (meaning no whitespace was found), we should skip the `find` and proceed with the existing loop. This preserves performance gains from `find` while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace, falling back to loop if needed
+    found_pos = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if found_pos == pos:
+        # No whitespace found, fall back to loop
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+    return found_pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `isspace()` instead of manual character iteration is naive because `isspace()` is not significantly faster than set membership checks for single characters, and the performance bottleneck in this parser is not whitespace skipping but rather the recursive descent and string building. Additionally, `isspace()` handles a much broader set of Unicode whitespace characters, which could introduce subtle behavioral differences from the current strict ASCII-only whitespace handling.
+
+STEELMAN: A better approach would be to optimize whitespace skipping by using a compiled regex pattern that matches one or more whitespace characters at once, rather than iterating character-by-character. This preserves the intent of reducing overhead while maintaining the same behavior and providing substantial performance gains.
+
+```python
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using a compiled regex
+import re
+
+# Precompile the whitespace regex for reuse
+_WS_PATTERN = re.compile(r'\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all consecutive whitespace at once
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

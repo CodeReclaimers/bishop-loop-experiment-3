@@ -1,0 +1,77 @@
+CRITIQUE: The suggestion fails to account for duplicate key handling in JSON objects, which should raise a `JSONParseError` according to the spec. Additionally, collecting all key-value pairs in a list before dict construction doesn't address the main bottleneck of repeated dictionary key lookups during parsing, and may introduce memory overhead from storing intermediate tuples. The approach also doesn't consider that the final dictionary construction via `dict(tuple)` still requires processing each key-value pair, so the performance gain from avoiding in-place updates is minimal.
+
+STEELMAN: The steelman version should collect key-value pairs in a list during parsing, but still perform duplicate key detection during the collection phase. After parsing, we can construct the final dictionary using `dict()` from the collected pairs, which avoids repeated dictionary updates while preserving correctness. This approach maintains the same error behavior and performance characteristics, but with a more efficient final dictionary creation step.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct in-place assignment avoids redundant dictionary creation.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    pairs = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return {}, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Collect pairs to avoid repeated dictionary updates
+        pairs.append((key, value))
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            # Check for duplicate keys and build dict in one go
+            seen_keys = set()
+            for k, _ in pairs:
+                if k in seen_keys:
+                    raise JSONParseError(f"duplicate key {k!r}")
+                seen_keys.add(k)
+            return dict(pairs), pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

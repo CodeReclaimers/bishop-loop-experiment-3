@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to replace `ord(c) < 0x20` with a membership test like `c in _CONTROL_CHARS` is problematic because it would incorrectly classify non-control characters like `\x7f` (DEL) as control characters, since the ASCII range 0-31 includes both control characters and DEL. Additionally, it fails to account for the fact that the current logic specifically targets unescaped control characters in JSON strings, which should be rejected regardless of their position in the ASCII table.
+
+STEELMAN: The steelman version of the suggestion is to precompute a frozenset of only the actual control characters that are explicitly forbidden in JSON strings (ASCII 0-31), and use a membership test against that set instead of `ord(c) < 0x20`. This preserves the intent of avoiding `ord()` while correctly handling only the forbidden control characters.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+=======
+        if c in _CONTROL_CHARS:
+            raise JSONParseError(f"unescaped control character at {pos}")
+>>>>>>> REPLACE
+```

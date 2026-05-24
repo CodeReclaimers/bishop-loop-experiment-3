@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use binary search on precomputed whitespace positions would require maintaining a list of all non-whitespace character indices, which is inefficient in terms of memory and doesn't scale well for large inputs. It also doesn't account for the fact that whitespace skipping is typically a small fraction of parsing time, making such an optimization likely to introduce overhead without benefit. Additionally, the binary search approach would not be faster than the current O(n) linear scan for typical JSON structures where whitespace is sparse.
+
+STEELMAN: A better approach would be to precompute a list of all whitespace character positions, then use a more efficient skip function that advances by large chunks when possible, or even better, use a hybrid strategy where we skip over long sequences of whitespace using a fast path (like a regex match or bulk skip) rather than character-by-character scanning.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path: skip long sequences of whitespace using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to character-by-character for small skips
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

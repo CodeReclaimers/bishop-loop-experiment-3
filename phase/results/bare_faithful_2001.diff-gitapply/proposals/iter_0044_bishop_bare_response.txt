@@ -1,0 +1,30 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,7 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+ 
+ This is the starting point for the optimization loop. It is correct against
++`json.loads` on the full corpus but is intentionally written in a way that
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+ 
+@@ -12,11 +13,16 @@
+ 
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+-    pos = _skip_ws(text, 0)
+-    if pos >= len(text):
++    # Pre-process: remove all whitespace once at the start
++    text = text.translate(str.maketrans('', '', ''.join(_WS_CHARS)))
++    pos = 0
++    if pos >= len(text):
+         raise JSONParseError("empty input")
+     value, pos = _parse_value(text, pos)
+-    pos = _skip_ws(text, pos)
+-    if pos != len(text):
++    if pos != len(text):
+         raise JSONParseError(f"trailing content at position {pos}")
+     return value
+```

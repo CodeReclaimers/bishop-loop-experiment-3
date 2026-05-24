@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to replace regex with direct character scanning for whitespace is already partially implemented in the existing code, as `_skip_ws` uses a direct loop instead of regex. The suggestion fails to address the real performance bottlenecks like redundant whitespace checks at every parsing level, inefficient string building, and lack of bulk parsing optimizations. It also doesn't consider that the current implementation already avoids regex for whitespace, making the suggestion redundant.
+
+STEELMAN: The steelman version of this suggestion would focus on eliminating redundant whitespace checks by reducing the number of times `_skip_ws` is called during parsing. Instead of calling `_skip_ws` at every parsing boundary, we can batch whitespace skipping where possible, reducing function call overhead and improving cache locality, especially in deeply nested structures.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

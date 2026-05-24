@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace regex number parsing with direct `int()`/`float()` calls is naive because it ignores the need to validate that the parsed number conforms to JSON's strict number format (e.g., no leading zeros, valid exponent syntax). Using `int()`/`float()` directly would accept invalid JSON numbers like `"0123"` or `"1e"` that the regex pattern prevents. Additionally, it would require manual parsing of the number string to ensure compliance with JSON grammar, defeating the purpose of simplification.
+
+STEELMAN: The steelman approach is to leverage Python's built-in `int()` and `float()` functions for number conversion, but still use the regex to validate and extract the number string first, ensuring it matches JSON's strict format. This preserves the validation logic while benefiting from the optimized built-in parsers for actual conversion, avoiding regex overhead and maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

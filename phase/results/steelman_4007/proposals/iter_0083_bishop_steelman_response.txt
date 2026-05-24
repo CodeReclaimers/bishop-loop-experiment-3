@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to "preallocate a list of whitespace characters" is fundamentally flawed because lists don't provide O(1) lookup like sets do, and the performance benefit of avoiding repeated `in` operations on a set is already achieved by the existing `_WS_CHARS = {" ", "\t", "\n", "\r"}` set. Additionally, the suggestion doesn't address the actual bottleneck in `_skip_ws`, which is the `try/except` block around the loop.
+STEELMAN: The strongest version of this idea is to eliminate the `try/except` block in `_skip_ws` by using a bounds check instead, and to ensure that `_WS_CHARS` is a frozenset (which it already is) to maintain O(1) membership testing. This avoids exception overhead and makes the loop more predictable and faster.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

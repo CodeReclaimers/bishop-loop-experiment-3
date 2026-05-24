@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use regex for whitespace skipping is problematic because regex compilation overhead and backtracking can slow down parsing, especially for simple cases like skipping spaces. It also doesn't address the core inefficiency of character-by-character scanning in number parsing or the repeated string concatenation in object/array building. Additionally, regex-based solutions may not be faster than optimized loop-based approaches for small to medium inputs.
+STEELMAN: A better approach would be to use a hybrid method where we precompile a regex for whitespace skipping but only use it when there's a long sequence of whitespace, falling back to direct character access for short skips or when regex isn't beneficial. This preserves the performance gains while maintaining correctness and avoiding regex pitfalls.
+
+```python
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using a hybrid approach
+import re
+
+# Precompile a regex for skipping whitespace, but only use it for longer sequences
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # For short sequences, use direct character access
+    if pos + 10 < len(text):
+        # Check if we have a long sequence of whitespace to skip
+        match = _WS_REGEX.match(text[pos:])
+        if match:
+            return pos + len(match.group())
+    # Fall back to direct character access for shorter sequences
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

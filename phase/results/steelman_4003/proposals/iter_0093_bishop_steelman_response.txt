@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to precompute a dictionary mapping characters to ASCII values doesn't actually improve performance for whitespace detection, since the current implementation already uses a frozenset for O(1) lookup. A dictionary lookup would add overhead from hash computation and memory usage compared to the existing frozenset. Additionally, the suggestion doesn't address the core inefficiency of character-by-character scanning in `_skip_ws` which could benefit more from bulk operations or regex-based skipping.
+
+STEELMAN: The steelman version would optimize the existing whitespace skipping by using a precomputed dictionary mapping ASCII values to boolean flags indicating whitespace, allowing for faster character classification via direct array indexing instead of set membership testing. This maintains the performance goal of reducing comparisons while leveraging the existing approach's structure.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precompute ASCII-based whitespace lookup for faster character classification
+_WS_ASCII_LOOKUP = [False] * 128
+for char in _WS_CHARS:
+    _WS_ASCII_LOOKUP[ord(char)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct ASCII-based lookup
+    while pos < len(text) and _WS_ASCII_LOOKUP[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

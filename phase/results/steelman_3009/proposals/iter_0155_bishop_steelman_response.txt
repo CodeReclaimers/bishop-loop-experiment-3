@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it would skip over *all* whitespace characters at once, potentially jumping past the end of the input or misaligning the parser's position. It doesn't account for the fact that the parser needs to consume each whitespace character individually to maintain correct positioning and error reporting. Additionally, it would break the existing logic that relies on per-character iteration for precise control flow.
+
+STEELMAN: The steelman version of the suggestion is to replace the Python loop in `_skip_ws` with a C-level scan using `text.find` but to ensure that the result is used correctly — specifically, we find the first non-whitespace character and advance the position to that point, preserving the original behavior while gaining performance via the optimized C-level search.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-level find to skip whitespace efficiently
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

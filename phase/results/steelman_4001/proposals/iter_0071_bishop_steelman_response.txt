@@ -1,0 +1,47 @@
+CRITIQUE: The suggestion to use `float()` or `int()` directly is problematic because it skips the validation of number format entirely — malformed numbers like `1.2.3` or `1e` would be silently accepted by built-in converters, violating the parser's error semantics. Additionally, it ignores the need to advance the position correctly through the input string, which is essential for proper parsing state tracking. It also fails to consider that the current approach uses regex to precisely identify number boundaries, which is necessary to avoid mis-parsing adjacent tokens.
+
+STEELMAN: The steelman version would use built-in `int()` and `float()` conversion functions, but still rely on the regex to identify the complete number token first, then advance the parser position correctly and validate that the full token matches the expected number format before conversion. This preserves correctness while leveraging optimized built-ins.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        try:
+            return float(s), pos
+        except ValueError:
+            raise JSONParseError(f"bad number at {pos - len(s)}")
+    try:
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos - len(s)}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.finditer(_WS_RE, text[pos:])` and extract the start position is flawed because `_WS_RE` is compiled to match zero or more whitespace characters (`\s*`), which would match an empty string at every position, not skip all whitespace. This would not advance `pos` correctly and would likely cause infinite loops or incorrect parsing. Additionally, the regex approach doesn't align with the existing O(1) set-based lookup optimization already used in `_skip_ws`.
+
+STEELMAN: A better approach is to replace the manual loop in `_skip_ws` with a regex that skips all leading whitespace at once, using `re.match(_WS_RE, text[pos:])` to find the first non-whitespace character, and then advancing `pos` by the match's end position. This maintains the performance benefit of regex while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

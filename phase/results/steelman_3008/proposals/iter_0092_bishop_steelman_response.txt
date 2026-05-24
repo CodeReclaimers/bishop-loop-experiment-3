@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use `str.find` for skipping whitespace is problematic because `str.find` only finds the first occurrence of any character from a set, not all consecutive whitespace characters. This would break on sequences of whitespace where the first non-whitespace character is not immediately adjacent to the first whitespace character. Additionally, `str.find` would not handle the case where the string ends with whitespace correctly without additional checks.
+
+STEELMAN: The steelman version would use `str.translate` and `str.lstrip` or a hybrid approach that identifies the first non-whitespace character using `str.find` with a translation table, but still processes the whitespace efficiently by avoiding per-character loops. This preserves the performance goal while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find with a translation table to skip all whitespace at once
+    # Create a translation table that maps whitespace to a sentinel character
+    # that's not in _WS_CHARS, then find the first non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Build translation table to replace whitespace with a unique sentinel
+    trans_table = str.maketrans({ch: '\x00' for ch in _WS_CHARS})
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    first_non_ws = translated.find('\x00')
+    if first_non_ws == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

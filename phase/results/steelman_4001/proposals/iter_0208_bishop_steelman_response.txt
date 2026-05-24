@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a regex for whitespace skipping is problematic because it would only match at the very beginning of the input, not throughout the parsing process where whitespace can appear in many places. Additionally, regex-based skipping would be less efficient than the current loop-based approach for small amounts of whitespace, and could introduce performance regressions due to regex overhead. The approach also doesn't address the core issue of redundant whitespace handling at every recursive level.
+
+STEELMAN: A better approach would be to use a single regex to skip all leading whitespace at the start of parsing, and then fall back to the existing loop-based method for internal whitespace skipping, since the current loop is already optimized for small amounts of whitespace and avoids regex overhead in the middle of parsing.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Use regex to skip leading whitespace
+    pos = _skip_ws_start(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is flawed because `str.find` only searches for a single character, not a set of characters. It would require multiple calls or a custom implementation to replicate the behavior of skipping all whitespace characters. Additionally, it doesn't account for the fact that `text.find` returns -1 when the character isn't found, which would need special handling to maintain the same semantics as the current loop.
+STEELMAN: A better approach is to use `str.translate` with a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.find` to locate the first non-sentinel character. This preserves the performance benefit of native string operations while correctly handling the set membership logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for fast skipping of whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to null character
+    trans_table = str.maketrans("".join(_WS_CHARS), "\0" * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-null character
+    first_non_ws = translated.find("\0")
+    if first_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `_WS_PATTERN.span()` assumes that the regex will always find a match starting from the given position, but `re.compile(r'[ \t\n\r]*')` with zero-or-more quantifier will match zero characters even at the start, potentially returning the same position and causing an infinite loop. Additionally, the regex approach introduces overhead from regex compilation and matching that may not be faster than the existing O(1) set membership checks in the manual loop.
+STEELMAN: A better approach is to use `re.match(_WS_PATTERN, text, pos)` to find the next non-whitespace character, which correctly advances the position and avoids the pitfalls of the naive span-based approach. This preserves the intent of reducing per-character checks while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, avoiding per-character checks
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

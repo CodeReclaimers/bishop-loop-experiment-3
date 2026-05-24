@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex-based approach is problematic because it would still require the regex engine to process every character in the input stream, negating the benefit of skipping whitespace efficiently. Additionally, it fails to consider that the current implementation already uses a set-based lookup for whitespace characters, which is already O(1) per character, making a regex approach less efficient than the existing solution.
+
+STEELMAN: A better approach would be to use a single regex that matches one or more whitespace characters at once, avoiding repeated calls to `_skip_ws` and reducing function call overhead. This regex should be precompiled and reused, and the match should be used to advance the position directly, rather than iterating through characters one by one.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile the regex for skipping whitespace to avoid repeated compilation cost
+_SKIP_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    match = _SKIP_WS_RE.match(text, pos)
+    if not match:
+        return pos  # Should not happen in valid inputs, but defensive
+    return match.end()
+>>>>>>> REPLACE
+```

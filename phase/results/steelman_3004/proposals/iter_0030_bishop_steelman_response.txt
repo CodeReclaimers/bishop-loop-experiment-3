@@ -1,0 +1,106 @@
+CRITIQUE: The suggestion to use binary search on pre-computed non-whitespace indices would not work because it assumes a static input that can be preprocessed, but the parser processes inputs incrementally. Additionally, the O(log n) complexity is not necessarily better than the current O(m) where m is the number of whitespace characters — especially when m is small or when the input is mostly whitespace. The approach also introduces significant overhead from maintaining and searching precomputed index lists.
+STEELMAN: A better approach would be to precompute a list of all whitespace character positions and then use binary search to quickly locate the next non-whitespace character, but only when skipping large blocks of whitespace. This avoids the overhead of character-by-character checks while maintaining correctness and performance in typical cases.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute whitespace positions for binary search optimization
+    if not hasattr(_skip_ws, 'whitespace_positions'):
+        _skip_ws.whitespace_positions = [i for i, c in enumerate(text) if c in _WS_CHARS]
+    
+    # Binary search for the next non-whitespace character
+    left, right = 0, len(_skip_ws.whitespace_positions) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if _skip_ws.whitespace_positions[mid] < pos:
+            left = mid + 1
+        else:
+            right = mid - 1
+    # The next non-whitespace character is at position _skip_ws.whitespace_positions[left] or beyond
+    if left < len(_skip_ws.whitespace_positions) and _skip_ws.whitespace_positions[left] == pos:
+        # Skip all consecutive whitespace characters starting at pos
+        while left < len(_skip_ws.whitespace_positions) and _skip_ws.whitespace_positions[left] == pos:
+            pos += 1
+            left += 1
+    elif left < len(_skip_ws.whitespace_positions):
+        # Skip to the next non-whitespace character
+        pos = _skip_ws.whitespace_positions[left]
+    else:
+        # No more whitespace, skip to end
+        pass
+    return pos
+>>>>>>> REPLACE
+```

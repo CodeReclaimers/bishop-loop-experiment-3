@@ -1,0 +1,46 @@
+CRITIQUE: The suggestion to replace the `if pos >= len(text)` check with a loop that breaks on non-whitespace is flawed because it doesn't address the core issue of handling empty inputs properly. It would still need to check `pos < len(text)` before accessing `text[pos]`, and the loop structure would be less efficient than the existing direct check. Additionally, this change doesn't actually eliminate redundant checks since the function still needs to validate that input is not empty before proceeding.
+
+STEELMAN: A better approach is to simplify the `_parse_value` function by directly checking if the position is valid before accessing the character, while also ensuring that we handle the case where the input is entirely whitespace by skipping all whitespace and then checking if we've reached the end. This preserves the performance benefits of avoiding redundant checks while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Fast path for common case: avoid function call overhead
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Fast path for common case: avoid function call overhead
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

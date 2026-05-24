@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace skipping loop with a regex span lookup is flawed because `_WS_PATTERN.span(pos)` returns the start and end of the *matching* whitespace sequence, not the position of the first non-whitespace character. Additionally, using regex for this simple task introduces overhead from regex engine setup and is not actually O(1) in practice due to the regex engine's complexity. This approach would also break the existing parsing flow that relies on incremental position advancement.
+
+STEELMAN: A better approach would be to use the regex to efficiently skip whitespace by finding the first non-whitespace character position, but still maintain the existing function signature and behavior. The core idea is to leverage the compiled regex for fast skipping, but handle the result properly by returning the correct position after the whitespace. This preserves correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace in one go
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

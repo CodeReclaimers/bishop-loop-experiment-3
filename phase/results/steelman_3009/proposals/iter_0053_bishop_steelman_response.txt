@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion fails to account for the fact that `str.translate` with a mapping to a sentinel character like `'\0'` would corrupt the input text by replacing whitespace with null bytes, which would break subsequent parsing operations. Additionally, using `translate` followed by `find` doesn't correctly handle the case where the input starts with whitespace, because the translation table would need to be applied to the entire string, not just the substring starting at `pos`. The approach also doesn't consider that the current `_skip_ws` function is designed to return the next non-whitespace position, not a transformed string.
+
+STEELMAN: A better approach would be to precompute a single translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `text[pos:].translate(table).find('\0')` to locate the next non-whitespace character. However, since we only want to find the position and not modify the text, we must use a different strategy: compute the next non-whitespace position by applying the translation to a slice and then using `find` to locate the first non-sentinel character. This preserves the original string and only changes the logic of `_skip_ws` to be more efficient.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# Precomputed translation table for whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\0\0\0\0")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `text.find` is flawed because it would require scanning forward character-by-character to find the first non-whitespace, which defeats the purpose of eliminating Python iteration. Additionally, `find` is not guaranteed to be faster than the current loop for small amounts of whitespace, and it doesn't handle the case where there's no whitespace efficiently. The approach also doesn't account for the fact that `_skip_ws` is called frequently and may be invoked on already-processed text with no leading whitespace.
+
+STEELMAN: A better approach would be to use `str.lstrip` or `str.find` with a precomputed set of whitespace characters to locate the first non-whitespace character in one go, while still maintaining the same interface and behavior. This preserves the intent of reducing Python-level loop overhead without introducing new failure modes.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace in one step
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

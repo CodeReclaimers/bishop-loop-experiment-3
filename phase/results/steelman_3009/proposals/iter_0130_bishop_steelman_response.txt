@@ -1,0 +1,19 @@
+CRITIQUE: The suggested implementation `text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)` is inefficient because it creates a generator expression that iterates through characters one-by-one, defeating the purpose of optimization. It also fails to handle the case where the entire remainder of the string is whitespace, as `next(..., None)` would return `None` and `text.find(None, pos)` would raise a TypeError. Additionally, the approach doesn't leverage the precomputed `_WS_CHARS` set for fast membership testing.
+
+STEELMAN: A better approach is to use `text.find` with a custom function that skips whitespace by scanning forward until a non-whitespace character is found, using the existing `_WS_CHARS` set for O(1) membership testing. This can be implemented by scanning from the current position until a character not in `_WS_CHARS` is found, then using `text.find` with a start position that skips all whitespace in one go.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

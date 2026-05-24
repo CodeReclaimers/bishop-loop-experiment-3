@@ -1,0 +1,39 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is problematic because `str.find` scans linearly and doesn't handle the case where whitespace is interleaved with non-whitespace efficiently. It also fails to account for the fact that whitespace skipping is a hot path and needs to be fast even for small inputs. Additionally, it doesn't address the overhead of repeatedly calling `str.find` on short segments where character-by-character scanning is already optimal.
+
+STEELMAN: The steelman version uses a hybrid approach where `str.find` is used to skip large contiguous whitespace segments, but falls back to a character-by-character loop for small or edge cases. This balances performance for bulk whitespace while maintaining efficiency for short skips and avoiding the overhead of `str.find` on tiny inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use hybrid approach: bulk skip with str.find, fallback to char-by-char
+    # for small or edge cases
+    start = pos
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            break
+        pos += 1
+    # If we skipped a lot, use str.find for bulk skip
+    if pos - start > 10:  # Threshold for bulk skip
+        pos = text.find(' ', pos)
+        if pos == -1:
+            return len(text)
+        # Skip any additional whitespace
+        while pos < len(text) and text[pos] in ' \t\n\r':
+            pos += 1
+        return pos
+    # Otherwise, continue with character-by-character scanning
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

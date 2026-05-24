@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace skipping with a single regex search fails because `re.search()` only finds the next occurrence of whitespace, not all consecutive whitespace. This would break the parser's ability to skip over multiple whitespace characters in one go, and the proposed `next(pos, WS_PATTERN.search(text, pos).start())` syntax is malformed — `next()` doesn't take a second argument like that. Additionally, it would not maintain the same performance characteristics as the current O(1) membership checks.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` to find the first non-whitespace character, and advance the position to that point. This preserves the intent of bulk skipping while maintaining correctness. However, since `re.search()` returns a match object or None, we must ensure the match starts at the current position to avoid skipping past valid content.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace in one go
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

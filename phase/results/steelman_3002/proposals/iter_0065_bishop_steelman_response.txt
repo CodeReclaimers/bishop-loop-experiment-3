@@ -1,0 +1,23 @@
+CRITIQUE: The suggested regex approach is fundamentally flawed because it would require processing the entire remaining string to find the next non-whitespace character, which defeats the purpose of efficient incremental parsing. It also doesn't handle the case where the regex match fails or produces incorrect results, and it would break the existing parser's ability to track position correctly during streaming parsing. The approach of using `sub('', text).find('\S', 0)` is not only inefficient but also incorrect for incremental parsing.
+STEELMAN: A better approach would be to use the precompiled regex `_WS_RE` to match zero or more whitespace characters starting at the current position, then advance the position by the length of the matched whitespace. This preserves the incremental nature of the parser while leveraging the optimized regex for fast whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

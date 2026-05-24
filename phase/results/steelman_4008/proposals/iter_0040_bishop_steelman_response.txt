@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use a streaming approach by processing input character-by-character is unworkable because the current parser uses extensive look-ahead and random access into the text (e.g., checking multiple characters for booleans, numbers, and string escapes), which cannot be supported by a simple character iterator. Additionally, the recursive descent parsing structure requires backtracking and re-reading of tokens, which contradicts the streaming paradigm. The suggestion also fails to address that the main performance bottleneck is not memory usage but CPU-intensive operations like character-by-character scanning and repeated string building.
+
+STEELMAN: A better approach would be to refactor the parser to use a character iterator while preserving the recursive descent structure, but optimize the inner loops and string operations to reduce redundant checks and improve cache locality. The key is to make minimal changes to the existing architecture while improving performance in the tight loops, such as using `str.find()` or precompiled regexes for whitespace skipping and optimizing number parsing to avoid character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

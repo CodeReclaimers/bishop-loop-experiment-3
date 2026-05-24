@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use a precomputed `next_non_ws` array is problematic because it would require preprocessing the entire input string upfront, which defeats the purpose of a streaming parser. It also doesn't address the core issue that whitespace skipping is only needed at specific points, not continuously. Additionally, the array would need to be computed for every parse call, negating any performance gains.
+
+STEELMAN: A better approach is to compute a "next non-whitespace" lookup table once per parse operation, but only for the current parsing context. This can be done by precomputing the next non-whitespace position for each index in the input string, then using this lookup during parsing to skip whitespace in O(1) time, while still maintaining the streaming nature of the parser.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute next_non_ws lookup table
+    next_non_ws = _compute_next_non_ws(text)
+    pos = next_non_ws[0]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, next_non_ws)
+    pos = next_non_ws[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+>>>>>>> REPLACE
+```

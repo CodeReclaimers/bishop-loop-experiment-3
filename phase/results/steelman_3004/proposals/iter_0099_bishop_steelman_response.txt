@@ -1,0 +1,67 @@
+CRITIQUE: The suggestion to use a precomputed `ws_table` array assumes that the entire input can be preprocessed once to build the table, but this approach would require O(n²) time and space in the worst case, since each position would need to store a pointer to the next non-whitespace character. Additionally, it doesn't account for the fact that whitespace skipping is often done in a streaming fashion, not as a batch preprocessing step. This would break the incremental parsing nature of the current implementation.
+
+STEELMAN: A better approach would be to precompute a lookup table for whitespace characters and use it to quickly identify the next non-whitespace position, but do so in a way that still supports streaming parsing. This could be achieved by computing a `next_non_ws` array where each entry points to the next non-whitespace character index, avoiding the need for repeated character-by-character checks while maintaining the incremental parsing model.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute next non-whitespace index table for O(1) skip
+def _build_ws_table(text: str) -> list[int]:
+    n = len(text)
+    ws_table = [0] * n
+    next_non_ws = n
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            ws_table[i] = next_non_ws
+        else:
+            ws_table[i] = i
+            next_non_ws = i
+    return ws_table
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

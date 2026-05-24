@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.translate` and regex to skip whitespace is problematic because `str.translate` cannot efficiently locate the first non-whitespace character without re-scanning the string, and regex-based approaches would add overhead from pattern compilation and matching. Additionally, the approach doesn't account for the fact that whitespace skipping is often a hot loop and should avoid unnecessary allocations or complex control flow.
+STEELMAN: A better approach is to use a compiled regex to find the first non-whitespace character by matching a pattern like `r'[ \t\n\r]*'` and advancing the position directly, which avoids repeated bounds checking and character lookups while still leveraging the performance benefits of regex for large whitespace runs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

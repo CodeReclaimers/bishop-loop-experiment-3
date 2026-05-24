@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the regex with an IndexError-raising loop is flawed because it introduces a performance regression: catching IndexError exceptions is significantly slower than a simple bounds check, especially in tight loops. Additionally, the proposed approach would break the existing `_skip_ws` function's contract and could cause subtle bugs by changing the behavior when `pos` is exactly at the end of the string. It also fails to consider that the current regex-based approach already avoids repeated bounds checking through its compiled pattern and efficient matching.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by replacing the regex with a direct loop that uses a precomputed set for membership checking, avoiding repeated bounds checks by ensuring the loop terminates before `pos` reaches the string length, while preserving the existing function signature and behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by ensuring pos < len(text) before accessing text[pos]
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

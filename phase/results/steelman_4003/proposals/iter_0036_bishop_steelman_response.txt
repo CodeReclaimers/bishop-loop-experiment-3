@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to use direct `int()` or `float()` conversion based on pattern matching is flawed because it doesn't account for the fact that `int("1.0")` raises a `ValueError`, and `float("1.0")` is not necessarily faster than `float("1")` due to Python's internal handling. Additionally, the logic doesn't consider that a number string like `"100"` could be parsed as both int and float, but converting to int first and then to float when needed is more complex than simply using the appropriate conversion function.
+
+STEELMAN: The steelman is to use `int()` or `float()` directly based on whether the matched number string contains a decimal point or exponent, but ensure that the conversion is only attempted after confirming the string is valid for that type. This avoids unnecessary overhead by using the native conversion functions rather than parsing intermediate representations, and ensures correctness by leveraging Python's built-in type safety.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

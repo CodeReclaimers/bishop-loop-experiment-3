@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a straightforward while-loop would eliminate the regex compilation but fails to address the core performance issue: the repeated character membership checks using `c in ' \t\n\r'` are inefficient and create unnecessary string allocations. Additionally, the current implementation already avoids the regex `find` call by directly iterating, so removing the regex entirely doesn't provide a meaningful performance gain.
+
+STEELMAN: The steelman version would replace the membership check with a direct lookup in a precomputed frozenset of whitespace characters, which provides O(1) lookup time instead of O(n) string membership testing, while still maintaining the simple while-loop structure for iteration.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

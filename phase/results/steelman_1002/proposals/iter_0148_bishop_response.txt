@@ -1,0 +1,20 @@
+In `json_parser.py`, we can optimize the whitespace skipping by utilizing Python's built-in `str.find` method for large skips, which is generally faster than using a regular expression. This allows us to skip large chunks of whitespace at once without having to repeatedly scan each character. The optimized function would look something like this:
+
+```python
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path: skip large chunks of whitespace using str.find
+    if pos + 10 < len(text):  # Only do fast path for reasonably long skips
+        try:
+            # Find the next non-whitespace character
+            next_non_ws = text.index(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+            return pos + next_non_ws
+        except ValueError:
+            # No non-whitespace found, skip to end
+            return len(text)
+    # Fall back to the original loop for small skips or when fast path fails
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+```
+
+This change makes the function faster by reducing the number of times it needs to scan through the string, especially when dealing with large JSON documents.

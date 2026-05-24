@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.search(r"[^\s]", text, pos).start()` would be unworkable because regex matching is significantly slower than simple character iteration for this use case, especially when called repeatedly in a tight parsing loop. It also introduces complexity around handling the case where no non-whitespace character is found, which would require additional error handling. Additionally, the regex engine's overhead would likely negate any benefits from avoiding the per-character loop in `_skip_ws`.
+
+STEELMAN: A better approach would be to use a hybrid strategy: for long sequences of whitespace, use a fast bulk skip method like `text.find_first_not_of_whitespace(pos)` (or a similar optimized lookup), but fall back to the existing character-by-character loop for short sequences or when performance profiling shows it's beneficial. This preserves the intent of avoiding per-character iteration while maintaining performance and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

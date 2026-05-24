@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to "skip whitespace directly in the loop" is unworkable because it doesn't specify how to avoid the overhead of repeated function calls while maintaining correctness. The current `_skip_ws` function is already implemented efficiently using a while loop, and simply moving that logic inline would not provide any benefit without rethinking the approach entirely. Additionally, the suggestion fails to address that the real performance bottleneck lies in string concatenation and redundant parsing steps, not just whitespace skipping.
+
+STEELMAN: The steelman version of this idea is to optimize whitespace skipping by inlining the loop directly into the parsing functions where it's called, avoiding function call overhead while still using efficient character-by-character iteration. This approach preserves the performance gains from avoiding function call overhead, but keeps the logic clean and reusable by ensuring the inlined loop is properly integrated into the parsing context.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

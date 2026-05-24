@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple `while` loop using `_WS_CHARS` is problematic because it fails to account for the performance characteristics of the current implementation, which uses `re.compile(r'[ \t\n\r]*')` and `re.match` for skipping whitespace. The proposed change would not leverage the efficiency of regex matching for large contiguous whitespace sections, and the simple loop would be slower than the regex approach for long runs of whitespace. Additionally, it doesn't address the actual overhead being avoided in the original implementation.
+
+STEELMAN: A better version of the suggestion would be to optimize `_skip_ws` by using a hybrid approach: scanning for whitespace with a simple loop for short runs, but switching to a more efficient method like `str.find` or `str.translate` for large contiguous whitespace blocks, while still maintaining correctness and avoiding regex compilation overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace efficiently using a loop with precomputed set
+    # for small runs, but avoid regex overhead
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work because it fundamentally changes the semantics of `_skip_ws` — the function is supposed to return the new position after skipping whitespace, but `translate` would replace characters rather than advance the index. Additionally, using a sentinel character that's not in the input string would require a separate step to find the first non-sentinel character, defeating the purpose of eliminating the loop.
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.translate` to replace all whitespace with that sentinel, and finally find the first non-sentinel character using `str.find`. This preserves the original behavior while leveraging C-level optimizations for the scanning step.
+
+```python
+<<<<<<< SEARCH
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+=======
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+# Precompute translation table for whitespace characters
+_WS_TRANSLATE_TABLE = str.maketrans({ch: '\0' for ch in _WS_CHARS})
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with precomputed table for performance
+    if pos >= len(text):
+        return pos
+    # Replace all whitespace with sentinel '\0' and find first non-sentinel
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    new_pos = pos + len(translated) - len(translated.lstrip('\0'))
+    return new_pos
+>>>>>>> REPLACE
+```

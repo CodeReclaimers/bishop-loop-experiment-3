@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to replace the while loop with a regex match would break the existing API since `_skip_ws` is called from multiple places and expects to return a position, not a match object. Additionally, the regex approach would introduce overhead from regex compilation and matching that could be slower than the current O(1) set membership checks in tight loops. The suggestion also fails to consider that the current implementation is already optimized for the common case of minimal whitespace.
+STEELMAN: The steelman is to precompile a regex for whitespace skipping and modify `_skip_ws` to use it, but ensure it still returns the correct integer position. This preserves the core idea of leveraging C-level regex performance while maintaining the existing function signature and behavior.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a precompiled regex for fast whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

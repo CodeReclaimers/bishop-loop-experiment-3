@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion fails to account for the fact that `str.translate` with a mapping that replaces whitespace with a sentinel character would require creating a new string, which negates the performance benefit of avoiding the Python loop. Additionally, it doesn't handle the case where the input is entirely whitespace, as `find` would return 0 and not advance the position correctly. Finally, the approach would break down if the sentinel character appears in the original input, causing incorrect behavior.
+
+STEELMAN: A better approach would be to use `str.translate` with a mapping that replaces all whitespace characters with a single sentinel character, then use `str.find` to locate the first non-sentinel character. This avoids the Python loop in `_skip_ws` and leverages optimized C-level string operations. However, the sentinel must be chosen carefully to avoid conflicts with the input text, and the implementation must handle edge cases like empty strings or strings entirely composed of whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Use str.translate with a sentinel to avoid Python loop in _skip_ws
+_SENTINEL = "\x00"
+_WS_TRANSLATION = str.maketrans(" \t\n\r", _SENTINEL * 4)
+
+def _skip_ws(text: str, pos: int) -> int:
+    if pos >= len(text):
+        return pos
+    # Translate whitespace to sentinel and find first non-sentinel
+    translated = text[pos:].translate(_WS_TRANSLATION)
+    first_non_sentinel = translated.find(_SENTINEL)
+    if first_non_sentinel == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + first_non_sentinel
+>>>>>>> REPLACE
+```

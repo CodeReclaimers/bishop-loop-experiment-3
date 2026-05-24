@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `str.find` for lookahead is problematic because it doesn't actually reduce the overhead of whitespace scanning in the intended way—`str.find` itself is not faster than character-by-character scanning for small thresholds, and the logic of checking a threshold then falling back to character scanning is overly complex. It also fails to address the fact that the current `_skip_ws` function is already quite efficient for small inputs, and the performance bottleneck is more likely in the recursive descent and string building than in whitespace skipping.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a hybrid strategy that checks for non-whitespace characters in chunks (e.g., 16 or 32 characters at a time) using `str.find` to skip large blocks of whitespace, falling back to character-by-character scanning only when necessary. This reduces the number of individual character checks while still maintaining correctness and avoiding the overhead of repeated `str.find` calls on small inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: fast skip for large whitespace blocks, fallback to char-by-char
+    while pos < len(text):
+        # Check in chunks for efficiency
+        chunk = text[pos:pos + 32]
+        non_ws_pos = chunk.find(lambda c: c not in ' \t\n\r')
+        if non_ws_pos != -1:
+            return pos + non_ws_pos
+        pos += len(chunk)
+        if len(chunk) < 32:
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

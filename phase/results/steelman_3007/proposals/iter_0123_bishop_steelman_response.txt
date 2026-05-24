@@ -1,0 +1,39 @@
+CRITIQUE: The suggestion to use a dictionary-based skip table would require precomputing a lookup table for every possible character position, which is infeasible due to memory constraints and the unbounded nature of input text. It fails to account for the fact that whitespace characters can appear anywhere in the input, making a static lookup table impractical. Additionally, it doesn't consider that the performance benefit would only apply in rare cases where long whitespace blocks occur, while the overhead of building and maintaining such a table would hurt performance in typical scenarios.
+
+STEELMAN: A more practical approach is to implement a hybrid strategy where we use a fast path for long whitespace sequences by scanning ahead in chunks (e.g., 8 or 16 characters at a time) using efficient string operations, falling back to character-by-character scanning only when necessary. This avoids the memory overhead of a full skip table while still reducing the number of individual character checks in common cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    # For long whitespace sequences, use a hybrid approach
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            # Fast path for long sequences of whitespace
+            # Check 8 characters at a time
+            chunk_start = pos
+            while pos + 8 <= len(text):
+                chunk = text[pos:pos + 8]
+                # Check if any character in the chunk is not whitespace
+                if any(ch not in _WS_CHARS for ch in chunk):
+                    # Find the first non-whitespace character in the chunk
+                    while pos < len(text) and text[pos] in _WS_CHARS:
+                        pos += 1
+                    return pos
+                pos += 8
+            # Fall back to character-by-character for remaining part
+            while pos < len(text) and text[pos] in _WS_CHARS:
+                pos += 1
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

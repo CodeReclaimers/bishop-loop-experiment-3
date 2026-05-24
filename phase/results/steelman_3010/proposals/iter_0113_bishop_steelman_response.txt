@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual while-loop with a regex match would not work because the regex engine cannot be easily integrated into the existing parsing flow without breaking the position tracking. The current `_skip_ws` returns the exact next position after whitespace, but regex matching would require additional logic to extract that position reliably. Also, the performance benefit is questionable since regex engines are not necessarily faster than simple set membership checks for small, predictable character sets like whitespace.
+
+STEELMAN: A better approach would be to use the compiled regex to find the end position of the whitespace sequence, and then manually advance the position to that point, preserving the existing logic flow and maintaining correct position tracking. This allows leveraging regex for bulk skipping while keeping the parsing logic intact.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

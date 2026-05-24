@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion is unworkable because it misunderstands how `_skip_ws` is used — it's called at the start of `parse` and at various points within parsing, not just at the beginning of the input. The idea of "skipping unnecessary whitespace" doesn't apply in the middle of parsing, where whitespace is needed for proper tokenization. Additionally, the suggestion doesn't consider that whitespace skipping is already optimized with a tight loop and `frozenset` membership checks.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by reducing redundant checks when we're already at the end of the input, and by ensuring early termination when no more characters are available, which can be done by checking bounds once per loop iteration rather than repeatedly inside the loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Early exit if already at end of input
+    if pos >= len(text):
+        return pos
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to use binary search on a pre-computed list of non-whitespace positions is fundamentally flawed because it doesn't account for the fact that whitespace skipping is typically done in a forward direction from a given position, not as a one-time preprocessing step. Additionally, maintaining a list of all non-whitespace positions would require O(n) space and would be inefficient for small inputs or inputs with few whitespace characters.
+STEELMAN: A better approach is to precompute a lookup table of the first non-whitespace character position for each possible starting position, allowing constant-time skipping by indexing into this table. This preserves the core idea of eliminating the Python loop while maintaining correctness and performance characteristics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute the first non-whitespace position for each index
+def _build_skip_table(text: str) -> list[int]:
+    n = len(text)
+    skip_table = [0] * n
+    last_non_ws = n
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = last_non_ws
+        else:
+            skip_table[i] = i
+            last_non_ws = i
+    return skip_table
+
+# Global skip table for the current text being parsed
+_SKIP_TABLE: list[int] | None = None
+
+def _skip_ws(text: str, pos: int) -> int:
+    global _SKIP_TABLE
+    if _SKIP_TABLE is None:
+        _SKIP_TABLE = _build_skip_table(text)
+    # Use the precomputed table to skip whitespace in constant time
+    return _SKIP_TABLE[pos]
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace `_WS_RE` with `text.find(' \t\n\r', pos)` is flawed because `text.find()` only finds the first occurrence of any whitespace character, but `_skip_ws` needs to advance through *all* consecutive whitespace characters. This would cause the parser to skip only one whitespace character instead of skipping all leading whitespace, leading to incorrect parsing. Additionally, `text.find()` returns -1 when no character is found, which would break the loop logic.
+
+STEELMAN: The steelman version would implement a direct loop using `text.find()` to locate the first non-whitespace character, then advance the position to that point. This avoids regex overhead while correctly skipping all consecutive whitespace characters, maintaining the performance benefit without breaking correctness.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

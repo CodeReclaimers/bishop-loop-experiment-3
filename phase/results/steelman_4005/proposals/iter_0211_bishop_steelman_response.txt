@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace all whitespace with a single space via regex would break JSON syntax because whitespace is significant in JSON for separating tokens. For example, `123 456` is two numbers while `123456` is one number. This approach would incorrectly merge tokens that should remain separate. Additionally, it doesn't address the actual performance bottleneck, which is the repeated scanning and skipping of whitespace during parsing.
+STEELMAN: A better approach is to use a regex to efficiently skip over whitespace sequences by matching the pattern once and advancing the position by the matched length, rather than checking each character individually. This preserves correct parsing behavior while reducing the number of individual checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once, which is faster than character-by-character checks
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

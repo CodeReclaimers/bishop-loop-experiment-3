@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex search would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same precise position tracking needed for error reporting. It also fails to account for the fact that `_skip_ws` is called very frequently and the performance benefit of avoiding the loop may be outweighed by regex overhead in short whitespace runs. Additionally, the regex approach would not properly handle the case where the input ends with whitespace, which currently works correctly with the loop.
+
+STEELMAN: A better approach is to use the regex to find the next non-whitespace character, but still maintain the loop for small whitespace runs (e.g., under 8 characters) to avoid regex overhead, and only use the regex for larger whitespace sequences, while preserving exact error position reporting.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # For short whitespace runs, use the loop for performance
+    # For longer runs, use regex for efficiency
+    if pos + 8 < len(text):
+        match = _WS_RE.search(text, pos)
+        if match:
+            return match.end()
+    # Fall back to character-by-character skip for small or uncertain cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

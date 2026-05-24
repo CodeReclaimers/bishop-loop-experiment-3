@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with a regex search would break the parser's ability to handle invalid JSON correctly, since the regex would skip all whitespace but not validate that the input is valid JSON. Additionally, it would introduce unnecessary overhead for small amounts of whitespace, as regex matching is slower than a simple loop for short sequences. The approach also fails to account for the fact that the parser expects to raise specific errors at certain positions, which a regex-based skip would not preserve.
+
+STEELMAN: A better version of the suggestion would use the regex to skip large blocks of whitespace efficiently while still maintaining precise error reporting and correctness. This can be achieved by using the regex to skip leading whitespace, but ensuring that the parser's error handling remains intact by keeping the manual loop for small, precise skips, or by using a hybrid approach that leverages regex for bulk skipping but falls back to character-by-character checks where needed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip leading whitespace for performance
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

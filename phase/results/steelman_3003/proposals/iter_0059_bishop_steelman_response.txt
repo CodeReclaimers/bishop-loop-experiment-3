@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion fails to account for the fact that `_WS_RE.span(pos)` returns the span of the *entire match* of the regex, which may include trailing whitespace beyond the current position, and the regex is compiled to match zero or more whitespace characters but doesn't guarantee skipping all consecutive whitespace in one go without additional logic. Also, it doesn't consider that the current `_skip_ws` function handles the case where the input is exhausted correctly, while a regex-based approach might not handle edge cases like `pos` being at the end of the string properly without extra checks.
+
+STEELMAN: A better approach would be to use `_WS_RE.match(text, pos)` to find the next run of whitespace starting at `pos`, and then advance `pos` by the length of the matched span, effectively skipping all consecutive whitespace in one operation. This preserves the performance benefit of avoiding Python-level loops while maintaining correctness and handling edge cases properly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

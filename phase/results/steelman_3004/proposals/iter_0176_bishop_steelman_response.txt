@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a regex match would break the parser's ability to handle invalid input correctly, since the regex would consume all leading whitespace without any error checking for malformed sequences. It also doesn't account for the fact that the current `_skip_ws` function is called in many places where partial skipping is needed, and a single regex match would not integrate cleanly with the existing control flow. Additionally, the performance gain from regex might be offset by the overhead of regex compilation or repeated matching in tight loops.
+STEELMAN: A better approach is to use the precompiled regex to skip whitespace, but only when it's safe to do so — specifically, when we can ensure that the entire input up to the next non-whitespace character is valid and we're not in a context where we need to process characters one by one. This can be done by modifying `_skip_ws` to use the regex when appropriate, while keeping the existing logic for cases where precise control is required.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip leading whitespace when possible
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

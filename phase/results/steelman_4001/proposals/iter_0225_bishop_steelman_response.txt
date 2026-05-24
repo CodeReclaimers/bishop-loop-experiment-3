@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `str.isdigit()` instead of explicit digit character checks is fundamentally flawed because `str.isdigit()` doesn't work the way it's described — it's not a drop-in replacement for checking individual characters. Additionally, the approach of modifying `_parse_value` to check `c.isdigit()` won't work correctly since the digit check needs to be applied to the full number token, not just the first character. The suggestion also fails to recognize that the current implementation already uses a regex for number parsing which is likely already optimal.
+
+STEELMAN: A better approach would be to keep the existing regex-based number parsing but optimize it further by using `str.isdigit()` only for validating the structure of numbers, or by leveraging `float()` and `int()` conversion directly without regex, especially for simple cases. However, since the current implementation already uses a regex, we should instead focus on optimizing the number parsing logic to avoid redundant checks and improve performance by reducing string operations.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

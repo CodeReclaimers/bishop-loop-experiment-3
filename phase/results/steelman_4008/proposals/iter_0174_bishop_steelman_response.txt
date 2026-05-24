@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use a `frozenset` for whitespace chars and hybrid skipping is problematic because it doesn't address the core performance issue of repeated `_skip_ws` calls during parsing. The hybrid approach would still require frequent transitions between bulk and character-level scanning, and the `frozenset` lookup, while fast, doesn't eliminate the overhead of checking each character individually in the loop. Additionally, the suggestion lacks concrete implementation details for how the "bulk skipping" would be done efficiently.
+STEELMAN: The steelman is to replace the current character-by-character `_skip_ws` loop with a more efficient approach that uses a precompiled regex or a fast bulk skip function, while still maintaining the ability to handle edge cases. The key is to reduce the number of individual character checks by leveraging bulk operations for large whitespace blocks, while keeping the parsing logic intact and correct.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for efficient bulk whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

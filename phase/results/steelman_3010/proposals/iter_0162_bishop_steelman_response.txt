@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.match(text, pos).end()` for whitespace skipping is flawed because regex matching is generally slower than direct character iteration for small amounts of whitespace, and the regex engine has overhead that negates performance gains. Additionally, the current implementation already uses a precomputed frozenset for O(1) membership testing, making the regex approach redundant and potentially slower.
+
+STEELMAN: The steelman version would leverage the precomputed regex pattern but use `re.match()` or `re.search()` to skip whitespace efficiently while still maintaining the performance characteristics of the existing code. However, since the current code already uses an optimized loop with frozenset membership, we should instead optimize the regex usage by ensuring it's used in a way that minimizes overhead and maximizes performance gains.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip entire run of whitespace in one step
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual loop with `_WS_RE.search(text, pos).start()` would be problematic because `search()` scans forward from the given position until it finds a non-whitespace character, but it doesn't handle the case where the entire remainder of the string is whitespace — it would return `len(text)` which is correct, but the regex engine overhead and the need to recompile or reuse the regex object could be slower than the current O(1) frozenset lookup. Additionally, the regex approach would not be able to skip over large blocks of whitespace efficiently in a single pass like the current loop does.
+STEELMAN: A better approach is to use the precompiled regex `_WS_RE.match(text, pos)` which is more efficient than `search()` for this use case, as it matches from the start position and returns the index of the first non-whitespace character, while avoiding repeated character-by-character checks and maintaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precompiled regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

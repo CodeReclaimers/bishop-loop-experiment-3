@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character whitespace skipping with a single regex match fails because it doesn't account for the fact that the existing `_skip_ws` function is called in multiple contexts where partial whitespace consumption is needed. Additionally, regex matching may not be faster than the current O(1) frozenset lookups, especially for small amounts of whitespace, and could introduce overhead from regex compilation or backtracking. It also assumes the regex engine handles all edge cases correctly without additional validation.
+
+STEELMAN: A better version of the suggestion would use a regex that matches the longest possible contiguous sequence of whitespace characters starting from `pos`, but only when it's safe to do so — i.e., when we don't need to preserve the exact behavior of character-by-character scanning. This can be implemented by using `re.match` or `re.search` with a precompiled pattern and ensuring that the match starts exactly at `pos`, while still maintaining performance gains over the loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match for performance
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

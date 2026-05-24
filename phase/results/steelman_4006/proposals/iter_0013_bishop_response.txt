@@ -1,0 +1,60 @@
+To speed up the JSON parsing, consider using an iterative approach in the `parse` function to avoid recursive calls and reduce stack overflow. This can be achieved by moving the recursive logic outside the main loop and using a stack-based approach to handle nested structures. The modified function would look something like this:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    
+    pos = 0
+    out = {}
+    stack = []
+    
+    while pos < len(text):
+        c = text[pos]
+        
+        if c == "{":
+            stack.append({"type": "object", "pos": pos})
+            pos += 1
+        elif c == "[":
+            stack.append({"type": "array", "pos": pos})
+            pos += 1
+        elif c in ' \t\n\r\f':
+            pass
+        elif c == '"':
+            value, new_pos = _parse_string(text, pos)
+            out[stack[-1]["key"]] = value
+            pos = new_pos
+        elif c == "t" or c == "f":
+            value, new_pos = _parse_bool(text, pos)
+            out[stack[-1]["key"]] = value
+            pos = new_pos
+        elif c == "n":
+            value, new_pos = _parse_null(text, pos)
+            out[stack[-1]["key"]] = value
+        elif c == "-" or c in _DIGIT_CHARS:
+            value, new_pos = _parse_number(text, pos)
+            if stack[-1]["type"] == "object":
+                key = stack.pop()["key"]
+                out[key] = value
+            else:
+                out.append(value)
+            pos = new_pos
+        elif ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        
+        if c in (",", "}", "]"):
+            if stack[-1]["type"] == "array":
+                value, new_pos = _parse_array(text, pos)
+                out.append(value)
+            else:
+                key = stack.pop()["key"]
+                out[key] = value
+            pos = new_pos
+        
+        if c in ("}", "]") and len(stack) > 0:
+            del stack[-1]["pos"]
+    
+    return out
+```
+
+This approach avoids recursion by using a stack to keep track of the current scope and items being parsed. When encountering a close brace or bracket, it checks if there is a corresponding opening brace or bracket in the stack. If so, it pops the top element from the stack and continues parsing from that point. This reduces the overhead of recursive function calls and improves performance.

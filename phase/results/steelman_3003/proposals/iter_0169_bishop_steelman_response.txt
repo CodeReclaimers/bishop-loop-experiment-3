@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS))` is flawed because `find()` only returns the first occurrence of the whitespace characters as a group, not the end of a contiguous run. It would fail to skip all whitespace when there are repeated or mixed whitespace characters, and would not handle the case where the first character is not whitespace correctly. Additionally, it assumes a single pattern match which is not how whitespace skipping works.
+STEELMAN: A better approach would be to use a regex `findall()` or `match()` with a character class pattern like `[ \t\n\r]*` to efficiently skip a contiguous run of whitespace, leveraging the precompiled regex that's already in use. This preserves the intent of reducing per-character checks while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precompiled regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

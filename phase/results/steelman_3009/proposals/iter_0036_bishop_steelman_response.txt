@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace the per-character loop with a single `text.find` call is flawed because `text.find` would only find the first non-whitespace character, not skip all leading whitespace. This approach would fail to handle cases where whitespace consists of multiple characters and would not properly integrate into the existing parsing loop structure. Additionally, it could introduce performance regressions for inputs with little to no leading whitespace, as `find` might be slower than a simple loop for short whitespace sequences.
+
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character, but only after checking if there's any whitespace at all — avoiding the overhead of a character-by-character loop when there's no leading whitespace, while still correctly handling the case where whitespace exists and needs to be skipped.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    if pos >= len(text):
+        return pos
+    # Fast path: check if current character is whitespace
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Use text.find to skip all leading whitespace at once
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

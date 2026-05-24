@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.find()` for whitespace skipping is unworkable because `str.find()` would require scanning forward character-by-character to find the next non-whitespace, which defeats the purpose of optimization. It also doesn't leverage the fact that whitespace characters are limited to a small set, making regex or direct lookup more efficient. Additionally, `str.find()` would not be faster than the existing direct loop in `_skip_ws` and could introduce overhead from function call and string scanning.
+STEELMAN: A better approach would be to replace the current `_skip_ws` implementation with a more efficient character-by-character scan that uses a frozenset for whitespace detection, avoiding the overhead of regex compilation and Python function call overhead. This maintains the performance benefits of direct scanning while using more efficient data structures.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning with frozenset for performance
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        if text[pos] not in _WHITESPACE_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

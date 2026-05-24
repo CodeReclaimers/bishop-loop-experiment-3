@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex search would break on inputs with very long runs of whitespace, as regex engines can exhibit quadratic time behavior due to backtracking. Additionally, the regex approach doesn't properly handle the case where the input is exhausted, potentially causing IndexError or incorrect parsing. The approach also fails to consider that the current implementation skips only whitespace characters, not arbitrary text, and the regex would consume all whitespace from the current position to the end of the string.
+
+STEELMAN: The steelman version would use the compiled regex to skip whitespace, but only up to the next non-whitespace character, ensuring that the parser doesn't advance past the actual content. This requires using `re.search` with a proper match group that returns the end position of the whitespace sequence, and the parser must still validate that it hasn't gone past the end of the string. This preserves the performance benefit while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with `_WS_RE.sub('', text, 0, pos)` is flawed because `sub()` removes all whitespace but doesn't return the position of the first non-whitespace character; it would require a separate scan to find the new position. Additionally, this approach would process the entire input up to `pos` rather than just advancing the position, which defeats the purpose of efficient incremental parsing.
+STEELMAN: A better approach is to use the precompiled regex to find the first non-whitespace character by matching from the current position, advancing `pos` to that point without fully stripping the string. This preserves performance gains while maintaining correctness by leveraging the regex engine's optimized search for the next valid character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

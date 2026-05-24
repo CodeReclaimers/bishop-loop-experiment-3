@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the per-character loop with `re.search` is problematic because it doesn't account for the fact that `_skip_ws` is called in contexts where the whitespace may be followed by non-whitespace content that needs to be processed immediately. Using `re.search` would require parsing the entire whitespace run, which could be inefficient and doesn't integrate well with the existing stateful parsing logic. Additionally, the regex approach would not preserve the exact position tracking needed for error reporting and would complicate the parsing flow.
+
+STEELMAN: The steelman version would use `re.match` or `re.search` with the precompiled `_WS_PATTERN` to skip whitespace, but only when the current position is known to be at the start of a whitespace sequence. This preserves the performance benefit of avoiding the loop while maintaining correct parsing state and error handling. The key is to use the regex to find the end of the whitespace run and advance the position accordingly, without changing the structure of the calling functions.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

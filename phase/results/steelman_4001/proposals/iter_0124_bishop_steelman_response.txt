@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use a regex for number parsing is problematic because JSON numbers have complex syntax rules that can't be captured by a simple regex—especially since the current implementation already uses a regex but only for basic number validation, not full parsing. The suggestion fails to account for the fact that the existing regex approach is already implemented and optimized, and introducing a more complex regex for hex numbers would likely slow things down due to overhead from regex engine complexity. Additionally, the suggestion doesn't address the real bottlenecks like repeated string concatenations or inefficient whitespace skipping.
+STEELMAN: A better approach would be to refine the existing regex to be more efficient by optimizing its pattern and ensuring it correctly handles all valid JSON number formats without unnecessary backtracking or complexity, while keeping the current strategy of precompiling the regex to avoid repeated compilation costs. This preserves the core idea of leveraging regex for number parsing but improves upon the current implementation.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

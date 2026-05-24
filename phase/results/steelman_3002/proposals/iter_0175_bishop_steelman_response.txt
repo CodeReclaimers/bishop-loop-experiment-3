@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `text.find(' \t\n\r', pos)` is problematic because it would still be O(n) in the worst case where whitespace is long, and the rejection of such an approach with z=-1.96 indicates it performs worse than the baseline while loop. The `find` method, despite being C-optimized, doesn't provide a clear performance benefit over the character-by-character loop for typical JSON whitespace patterns.
+STEELMAN: The optimal approach is to leverage the already-compiled regex pattern `_WS_RE` to skip whitespace in one go, using `re.match` or `re.finditer` to advance the position past all whitespace characters at once, which should be faster than repeated character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

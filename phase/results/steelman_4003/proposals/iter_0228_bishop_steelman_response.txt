@@ -1,0 +1,49 @@
+CRITIQUE: The suggestion to use a character lookup table for whitespace checking is flawed because it doesn't address the actual performance bottleneck in the current implementation, which is the repeated use of `text[pos] in _WS_CHARS` on a `frozenset` that's already O(1). Additionally, creating a full ASCII lookup table for just 4 whitespace characters is overkill and wastes memory. The suggestion also fails to consider that the current approach already uses a `frozenset` for O(1 lookup, and the regex optimization for skipping whitespace is already present in `_skip_ws`.
+
+STEELMAN: The strongest version of this suggestion would be to replace the current `_skip_ws` function with a direct character-by-character scan using a precomputed lookup table for whitespace characters, which avoids the overhead of repeated `frozenset` membership checks and improves performance by directly indexing into a boolean array or dictionary.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1 lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute character sets for O(1 lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+# Precompute a lookup table for whitespace characters for faster scanning
+_WS_TABLE = [False] * 128
+for char in _WS_CHARS:
+    _WS_TABLE[ord(char)] = True
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup via table
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

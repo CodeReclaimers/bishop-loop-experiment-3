@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace the regex with a simple loop using `string.whitespace` lookup is flawed because `string.whitespace` includes characters like `\v` (vertical tab) and `\f` (form feed) that are not valid JSON whitespace, and the loop would not handle them correctly. Additionally, it doesn't leverage the precompiled regex's efficiency in avoiding repeated pattern compilation, and would likely be slower due to repeated character-by-character checks instead of optimized regex matching.
+
+STEELMAN: The steelman version should use a precomputed set of valid JSON whitespace characters (as already defined in `_WS_CHARS` or similar) for fast O(1) lookup in a while loop, avoiding regex overhead while correctly handling only the valid JSON whitespace characters.
+
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -12,10 +12,12 @@
+ _WS_RE = re.compile(r'\s*')
+ _DIGIT_CHARS = frozenset("0123456789")
+ _HEX_CHARS = frozenset("0123456789abcdefABCDEF")
++_WS_CHARS = frozenset(" \t\n\r")
+ 
+ 
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+     pos = _skip_ws(text, 0)
+@@ -29,10 +31,10 @@
+ def _skip_ws(text: str, pos: int) -> int:
+-    m = _WS_RE.match(text, pos)
+-    return m.end() if m else pos
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
+```

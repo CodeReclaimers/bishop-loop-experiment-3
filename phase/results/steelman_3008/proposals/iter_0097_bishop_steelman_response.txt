@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `text.find(..., pos)` with a lambda is fundamentally flawed because `str.find()` only searches for a single substring, not a set of characters. There's no way to pass a lambda or predicate to `find()`; it would require a custom loop anyway. Additionally, the performance benefit is questionable since `find()` still needs to scan characters, and the C implementation overhead may not outweigh the cost of the extra function call.
+
+STEELMAN: A better approach is to use `str.translate()` and `str.maketrans()` to efficiently skip whitespace by replacing all whitespace characters with a sentinel character, then use `str.find()` to locate the first non-sentinel character. This leverages highly optimized C code while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with a sentinel
+    trans_table = str.maketrans({char: '\x00' for char in _WS_CHARS})
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    new_pos = translated.find('\x00')
+    if new_pos == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

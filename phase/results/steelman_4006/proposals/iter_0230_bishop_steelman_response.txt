@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to track quoted string state during whitespace skipping is fundamentally flawed because it would break the parser's ability to correctly handle nested structures and escape sequences. The core issue is that the parser needs to skip whitespace *outside* of strings, but the proposed approach would incorrectly skip whitespace *inside* strings, leading to malformed parsing of JSON values. Additionally, the suggestion doesn't address the performance bottleneck of the current `_skip_ws` function, which already uses efficient character-by-character checks.
+
+STEELMAN: A better approach is to optimize the `_skip_ws` function by replacing the current character-by-character loop with a direct string slicing method that skips all whitespace characters at once using `str.lstrip()` or a similar technique, while preserving the existing logic for correctly identifying when we're inside or outside of quoted strings. This maintains correctness while reducing the number of individual character comparisons and improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct string slicing
+    while pos < len(text) and text[pos] in ' \t\n\r\f':
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

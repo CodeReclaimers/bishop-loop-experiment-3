@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use `re.search(text, pos).end()` would skip all whitespace but would not properly handle the case where the regex engine encounters a non-whitespace character and then has to backtrack or re-scan. Additionally, the current `_skip_ws` function is designed to skip only ASCII whitespace characters, while `re.search` with `\s` might include Unicode whitespace, which could break compatibility or introduce unexpected behavior. Finally, using a regex for this simple task could be slower than the existing loop in some cases due to regex compilation overhead or suboptimal matching strategies for small inputs.
+
+STEELMAN: The steelman version uses a compiled regex pattern to skip all whitespace at once, but it ensures that the regex only matches ASCII whitespace by using a character class like `[ \t\n\r]` instead of `\s`, and it avoids the performance pitfalls of repeated scanning by leveraging the optimized C-level regex engine for large whitespace sections.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

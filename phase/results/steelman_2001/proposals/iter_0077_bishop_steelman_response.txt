@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `_skip_ws(text, 0)` with `text.lstrip(' \t\n\r')` fails because it would strip ALL leading whitespace from the entire input, not just the initial portion up to the first non-whitespace character. This could incorrectly consume whitespace that belongs to the JSON content itself, especially in cases where whitespace appears within the JSON structure. Additionally, it doesn't preserve the position tracking necessary for proper error reporting and parsing flow.
+
+STEELMAN: A better approach is to use `text.lstrip(' \t\n\r')` to strip leading whitespace but then compute the new position as `len(text) - len(text.lstrip(' \t\n\r'))`, which correctly determines how many characters were consumed and maintains the expected parsing behavior while avoiding the per-character loop.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    stripped = text.lstrip(' \t\n\r')
+    pos = len(text) - len(stripped)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

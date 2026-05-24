@@ -1,0 +1,61 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a `ws_table` lookup assumes that all whitespace characters can be skipped in a single contiguous block, which is incorrect since whitespace can be interspersed with other characters. It also fails to account for the fact that `_skip_ws` is used in many different contexts where the exact position after whitespace is needed, not just a "skip to next non-whitespace" behavior. Additionally, building a full `ws_table` would require O(n) space and time to precompute, negating any performance gains.
+
+STEELMAN: The steelman is to precompute a "next non-whitespace" index table for the entire input string, but use it only in contexts where we know we're skipping whitespace from a known starting position, and maintain the original `_skip_ws` function for backward compatibility. This allows constant-time skipping of whitespace while preserving the existing logic and function signatures.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _build_ws_table(text: str) -> list[int]:
+    """Build a table of next non-whitespace positions for each index."""
+    n = len(text)
+    ws_table = [0] * n
+    pos = n
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            ws_table[i] = pos
+        else:
+            ws_table[i] = pos
+            pos = i
+    return ws_table
+>>>>>>> REPLACE
+```

@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace repeated `_skip_ws` calls with a single find-based skip would break the parser's ability to handle malformed input correctly, since it would skip over all whitespace at once without validating that each character is actually valid whitespace. It also fails to account for the fact that `_skip_ws` is called in multiple contexts where the parser needs to distinguish between valid and invalid sequences, and the optimization could silently skip past important error conditions.
+
+STEELMAN: The steelman is to implement a more efficient whitespace skipping mechanism that still preserves the original behavior by using a single forward scan with a fast path for common cases, but without losing the ability to detect malformed input. This can be achieved by precomputing a lookup table or using a more efficient loop that skips multiple characters at once, while still checking each character's validity in the context where needed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

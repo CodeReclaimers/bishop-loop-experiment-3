@@ -1,0 +1,53 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work correctly because it would require mapping all whitespace to the same dummy character, which would corrupt the input string and make subsequent parsing impossible. Additionally, `str.translate` operates on the entire string at once, but the parser needs to advance through the input incrementally, not skip large chunks at once.
+STEELMAN: A better approach is to precompute a translation table that maps whitespace characters to a unique sentinel character, then use `str.translate` to efficiently convert the input string, followed by a `str.find` loop to locate the next non-sentinel character. This preserves the performance benefits while maintaining correct incremental parsing behavior.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed translation table for whitespace skipping
+# Maps all whitespace characters to a sentinel character (e.g., null byte)
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

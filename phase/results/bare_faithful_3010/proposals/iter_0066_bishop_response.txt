@@ -1,0 +1,31 @@
+We need to suggest specific change: Use compiled regex for whitespace skipping already used; maybe replace while loop with regex pattern search to skip ws, but avoid creating pattern each time. Actually they already have _WS_PATTERN compiled. The rejection used while loop with frozenset membership. That's O(k) per char but fine. Better to avoid f-string formatting errors? The key speed: in _parse_object, after each key, they call _WS_PATTERN.pattern.search(text, pos).end() which may be slower? Actually regex call is okay. Another issue: In _parse_object they build list `out` and later join? That's later. Maybe the heavy part is Unicode handling with manual checks causing many ord calls. Suggest replace the manual Unicode surrogate handling with Python's `codecs` or `unicodedata` to handle escapes faster.
+
+But need specific: change _parse_object's code that manually builds out list using list and join? Actually out is dict, not list. The unescaped control character check uses ord(c). That's okay.
+
+Better: In _parse_string, they build output via list then join at end. Use ''.join already. That's fine.
+
+Maybe replace the loop that checks ws after each parse with a single regex search: after parsing key, use _WS_PATTERN.pattern.search(text, pos).end() to skip whitespace, which is already used.
+
+I think the real slow part is the manual Unicode surrogate handling causing many index calculations; could replace with `re.escape`? Not.
+
+Probably the suggestion: Replace the while loop that skips whitespace after each parse with a single call to _WS_PATTERN.pattern.search(text, pos).end() which is faster. But they already do that.
+
+Maybe the biggest win: In parse, they call _WS_PATTERN.pattern.search twice. Could replace with a single call after moving pos? Not.
+
+I'll suggest: In _parse_object, replace the repeated `_WS_PATTERN.pattern.search(text, pos).end()` after each step with a call to a helper `_skip_ws(pos)` that uses the precomputed `pos` directly (no regex) for whitespace; but they already have _skip_ws.
+
+Actually the rejection shows they kept simple loop but later switched to regex; the loop is already fast. Hmm.
+
+Maybe the best: In _parse_number, they build string slice and then convert using float/int; that's fine.
+
+I think we can suggest: In _parse_object, after parsing key and value, instead of manually skipping whitespace with while loop, use `_WS_PATTERN.pattern.search(text, pos).end()` which is already compiled and avoids Python loop overhead, making it faster.
+
+But they already use regex.
+
+Alternatively, replace the manual Unicode surrogate handling with Python's built-in `codecs.decode` using 'utf-8' and handling escapes automatically, which is faster.
+
+I'll suggest: In _parse_object, replace the complex manual Unicode surrogate handling with Python's `bytes` decoding using `unicodedata` or `codecs` to automatically handle escapes, removing the repeated index arithmetic.
+
+But spec: suggest one specific change to try in json_parser.py, describe which part and mechanism.
+
+I'll output: Replace the manual Unicode surrogate handling loop in `_parse_object` with a call to Python's built‑in `codecs.decode` on the substring, which handles escapes and Unicode conversion in C, eliminating the per‑character `ord` checks and index arithmetic. This reduces the hot path to a single C call per escape, making it faster.

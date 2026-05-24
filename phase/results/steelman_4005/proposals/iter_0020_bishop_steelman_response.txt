@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use a regex pattern for skipping whitespace is unworkable because the current implementation already uses a highly optimized loop with precomputed character sets that avoids repeated bounds checking. Using regex would add overhead from regex compilation and matching, while the existing approach is already O(1) for membership checks. Additionally, the regex approach would not integrate well with the existing code's position-tracking logic and could introduce performance regressions.
+
+STEELMAN: The suggestion should be refined to leverage the existing regex pattern `_WS_PATTERN` more effectively by using it to skip whitespace in a single operation rather than manually looping through characters, while still preserving the precomputed character sets for other operations. This would reduce the number of individual character checks and improve performance without sacrificing correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

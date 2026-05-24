@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find()` is problematic because `find()` scans forward until it finds any character *not* in `_WS_CHARS`, but it doesn't handle the case where the entire remaining string consists of whitespace — this would return the length of the string, which is correct, but the approach doesn't account for the fact that `find()` is not necessarily faster than a simple loop for small amounts of whitespace. Additionally, `find()` will return the index of the first non-whitespace character, but the loop-based approach can be more efficient in practice for short whitespace sequences due to Python's loop optimizations and avoiding the overhead of a function call.
+STEELMAN: A better implementation would use `text.find()` to locate the first non-whitespace character, but only when the current position is not already at the end of the string, and when the character at the current position is a whitespace character. This avoids unnecessary calls to `find()` and still leverages the C-optimized `find()` for longer whitespace runs, while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace, leveraging C-optimized implementation
+    if pos >= len(text):
+        return pos
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Skip whitespace using find for performance on long runs
+    next_non_ws = text.find(lambda c: c not in _WS_CHARS, pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

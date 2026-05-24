@@ -1,0 +1,50 @@
+CRITIQUE: The suggestion to cache parsed numbers is flawed because it doesn't account for the fact that numbers in JSON can be duplicated in the input text, and caching based on string representation would require storing the full string slice for each number, leading to memory bloat. Additionally, it fails to consider that the performance bottleneck is likely not in parsing numbers themselves, but in the repeated whitespace skipping and recursive descent overhead.
+STEELMAN: A better approach would be to cache parsed numbers using a weak reference dictionary with the string representation as key, but more importantly, the optimization should focus on reducing redundant parsing operations by precomputing and reusing the number parsing regex match results, rather than trying to cache the final parsed values.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+# Cache for parsed numbers to avoid redundant calculations
+_number_cache: dict[str, float | int] = {}
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Check if we've already parsed this number
+    if s in _number_cache:
+        return _number_cache[s], pos
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        result = float(s)
+    else:
+        result = int(s)
+    # Cache the result
+    _number_cache[s] = result
+    return result, pos
+>>>>>>> REPLACE
+```

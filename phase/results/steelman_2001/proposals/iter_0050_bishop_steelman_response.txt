@@ -1,0 +1,60 @@
+CRITIQUE: The suggestion to use `text.find` to locate the end of a number is flawed because `find` cannot reliably detect the end of a number with its complex syntax (sign, digits, decimal point, exponent). It would fail on inputs like `"123.456e-789"` or `"0x123"` since `find` only searches for literal substrings, not structural patterns. Additionally, it doesn't handle the various number formats correctly, such as hex literals or invalid sequences like `"123."` or `"123e"`.
+
+STEELMAN: A better approach is to use `re.search` with a regex pattern that matches valid JSON number formats in one go, then slice and convert the matched substring. This preserves the idea of avoiding per-character iteration while correctly handling all valid number syntax including signs, decimals, exponents, and hex digits.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the number regex for performance
+_NUMBER_RE = re.compile(r"""
+    -? (?: 0 | [1-9]\d* ) (?: \. \d+ )? (?: [eE] [+-]? \d+ )?
+""", re.VERBOSE)
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    end = match.end()
+    s = text[pos:end]
+    if '.' in s or 'e' in s.lower():
+        return float(s), end
+    return int(s), end
+>>>>>>> REPLACE
+```

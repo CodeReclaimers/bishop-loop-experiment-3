@@ -1,0 +1,61 @@
+To speed up the JSON parser, you can implement caching for previously parsed values. This would reduce the need to repeatedly construct lists and dictionaries, which is a common bottleneck in JSON parsing. You can use a dictionary to store the results of these recursive calls, so that if a value has already been parsed, it can be returned directly instead of being re-parsed.
+
+Here's how you might implement this:
+
+```python
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompiled regex for whitespace
+_WS_RE = re.compile(r'\s*')
+# Precomputed digit characters for fast lookup
+_DIGIT_CHARS = frozenset("0123456789")
+# Precomputed escape sequences
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Cache to store previously parsed values
+parsed_values = {}
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    m = _WS_RE.match(text, pos)
+    return m.end() if m else pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t":
+        if text[pos:pos+4] == _TRUE:
+            return True, pos + 4
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")

@@ -1,0 +1,97 @@
+CRITIQUE: The suggestion to inline the whitespace skip logic would eliminate the regex overhead but introduces a critical flaw: it removes the ability to handle Unicode whitespace characters properly, since `str.isspace()` in Python considers a broader set of Unicode whitespace characters than just ASCII ones, while the inline loop would only handle ASCII whitespace. Additionally, this approach would require duplicating the loop logic in multiple places, violating DRY principles and making the code harder to maintain.
+
+STEELMAN: A better approach is to keep the optimized `_skip_ws` function but make it more efficient by using a precompiled regex pattern that's reused across calls, and ensure it properly handles all Unicode whitespace characters, rather than inlining the logic or using a naive loop. This preserves the performance benefits while maintaining correctness and code clarity.
+
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

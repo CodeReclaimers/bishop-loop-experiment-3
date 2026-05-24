@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with a regex span call is flawed because `re.compile(r'[ \t\n\r]*').span('', 0)` would always return `(0, 0)` for empty string input, and it doesn't advance the position correctly in the context of incremental parsing. Additionally, precomputing a whitespace-free string would break the ability to track positions accurately, making error reporting and parsing state management impossible.
+
+STEELMAN: A better approach would be to use the regex to find the end of whitespace at each call site, but still maintain the current position tracking logic for parsing. This preserves correctness while reducing the overhead of the per-character loop by leveraging regex for larger chunks, and avoids the complexity of maintaining a separate whitespace-free string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

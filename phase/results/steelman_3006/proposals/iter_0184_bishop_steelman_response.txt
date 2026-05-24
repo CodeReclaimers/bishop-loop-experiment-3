@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find()` using a generator expression is flawed because `text.find()` cannot directly work with a set of characters like `_WS_CHARS` — it only searches for a single substring. The generator expression approach would be inefficient and incorrect, as it would need to test each character individually against the set, negating any performance benefit. Additionally, `text.find()` would not handle the case where the input is all whitespace correctly without additional logic.
+STEELMAN: A better approach is to use `str.find()` to scan ahead for the first non-whitespace character, but in a loop that handles the case where the entire remainder of the string is whitespace, or where the next non-whitespace character is found at a specific index. This preserves the performance intent while correctly handling edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find() to skip whitespace efficiently
+    while pos < len(text):
+        # Find the first non-whitespace character
+        next_non_ws = text.find(' ', pos)
+        if next_non_ws == -1:
+            # No space found, check for other whitespace chars
+            next_non_ws = text.find('\t', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\n', pos)
+                if next_non_ws == -1:
+                    next_non_ws = text.find('\r', pos)
+                    if next_non_ws == -1:
+                        # No whitespace found, return current pos
+                        return pos
+        # If next_non_ws is not -1, it points to the first whitespace char
+        # So we need to find the first non-whitespace after that
+        if next_non_ws == pos:
+            pos = next_non_ws + 1
+        else:
+            # Found a non-whitespace char at next_non_ws
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

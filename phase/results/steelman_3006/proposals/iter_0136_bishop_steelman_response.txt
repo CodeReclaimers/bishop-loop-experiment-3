@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is flawed because it would require building a translation table for all whitespace characters, which is inefficient and doesn't actually achieve O(1) per character time; the translation table approach still needs to process each character. Additionally, replacing set membership checks with `str.isdigit` in `_parse_number` is problematic because `str.isdigit` is not equivalent to checking against a set of digit characters and doesn't handle edge cases like negative numbers or non-ASCII digits properly.
+STEELMAN: A better approach would be to use `str.translate` with a pre-built translation table that maps all whitespace characters to a sentinel value (like `None`), then use `str.find` or `str.index` to locate the next non-whitespace character, or alternatively, optimize digit checks by using a lookup array or `str.isdigit` with proper validation for numeric parsing. The key is to avoid repeated set lookups while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create translation table that maps whitespace to None
+    trans_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Translate and find next non-whitespace character
+    stripped = text[pos:].translate(trans_table)
+    new_pos = pos + len(text[pos:]) - len(stripped)
+    return new_pos
+>>>>>>> REPLACE
+```

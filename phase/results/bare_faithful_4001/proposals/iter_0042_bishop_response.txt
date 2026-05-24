@@ -1,0 +1,64 @@
+One specific change to try in `json_parser.py` is to use a more efficient algorithm for counting whitespace characters at the beginning of the input string. This can be achieved by using a generator expression with `itertools.groupby`, which avoids the overhead of concatenating lists and reduces memory consumption. The updated code would look something like this:
+
+```python
+from __future__ import annotations
+
+import re
+from typing import Any, Generator
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precomputed sets for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+# Compile a generator expression for counting whitespace characters at the beginning
+_ws_gen = (c == " " or c == "\t" or c == "\n" or c == "\r" for c in text[pos:])
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+# ...
+# (function at lines 56-73)
+def _skip_ws(text: str, pos: int) -> int:
+    # Count whitespace characters using the generator expression
+    return sum(1 for c in _ws_gen)
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+
+```

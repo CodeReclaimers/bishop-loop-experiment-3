@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `_WS_RE.span(pos, 0)[1]` is flawed because `re.span()` doesn't work that way — it returns the start and end positions of a match, not the position after skipping whitespace. Additionally, the regex `r'\s*'` will match zero or more whitespace characters starting at `pos`, so calling `span(pos, 0)` is invalid syntax and would fail at runtime. The approach also doesn't properly handle the case where the regex engine skips to the end of input without consuming anything.
+STEELMAN: A better approach would be to use `re.match(_WS_RE, text, pos)` to find the next non-whitespace character, then return the end position of the match. This preserves the intent of skipping whitespace efficiently with regex while correctly handling all edge cases including end-of-input and malformed input.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

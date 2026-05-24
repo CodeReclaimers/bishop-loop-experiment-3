@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace the while loop in `_skip_ws` with a single `text.find` call is flawed because `text.find` only finds the first occurrence of a character from a set, not the first non-whitespace character. It would require multiple calls or a different approach to handle the set membership correctly. Additionally, `text.find` would not be faster than the current optimized while loop for small amounts of whitespace, and could be slower due to function call overhead and string scanning.
+
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character by scanning for the first character not in the whitespace set, but only after ensuring that the current position is not already at a non-whitespace character. This preserves the performance benefits of avoiding per-character loops while correctly handling the whitespace skipping logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to locate first non-whitespace character efficiently
+    if pos >= len(text):
+        return pos
+    # Find first character not in whitespace set
+    non_ws_pos = text.find(' ', pos)
+    if non_ws_pos == -1:
+        non_ws_pos = len(text)
+    else:
+        # Adjust for all whitespace characters, not just space
+        while non_ws_pos < len(text) and text[non_ws_pos] in _WS_CHARS:
+            non_ws_pos = text.find(' ', non_ws_pos + 1)
+            if non_ws_pos == -1:
+                non_ws_pos = len(text)
+                break
+        if non_ws_pos == -1:
+            non_ws_pos = len(text)
+    return non_ws_pos
+>>>>>>> REPLACE
+```

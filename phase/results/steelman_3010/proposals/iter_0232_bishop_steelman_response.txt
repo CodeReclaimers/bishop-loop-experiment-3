@@ -1,0 +1,96 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel value won't work because whitespace characters like spaces and tabs are valid JSON content that must be preserved, not replaced. Using `str.find` on the translated string would lose positional information needed to correctly parse JSON. Additionally, this approach would require preprocessing the entire input string, which defeats the purpose of efficient streaming parsing.
+STEELMAN: A better approach would be to use `str.translate` to efficiently replace whitespace with a single sentinel character, then use `str.find` to locate that sentinel to skip whitespace, while still maintaining the original string for parsing. This preserves the streaming nature of the parser and only changes the whitespace skipping mechanism to be more efficient.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed translation table for whitespace skipping
+# Replace all whitespace with a sentinel character (e.g., '\x00')
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently replace whitespace with sentinel
+    # Then use str.find to locate the next non-whitespace character
+    if pos >= len(text):
+        return pos
+    # Create a translated version of the remaining string
+    remaining = text[pos:]
+    translated = remaining.translate(_WS_TRANSLATE_TABLE)
+    # Find the first non-sentinel character
+    next_non_ws = translated.find('\x00')
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

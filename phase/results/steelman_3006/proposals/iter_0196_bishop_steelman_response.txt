@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find()` is flawed because `text.find()` would need to scan the entire string from the current position to find the first non-whitespace character, which could be much slower than the current approach when whitespace is minimal or absent. Additionally, `text.find()` doesn't handle the case where the entire remainder of the string is whitespace, which should raise an error. This naive replacement ignores the performance characteristics of both approaches in different scenarios.
+
+STEELMAN: The steelman version would use `text.find()` to locate the first non-whitespace character, but it should also check if the entire remainder of the string is whitespace and raise an appropriate error, or fall back to the loop when the scan is too long to be beneficial.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find() to locate first non-whitespace character
+    # If the entire remainder is whitespace, raise an error
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        # All remaining characters are whitespace, raise error
+        raise JSONParseError("unexpected end of input")
+    return next_non_ws
+>>>>>>> REPLACE
+```

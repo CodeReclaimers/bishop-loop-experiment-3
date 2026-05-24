@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a lookup table or set for whitespace checking is fundamentally flawed because the current `_skip_ws` function already uses a set (`' \t\n\r\f'`) for checking whitespace characters, which is already O(1) lookup. The suggestion misunderstands the existing implementation and incorrectly frames the problem as O(n) when it's actually O(1). Additionally, the suggestion doesn't address the real performance bottleneck, which is the repeated character-by-character checks in the loop, not the set membership test.
+
+STEELMAN: The core idea should be to optimize the `_skip_ws` function by using a precomputed set of all ASCII whitespace characters (0-32 and 127) and replacing the current loop that checks individual characters with a more efficient character-by-character scan that leverages this set for fast membership testing. This maintains the O(1) lookup while improving the overall loop efficiency.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using precomputed ASCII whitespace set
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f\x0b\x0c\x08\x7f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

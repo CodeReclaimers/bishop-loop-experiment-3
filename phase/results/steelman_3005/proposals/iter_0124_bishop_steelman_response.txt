@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to inline `_is_hex4` would eliminate the function call overhead but introduces a critical flaw: it replaces a well-defined helper function with an inline expression that doesn't preserve the original logic's behavior. Specifically, the original `_is_hex4` checks for a length of exactly 4 characters, which is essential for correct Unicode escape validation, while the inline version would silently accept strings of any length, leading to incorrect parsing or crashes. Additionally, the inline check doesn't provide any performance benefit over the existing approach since the function call overhead is negligible compared to the actual work done in the parsing.
+
+STEELMAN: The steelman version would preserve the core intent of avoiding function call overhead while maintaining correctness by ensuring that the inline check still enforces the same length and character validation as the original function. The key is to make sure that the inline logic mirrors the original `_is_hex4` function's behavior exactly, including checking for 4-character length and validating each character against `_HEX_CHARS`.
+
+```python
+<<<<<<< SEARCH
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+=======
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if len(hex4) != 4 or not all(c in _HEX_CHARS for c in hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+>>>>>>> REPLACE
+```

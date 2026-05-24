@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to remove `_WS_RE` and stop using it is unworkable because the existing `_skip_ws` function already manually advances the pointer character-by-character, which is inherently slower than a single regex match for large whitespace runs. The suggestion fails to recognize that the current implementation is already optimized for whitespace skipping via direct character checks, and removing the regex would not improve performance in this case.
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by replacing the manual loop with a regex match for whitespace, but only when whitespace runs are long enough to benefit from regex performance. This preserves the core idea of avoiding repeated pointer advancement while still leveraging regex for efficiency.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use regex for efficient skipping of large whitespace runs
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

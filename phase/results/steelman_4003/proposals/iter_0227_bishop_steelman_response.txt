@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use a fixed set of character classes for O(1) lookup is problematic because it doesn't address the actual performance bottleneck in `_skip_ws`, which is the loop that processes each whitespace character individually. The suggestion fails to consider that the current implementation already uses a `frozenset` for `_WS_CHARS`, making individual character lookups O(1) already. Additionally, the suggestion ignores that whitespace skipping often processes large contiguous blocks of whitespace, so the loop overhead is minimal compared to the cost of the character lookups.
+
+STEELMAN: The steelman version of the suggestion would focus on optimizing the whitespace skipping by using a more efficient method for advancing the position pointer, such as leveraging the regex pattern that's already precomputed for whitespace skipping, or using a more efficient loop structure that minimizes the number of checks per character. This would reduce the constant factor in the linear time complexity, making the whitespace skipping faster without changing the fundamental O(n) nature of the operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for contiguous whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `re.findal()` for whitespace skipping is problematic because it would require scanning the entire remaining string on every call, which is inefficient and doesn't align with the current approach of incrementally skipping whitespace. It also doesn't address the core issue that the current `_skip_ws` function already uses a fast loop-based approach, making the regex suggestion redundant and potentially slower due to regex overhead. Additionally, `findall()` would not be suitable for skipping whitespace in a streaming fashion, as it would need to process all whitespace at once rather than incrementally.
+
+STEELMAN: A better approach would be to leverage the precompiled regex `_WS_RE` that's already defined in the code to skip whitespace in one go, instead of using a per-character loop. This maintains the incremental parsing strategy while using the optimized regex for the actual skipping, which should provide a performance boost without changing the fundamental parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex for efficient whitespace skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

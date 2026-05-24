@@ -1,0 +1,51 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -15,6 +15,9 @@
+ 
+ # Pre-compiled regex for whitespace skipping
+ _WS_RE = re.compile(r'\s*')
++_WS_CHARS = frozenset(' \t\n\r')
++
++_DIGIT_CHARS = frozenset("0123456789")
+ _HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+ 
+ 
+@@ -33,14 +36,12 @@
+ def _skip_ws(text: str, pos: int) -> int:
+-    m = _WS_RE.match(text, pos)
+-    return m.end() if m else pos
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
+ 
+ 
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+@@ -72,7 +73,8 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+-    pos = pos + 1
+-    out: list = []
++    pos = pos + 1
++    out: list = [None] * 8
+     pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "]":
+         return out, pos + 1
+@@ -85,7 +87,8 @@
+         pos = _skip_ws(text, pos)
+         value, pos = _parse_value(text, pos)
+-        out.append(value)
++        out[len(out) - 8] = value
+         pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+@@ -93,6 +96,10 @@
+         if c == "]":
+             return out, pos + 1
+         raise JSONParseError(f"expected ',' or ']' at {pos}")
++    # Pre-allocate list with initial capacity
++    if len(out) < 8:
++        out = out + [None] * (8 - len(out))
++    return out, pos + 1
+```

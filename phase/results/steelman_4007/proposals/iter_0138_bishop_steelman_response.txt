@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `isspace()` and `startswith()` for whitespace skipping is problematic because `isspace()` checks the Unicode category of characters, not just the specific whitespace set defined in `_WS_CHARS`, which could lead to incorrect parsing. Additionally, `startswith()` is not suitable for skipping a variable number of characters, and the approach doesn't leverage the fact that we already have an optimized inline loop that uses a set lookup for O(1) membership checks. The suggestion fails to consider that the current implementation is already optimized for performance in this area.
+
+STEELMAN: The steelman version of the suggestion is to improve the existing `_skip_ws` function by replacing the manual loop with a more efficient approach that still uses set-based lookups but avoids the overhead of repeated exception handling. We can optimize by using `str.lstrip()` or by iterating with a set lookup but avoiding exception handling, keeping the performance characteristics while making the code cleaner.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

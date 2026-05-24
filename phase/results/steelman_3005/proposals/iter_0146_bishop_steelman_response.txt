@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `regex.match()` for whitespace skipping is flawed because regex matching is generally slower than direct character checks for simple cases like whitespace. Additionally, the proposed regex `r'\s*'` will match zero or more whitespace characters, but the current implementation needs to skip *all* consecutive whitespace characters, which the regex approach doesn't inherently guarantee without careful handling. It also introduces complexity and potential performance regressions due to regex engine overhead.
+
+STEELMAN: A better approach would be to use a compiled regex with `match()` to find the next non-whitespace character, but only after ensuring that we're not inadvertently skipping past the end of the string or misinterpreting the match result. This can be done by using `re.match(_WS_PATTERN, text, pos)` and checking that the match is not None, then advancing the position to `match.end()` — which effectively skips all leading whitespace in one operation while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

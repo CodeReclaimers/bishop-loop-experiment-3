@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.find` for skipping whitespace is problematic because `str.find` is not optimized for finding the *next* non-whitespace character in a stream; it searches the entire remaining string, which doesn't provide the expected O(1) performance benefit. It also fails to handle the case where whitespace runs are very long, as `str.find` still scans linearly through the string until it finds a match. Additionally, it doesn't preserve the existing behavior of returning the correct position after skipping whitespace.
+
+STEELMAN: A better approach is to use `str.find` to locate the first non-whitespace character, but only after checking if the current position is already non-whitespace. This allows for a jump over large runs of whitespace while still preserving correctness and performance characteristics. The function should return the position of the first non-whitespace character, or the end of the string if all remaining characters are whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Jump over whitespace using str.find for efficiency
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None))
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

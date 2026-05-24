@@ -1,0 +1,51 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex match would introduce a performance regression because regex matching in Python has overhead that outweighs the benefits of avoiding the Python loop, especially since whitespace skipping is a frequent operation. The regex approach also doesn't handle the case where the input is not a string, which is already handled by the existing `isinstance` check, but could cause issues if not carefully integrated. Additionally, the regex would need to be compiled once and reused, but if not done properly, it could lead to repeated compilation overhead.
+
+STEELMAN: The steelman version of the suggestion is to pre-compile a regex pattern for whitespace and reuse it efficiently, while ensuring that the regex is only compiled once at module level, and that the matching is done with `match` starting from the given position to avoid unnecessary overhead. This preserves the performance intent of the original suggestion but avoids the pitfalls of naive regex use.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+```
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_WS_PATTERN = re.compile(r"^[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex match to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `str.translate` with a translation table for bulk skipping fails because it would alter the input string by replacing whitespace with spaces, which breaks the parser's ability to track the original position accurately. Additionally, `translate` is not necessarily faster than a simple loop for small amounts of whitespace, and the approach doesn't account for the need to preserve exact character positions for error reporting or parsing continuation.
+
+STEELMAN: A better approach would be to use a regex-based skip that leverages `re.search` or `re.match` to find the next non-whitespace character, which avoids the per-character loop while preserving the original string and position tracking. This can be implemented by compiling a regex pattern that matches one or more whitespace characters, then advancing the position by the length of the match.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

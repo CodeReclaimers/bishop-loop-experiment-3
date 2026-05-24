@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use a generator for character-by-character processing is misguided because it would fundamentally alter the parsing strategy, requiring the entire parser to be rewritten around a streaming model rather than the current recursive descent approach. It doesn't address the actual performance bottlenecks like string concatenation or redundant whitespace checks. Additionally, a naive generator-based approach would likely introduce significant overhead from function call stacks and state management, making it slower than the existing implementation.
+
+STEELMAN: A better approach would be to optimize the existing whitespace skipping function by using a more efficient method such as `str.lstrip()` or a compiled regex for skipping whitespace, while preserving the current recursive descent parsing structure. This maintains the existing API and logic but improves performance by reducing the overhead of character-by-character loops in `_skip_ws`.
+
+```python
+<<<<<<< SEARCH
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Optimized whitespace skipping using a compiled regex
+import re
+
+# Precompile the whitespace regex for performance
+_WS_PATTERN = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

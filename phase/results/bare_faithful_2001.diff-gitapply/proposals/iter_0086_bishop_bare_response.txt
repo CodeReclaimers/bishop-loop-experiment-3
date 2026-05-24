@@ -1,0 +1,96 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -17,12 +17,12 @@
+ 
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+-    pos = _skip_ws(text, 0)
++    pos = text.find(''.join(_WS_CHARS), 0)
+     if pos >= len(text):
+         raise JSONParseError("empty input")
+     value, pos = _parse_value(text, pos)
+-    pos = _skip_ws(text, pos)
++    pos = text.find(''.join(_WS_CHARS), pos)
+     if pos != len(text):
+         raise JSONParseError(f"trailing content at position {pos}")
+     return value
+@@ -42,12 +42,12 @@
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+-    pos = _skip_ws(text, pos)
++    pos = text.find(''.join(_WS_CHARS), pos)
+     if pos >= len(text):
+         raise JSONParseError("unexpected end of input")
+     c = text[pos]
+     if c == "{":
+         return _parse_object(text, pos)
+     if c == "[":
+         return _parse_array(text, pos)
+     if c == '"':
+         return _parse_string(text, pos)
+     if c == "t" or c == "f":
+         return _parse_bool(text, pos)
+     if c == "n":
+         return _parse_null(text, pos)
+     if c == "-" or c in _DIGIT_CHARS:
+         return _parse_number(text, pos)
+     raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+@@ -75,7 +75,7 @@
+ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+     if text[pos] != "{":
+         raise JSONParseError(f"expected '{{' at {pos}")
+     pos += 1
+-    pos = _skip_ws(text, pos)
++    pos = text.find(''.join(_WS_CHARS), pos)
+     if pos < len(text) and text[pos] == "}":
+         return out, pos + 1
+     while True:
+@@ -84,7 +84,7 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text) or text[pos] != '"':
+             raise JSONParseError(f"expected string key at {pos}")
+         key, pos = _parse_string(text, pos)
+-        pos = _skip_ws(text, pos)
++        pos = text.find(''.join(_WS_CHARS), pos)
+         if pos >= len(text) or text[pos] != ":":
+             raise JSONParseError(f"expected ':' at {pos}")
+         pos += 1
+@@ -93,7 +93,7 @@
+         pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated object")
+-        pos = _skip_ws(text, pos)
++        pos = text.find(''.join(_WS_CHARS), pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated object")
+         c = text[pos]
+@@ -110,7 +110,7 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+     pos += 1
+-    pos = _skip_ws(text, pos)
++    pos = text.find(''.join(_WS_CHARS), pos)
+     if pos < len(text) and text[pos] == "]":
+         return out, pos + 1
+     while True:
+@@ -118,7 +118,7 @@
+         pos = _skip_ws(text, pos)
+         value, pos = _parse_value(text, pos)
+         # Use append instead of list concatenation
+         out.append(value)
+-        pos = _skip_ws(text, pos)
++        pos = text.find(''.join(_WS_CHARS), pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+         c = text[pos]
+@@ -126,7 +126,7 @@
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+-        pos = _skip_ws(text, pos)
++        pos = text.find(''.join(_WS_CHARS), pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+         c = text[pos]
+```

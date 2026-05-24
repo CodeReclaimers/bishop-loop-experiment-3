@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the while loop in `_skip_ws` with `text.find` is problematic because `text.find` scans linearly anyway and doesn't provide true O(1) behavior; it still has to examine characters sequentially until a non-whitespace is found. Additionally, the suggestion to avoid `out = out + [v]` and `out = dict(out); out[k] = v` is good in principle, but the proposed replacements (`list.append` and `dict[k] = v`) don't fully address the core issue of inefficient string building in `_parse_string` where `out = out + c` is used repeatedly.
+STEELMAN: A better approach is to use `text.find` in `_skip_ws` to jump to the next non-whitespace character efficiently, while also optimizing `_parse_string` to use a list and `join` instead of repeated string concatenation, and to use `list.append` and direct `dict[k] = v` assignments in `_parse_object` and `_parse_array` to avoid repeated allocations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    return next_non_ws if next_non_ws != -1 else len(text)
+>>>>>>> REPLACE
+```

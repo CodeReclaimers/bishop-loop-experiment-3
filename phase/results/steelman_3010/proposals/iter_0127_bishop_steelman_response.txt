@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it would only find the first whitespace character, not the longest sequence of consecutive whitespace, and it doesn't handle the case where no whitespace exists after `pos` correctly. Additionally, it doesn't leverage the precomputed `_WS_CHARS` frozenset for efficient membership testing and would likely be slower than the current implementation for typical inputs.
+
+STEELMAN: A better approach would be to use `re.search` with a compiled regex pattern that matches one or more whitespace characters starting from `pos`, and then advance the position by the length of the match. This preserves the intent of leveraging fast C-level substring search while correctly handling sequences of whitespace and maintaining the existing logic flow.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently find and skip whitespace sequences
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

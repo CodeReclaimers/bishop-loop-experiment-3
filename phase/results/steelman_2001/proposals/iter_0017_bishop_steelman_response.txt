@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is problematic because `text.find` only returns the position of the *first* non-whitespace character, not the position after skipping all leading whitespace. This would break the logic of advancing the position past all whitespace, and would not handle the case where the input is entirely whitespace. Additionally, it doesn't address the fact that the current loop is already O(k) where k is the number of whitespace characters, and `text.find` would still be O(n) in worst case, but with higher constant overhead due to Python string method call overhead.
+
+STEELMAN: The steelman version would use a compiled regex with `re.search` to find the first non-whitespace character, or alternatively, use `str.lstrip` to skip leading whitespace efficiently. The key is to avoid the per-character Python loop by leveraging optimized C-level string operations, while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile regex for skipping whitespace
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all leading whitespace in one C-level operation
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

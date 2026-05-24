@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to pre-process all whitespace with a regex substitution would break JSON parsing because it removes all whitespace, including the spaces needed to separate tokens like `true`, `false`, `null`, and number literals. Additionally, it would not handle escaped quotes within strings correctly, since the regex would remove the surrounding whitespace that helps delimit string boundaries.
+STEELMAN: A better approach is to use the precompiled regex to efficiently skip whitespace by finding the next non-whitespace character, rather than removing all whitespace. This maintains token boundaries and allows the parser to work correctly while still reducing the overhead of repeated whitespace scanning.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Preprocess text to remove all whitespace for efficient skipping
+    text_no_ws = _WS_RE.sub('', text)
+    pos = 0
+    if pos >= len(text_no_ws):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    if pos != len(text_no_ws):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

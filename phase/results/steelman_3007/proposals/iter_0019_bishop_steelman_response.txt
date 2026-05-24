@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find_first_of(' \t\n\r', pos)` is unworkable because Python strings don't have a `find_first_of` method — this is a C++-style interface. Even if such a method existed, it would not handle Unicode whitespace characters properly, as JSON allows for more than just ASCII whitespace. Additionally, the method would not integrate cleanly with the existing parser logic that expects to process characters one-by-one for error reporting and complex parsing.
+
+STEELMAN: A better approach is to use a compiled regex like `_WS_RE` that skips all whitespace in one operation, leveraging the existing regex infrastructure already present in the code. This preserves the performance benefits of avoiding the Python loop while maintaining correctness and compatibility with the current parser design.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

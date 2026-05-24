@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work because it fundamentally changes the semantics of skipping whitespace — the current implementation advances through each character individually to handle cases like multiple consecutive whitespace characters, while `translate` would map all whitespace to one character and then `find` would only locate the first such character, losing the ability to skip all whitespace efficiently. Additionally, the `str.translate` approach would require creating a translation table for all whitespace characters, which is not trivial and could be slower than the existing loop for small inputs.
+
+STEELMAN: A better approach is to use `str.translate` to map all whitespace characters to a single sentinel character, then use `str.find` to locate the next non-sentinel character, which is still O(1) per block of whitespace and avoids repeated membership checks. This preserves the performance benefits of the original idea while maintaining correctness by leveraging C-level string operations for the core scanning logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with sentinel to skip whitespace efficiently
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping all whitespace to a sentinel
+    whitespace_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the rest of the string, then find the first non-whitespace
+    translated = text[pos:].translate(whitespace_table)
+    # Find the first non-sentinel character
+    next_non_ws = translated.find(" ")
+    if next_non_ws == -1:
+        # All remaining characters are non-whitespace
+        return len(text)
+    # Return the original position adjusted by the translation
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

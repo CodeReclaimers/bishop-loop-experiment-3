@@ -1,0 +1,300 @@
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use frozenset for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    
+    # State machine approach
+    states = {
+        'START': _parse_start,
+        'OBJECT_KEY': _parse_object_key,
+        'OBJECT_VALUE': _parse_object_value,
+        'ARRAY_VALUE': _parse_array_value,
+        'STRING': _parse_string_state,
+        'NUMBER': _parse_number_state,
+        'BOOL': _parse_bool_state,
+        'NULL': _parse_null_state,
+    }
+    
+    # Initialize state
+    current_state = 'START'
+    pos = 0
+    stack = []
+    current_value = None
+    key = None
+    number_buffer = ""
+    string_buffer = []
+    
+    while pos < len(text):
+        c = text[pos]
+        if current_state == 'START':
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unexpected end of input")
+            c = text[pos]
+            if c == '{':
+                current_state = 'OBJECT_KEY'
+                stack.append(('object', {}))
+                pos += 1
+            elif c == '[':
+                current_state = 'ARRAY_VALUE'
+                stack.append(('array', []))
+                pos += 1
+            elif c == '"':
+                current_state = 'STRING'
+                pos += 1
+                string_buffer = []
+            elif c == 't' or c == 'f':
+                current_state = 'BOOL'
+                pos = _skip_ws(text, pos)
+            elif c == 'n':
+                current_state = 'NULL'
+                pos = _skip_ws(text, pos)
+            elif c == '-' or c in _DIGIT_CHARS:
+                current_state = 'NUMBER'
+                number_buffer = ""
+                pos = _skip_ws(text, pos)
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        elif current_state == 'OBJECT_KEY':
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unexpected end of input")
+            c = text[pos]
+            if c == '"':
+                pos += 1
+                key = ""
+                string_buffer = []
+                current_state = 'STRING'
+            elif c == '}':
+                current_state = 'START'
+                pos += 1
+                stack.pop()
+            else:
+                raise JSONParseError(f"expected '\"' or '}}' at {pos}")
+        elif current_state == 'OBJECT_VALUE':
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unexpected end of input")
+            c = text[pos]
+            if c == ':':
+                pos += 1
+                current_state = 'START'
+            else:
+                raise JSONParseError(f"expected ':' at {pos}")
+        elif current_state == 'ARRAY_VALUE':
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unexpected end of input")
+            c = text[pos]
+            if c == ']':
+                current_state = 'START'
+                pos += 1
+                stack.pop()
+            else:
+                current_state = 'START'
+        elif current_state == 'STRING':
+            if c == '"':
+                current_value = "".join(string_buffer)
+                current_state = 'START'
+                pos += 1
+                if stack and stack[-1][0] == 'object':
+                    if key is not None:
+                        stack[-1][1][key] = current_value
+                        key = None
+                        current_state = 'OBJECT_VALUE'
+                elif stack and stack[-1][0] == 'array':
+                    stack[-1][1].append(current_value)
+            elif c == '\\':
+                pos += 1
+                if pos >= len(text):
+                    raise JSONParseError("unterminated string escape")
+                esc = text[pos]
+                if esc == '"':
+                    string_buffer.append('"')
+                elif esc == '\\':
+                    string_buffer.append("\\")
+                elif esc == '/':
+                    string_buffer.append("/")
+                elif esc == 'b':
+                    string_buffer.append("\b")
+                elif esc == 'f':
+                    string_buffer.append("\f")
+                elif esc == 'n':
+                    string_buffer.append("\n")
+                elif esc == 'r':
+                    string_buffer.append("\r")
+                elif esc == 't':
+                    string_buffer.append("\t")
+                elif esc == 'u':
+                    if pos + 4 >= len(text):
+                        raise JSONParseError(f"bad unicode escape at {pos}")
+                    hex4 = text[pos + 1 : pos + 5]
+                    if not _is_hex4(hex4):
+                        raise JSONParseError(f"bad unicode escape at {pos}")
+                    cp = int(hex4, 16)
+                    if 0xD800 <= cp <= 0xDBFF:
+                        if pos + 5 >= len(text) or text[pos + 5] != "\\" or pos + 6 >= len(text) or text[pos + 6] != "u":
+                            raise JSONParseError(f"unpaired high surrogate at {pos}")
+                        if pos + 10 >= len(text):
+                            raise JSONParseError(f"bad low surrogate at {pos}")
+                        hex4b = text[pos + 7 : pos + 11]
+                        if not _is_hex4(hex4b):
+                            raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                        cp2 = int(hex4b, 16)
+                        if not (0xDC00 <= cp2 <= 0xDFFF):
+                            raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                        string_buffer.append(chr(cp))
+                        pos += 11
+                        continue
+                    string_buffer.append(chr(cp))
+                    pos += 4
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {pos}")
+                pos += 1
+                continue
+            elif ord(c) < 0x20:
+                raise JSONParseError(f"unescaped control character at {pos}")
+            else:
+                string_buffer.append(c)
+            pos += 1
+        elif current_state == 'NUMBER':
+            if c in _DIGIT_CHARS or c == '.' or c == 'e' or c == 'E' or c == '+' or c == '-':
+                number_buffer += c
+                pos += 1
+            else:
+                # End of number
+                current_value = float(number_buffer) if '.' in number_buffer or 'e' in number_buffer.lower() else int(number_buffer)
+                current_state = 'START'
+                if stack and stack[-1][0] == 'object':
+                    if key is not None:
+                        stack[-1][1][key] = current_value
+                        key = None
+                elif stack and stack[-1][0] == 'array':
+                    stack[-1][1].append(current_value)
+        elif current_state == 'BOOL':
+            if text[pos:pos+4] == "true":
+                current_value = True
+                pos += 4
+                current_state = 'START'
+                if stack and stack[-1][0] == 'object':
+                    if key is not None:
+                        stack[-1][1][key] = current_value
+                        key = None
+                elif stack and stack[-1][0] == 'array':
+                    stack[-1][1].append(current_value)
+            elif text[pos:pos+5] == "false":
+                current_value = False
+                pos += 5
+                current_state = 'START'
+                if stack and stack[-1][0] == 'object':
+                    if key is not None:
+                        stack[-1][1][key] = current_value
+                        key = None
+                elif stack and stack[-1][0] == 'array':
+                    stack[-1][1].append(current_value)
+            else:
+                raise JSONParseError(f"bad bool at {pos}")
+        elif current_state == 'NULL':
+            if text[pos:pos+4] == "null":
+                current_value = None
+                pos += 4
+                current_state = 'START'
+                if stack and stack[-1][0] == 'object':
+                    if key is not None:
+                        stack[-1][1][key] = current_value
+                        key = None
+                elif stack and stack[-1][0] == 'array':
+                    stack[-1][1].append(current_value)
+            else:
+                raise JSONParseError(f"bad null at {pos}")
+    
+    # Final check
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    
+    if stack:
+        return stack[-1][1]
+    else:
+        return current_value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path: skip whitespace using a compiled regex
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_start(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_object_key(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_object_value(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_array_value(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_string_state(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_number_state(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_bool_state(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _parse_null_state(text: str, pos: int) -> tuple[Any, int]:
+    return parse(text)
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+```

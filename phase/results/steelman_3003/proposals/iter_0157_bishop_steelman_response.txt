@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character whitespace check with a regex call would break the logic because `_WS_RE` is compiled to match zero or more whitespace characters (`[ \t\n\r]*`) but doesn't account for the fact that the regex engine may not advance the position correctly when skipping a large block of whitespace. Additionally, the regex engine may not be optimized for small, sequential whitespace skipping and could introduce overhead from regex compilation or state management.
+
+STEELMAN: A better approach is to use the regex to skip a large block of leading whitespace by matching the pattern from the current position and advancing by the matched length, while still preserving the correctness and performance benefits of avoiding per-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large blocks
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

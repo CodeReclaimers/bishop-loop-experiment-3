@@ -1,0 +1,56 @@
+To improve performance in `json_parser.py`, we can use a more efficient string building technique by using the `join()` method instead of appending to a list manually. This reduces the overhead of repeated string concatenation, especially for larger JSON objects. The new implementation would look like this:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in " \t\n":
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        out = {}
+        pos = _skip_ws(text, pos)
+        if pos < len(text) and text[pos] == "}":
+            return out, pos + 1
+        while True:
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != '"':
+                raise JSONParseError(f"expected string key at {pos}")
+            key, pos = _parse_string(text, pos)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos = pos + 1
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos = pos + 1
+                continue
+            if c == "}":
+                return out, pos + 1
+        while pos < n:
+            # ...
+```
+
+By using `join()`, we avoid repeatedly calling `str.__iadd__()` on a list, which is more efficient and faster.

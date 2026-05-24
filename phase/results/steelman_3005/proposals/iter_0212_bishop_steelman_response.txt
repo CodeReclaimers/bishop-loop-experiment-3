@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop everywhere would lead to code duplication and make the parser harder to maintain. It doesn't address the actual performance bottleneck, which is likely the repeated `text[pos].isspace()` calls, and could introduce subtle bugs from inconsistent whitespace handling across functions. Additionally, it would bloat the code size significantly without clear performance gains.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` itself by using a compiled regex pattern for whitespace skipping, as suggested in the docstring, but only if the current implementation proves to be a bottleneck. This preserves the clean separation of concerns while potentially improving performance through regex optimization.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    global _WS_PATTERN
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

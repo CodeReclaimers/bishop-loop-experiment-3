@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion fails to account for the fact that `ord(c)` returns an integer in the range 0-1114111 for Unicode code points, making a bytearray of that size impractical and memory-inefficient. Additionally, it doesn't consider that the whitespace characters are not contiguous in the ASCII table, so a simple lookup in a precomputed bytearray won't work correctly for all cases.
+STEELMAN: The steelman version would precompute a compact bytearray where only the relevant ASCII whitespace bytes (32, 9, 10, 13) are marked, and use `ord(c)` as an index into this bytearray to check membership, which is more efficient than a hash set lookup while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Pre-computed bytearray for O(1) whitespace lookup (ASCII only)
+# Only set the bytes for space (32), tab (9), newline (10), and carriage return (13)
+_WS_BYTESET = bytearray(128)  # ASCII range
+_WS_BYTESET[32] = 1  # space
+_WS_BYTESET[9] = 1   # tab
+_WS_BYTESET[10] = 1  # newline
+_WS_BYTESET[13] = 1  # carriage return
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+>>>>>>> REPLACE
+```

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is problematic because it creates a large string of all whitespace characters which is inefficient and doesn't handle the case where the next non-whitespace character is at the end of the string. Additionally, using `str.find` for digit scanning in `_parse_number` fails to account for the fact that numbers can contain decimal points, exponents, and negative signs, making a simple `find` approach unsuitable for parsing the full number format.
+STEELMAN: A better approach would be to use `str.find` with a precomputed set of whitespace characters to skip over consecutive whitespace efficiently, and for number parsing, use a regex pattern that matches the complete number format (including decimal point, exponent, etc.) to locate the end of the numeric token in one go, avoiding repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip over all whitespace at once
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

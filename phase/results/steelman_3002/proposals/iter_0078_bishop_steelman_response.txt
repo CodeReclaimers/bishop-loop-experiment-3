@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to replace `_WS_RE.search` with a manual while-loop would be problematic because it doesn't address the actual performance bottleneck — the regex is only used once per value parsing, not repeatedly in a tight loop. Additionally, the manual loop would need to be duplicated across multiple functions, violating DRY principles and increasing maintenance burden. The core issue isn't the regex itself but rather the frequency of whitespace skipping, which is already optimized in other parts of the code.
+
+STEELMAN: The steelman version of the suggestion is to refactor the whitespace skipping logic into a reusable helper function that can be called from `_parse_value` and other locations, ensuring consistent performance while maintaining clean, DRY code. This preserves the intent of avoiding regex overhead but does so in a maintainable way.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    pos = _skip_ws(text, pos)
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace the regex with a direct character check is flawed because it fails to account for the fact that the current `_skip_ws` function is already optimized and uses a `while` loop with direct character comparisons. The proposed change would actually be a regression since it removes the optimization of precomputing the set of whitespace characters and would likely be slower than the existing implementation.
+
+STEELMAN: The steelman version would retain the existing optimized `_skip_ws` function but improve it by using a frozenset lookup for whitespace characters instead of repeated `in` checks on a string, which is more efficient than the current approach while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        c = text[pos]
+        if c in WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

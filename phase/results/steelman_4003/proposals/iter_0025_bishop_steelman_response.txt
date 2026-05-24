@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a single regex for all number parsing is problematic because it would require matching the entire number pattern including optional decimal and exponential parts in one go, which could be slower than the current approach due to regex backtracking. Additionally, directly converting numbers without proper validation could lead to silent failures or incorrect parsing of malformed inputs. The suggestion also ignores that the current implementation already uses a precompiled regex for number matching, so the overhead reduction isn't as significant as described.
+
+STEELMAN: The steelman version would improve number parsing by leveraging the existing precompiled regex pattern more effectively, ensuring that the number parsing logic remains correct while reducing redundant checks and function calls. The key is to optimize the existing regex usage rather than replacing it entirely, maintaining the same validation behavior but improving performance through fewer intermediate steps and avoiding unnecessary string operations.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

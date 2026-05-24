@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use a precomputed whitespace character set is already partially implemented in the code — `_WS_CHARS` is already defined as a `frozenset`. The suggestion fails to recognize that the actual performance bottleneck is not the set lookup but the repeated calls to `_skip_ws()` which still iterate character-by-character. Additionally, the suggestion doesn't address the redundant whitespace handling at every parsing level, which is a major source of inefficiency.
+STEELMAN: The steelman is to optimize `_skip_ws()` by using a regex-based approach to skip whitespace in bulk, reducing the number of individual character checks and function calls. This can be done by precompiling a regex that matches one or more whitespace characters and using it to advance the position in the input string, which will dramatically reduce the overhead of whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in bulk
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+=======
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+# Precompile regex for skipping whitespace
+_WS_RE = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+```

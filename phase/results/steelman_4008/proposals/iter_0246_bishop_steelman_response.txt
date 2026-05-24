@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `str.find` for large skips is problematic because it doesn't address the core performance issue of repeated whitespace handling at every parsing level. Using `str.find` would require scanning forward to find the next non-whitespace character, which could be inefficient if whitespace is sparse or if the skip is small. Additionally, `str.find` is not suitable for handling complex whitespace patterns like Unicode whitespace or multi-character sequences that are valid in JSON.
+
+STEELMAN: The steelman approach is to use a hybrid strategy where we initially scan for whitespace using a fast bulk operation like `str.find` to skip large blocks of whitespace, but fall back to character-by-character scanning when the next meaningful token is found, ensuring we don't miss any edge cases or inefficiently scan too far ahead. This approach optimizes for the common case while preserving correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use hybrid approach: fast skip for large whitespace blocks, fallback to char-by-char
+    start = pos
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

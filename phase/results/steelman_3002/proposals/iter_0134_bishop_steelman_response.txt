@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to replace the regex with `str.find` is flawed because `str.find` cannot efficiently handle the arbitrary whitespace characters defined by JSON (space, tab, line feed, carriage return) without additional logic. The proposed approach would likely require multiple `find` calls or a more complex loop, negating performance gains. Additionally, the current `_skip_ws` function is already optimized for the specific set of whitespace characters and doesn't benefit from regex overhead.
+STEELMAN: The steelman version improves performance by replacing the regex-based approach with a tight loop that directly checks for JSON whitespace characters using a frozenset lookup, eliminating the regex overhead while maintaining correctness and readability.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to "directly convert the string to a float using `float()`" is naive because it ignores the fact that the current implementation already uses `float()` for numbers containing decimals or exponents, and only uses `int()` for integers. Simply switching everything to `float()` would cause precision loss for large integers that can't be accurately represented as floats, and would also be slower for simple integers due to unnecessary float conversion overhead.
+
+STEELMAN: The steelman is to preserve the current logic of using `int()` for integers and `float()` for numbers with decimals or exponents, but to optimize the number parsing by using `float()` directly on the matched string without the intermediate string slicing and pattern validation steps, since the regex already ensures the format is correct.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

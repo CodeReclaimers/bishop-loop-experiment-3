@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex search would break the function's contract since `_skip_ws` is designed to return the position *after* whitespace, not the position of the next non-whitespace character. Additionally, using regex for such a simple and frequent operation may introduce overhead due to regex engine setup and backtracking, especially for small amounts of whitespace. The regex approach also doesn't handle the case where the input is entirely whitespace, which should still be valid.
+
+STEELMAN: A better approach is to use `re.match` or `re.search` to find the first non-whitespace character, but we must ensure that the position returned is correct. The function should return the index of the first non-whitespace character, not the index after it. However, since the existing code uses `_skip_ws` to advance position and expects the result to be used as a new start position, we can adjust the logic slightly to make this work correctly with regex. The key is to use a regex that matches zero or more whitespace characters from the current position and return the index after that match.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

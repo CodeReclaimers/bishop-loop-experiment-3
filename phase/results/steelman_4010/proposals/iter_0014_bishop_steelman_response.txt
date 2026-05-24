@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use "precomputed set membership check or a generator expression with `yield` statements" is vague and potentially misleading. Simply replacing the loop with a set lookup won't eliminate the repeated whitespace skipping calls, and generator expressions don't inherently improve performance for this use case. The suggestion fails to address the real bottleneck: the repeated function call overhead and inefficient string building.
+STEELMAN: The strongest version of this suggestion would be to replace the character-by-character whitespace skipping loop with a single regex-based skip operation that can skip multiple whitespace characters at once, reducing function call overhead and improving cache locality. This approach maintains the core idea of optimizing whitespace handling while addressing performance bottlenecks.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once, reducing function call overhead
+    m = re.match(r'\s*', text[pos:])
+    if m:
+        return pos + len(m.group(0))
+    return pos
+>>>>>>> REPLACE
+```

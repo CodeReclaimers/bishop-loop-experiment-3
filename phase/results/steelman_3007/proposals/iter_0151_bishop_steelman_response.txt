@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex call is problematic because `re.search()` starts matching from the given position but doesn't guarantee it will match from that exact point; it may match at a later position. Additionally, `re.search()` is not optimized for skipping whitespace at a specific location — it's designed for pattern matching, not efficient forward skipping. This could introduce performance regressions or incorrect behavior when whitespace is not at the start of the input.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.fullmatch()` with a regex that matches zero or more whitespace characters starting from the given position, and then advance the position by the matched length. This preserves the intent of leveraging regex for efficient skipping while ensuring correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

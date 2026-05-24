@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex search would fail because `_WS_RE.search()` finds the next whitespace run but doesn't advance the position correctly in the context of the parser's state tracking. It also doesn't handle the case where the input is entirely whitespace, potentially causing incorrect behavior or performance regressions due to regex overhead. Additionally, it ignores that the current implementation skips only specific whitespace characters, and the regex approach could be less efficient for small amounts of whitespace.
+
+STEELMAN: The steelman version would use a regex to find the end of the whitespace sequence, but still maintain the parser's existing logic for advancing the position by computing the match end index, ensuring it integrates cleanly with the rest of the parsing state and avoids unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `text.find()` calls for each whitespace character is flawed because it would require multiple separate `find()` calls and would not handle the case where no whitespace is present efficiently. It also doesn't consider that `find()` has overhead and doesn't scale well for large runs of whitespace, especially when the string is mostly non-whitespace.
+
+STEELMAN: A better approach is to use a single regex-based `find()` call on a combined whitespace pattern, which can locate the first non-whitespace character in one pass, reducing the complexity from O(k) to O(1) for whitespace skipping while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precompile the regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace in one go
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

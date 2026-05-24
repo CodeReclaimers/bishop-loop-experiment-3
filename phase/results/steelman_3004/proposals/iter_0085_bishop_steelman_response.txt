@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a `ws_table` lookup assumes that the parser can precompute a table mapping every possible character to whether it's whitespace, but this approach fails because the table would need to be 128+ entries large and would not scale well for Unicode input. Additionally, it doesn't account for the fact that `_skip_ws` is called repeatedly in tight loops and the current implementation already uses an efficient O(1) lookup via `_WS_CHARS`, so the proposed optimization may not provide meaningful performance gains and could introduce complexity.
+
+STEELMAN: The steelman version of the suggestion is to optimize `_skip_ws` by using a lookup table for ASCII whitespace characters only, which can be precomputed and used in a tight loop for faster character-by-character scanning. This preserves the intent of reducing redundant checks while being practical and safe for the parser's current ASCII-based input.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+# Build a lookup table for ASCII whitespace characters (0-127)
+_WS_TABLE = [False] * 128
+for i in range(128):
+    _WS_TABLE[i] = chr(i) in _WS_CHARS
+>>>>>>> REPLACE
+```

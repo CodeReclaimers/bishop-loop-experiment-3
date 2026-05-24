@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `_skip_ws` calls with `_WS_RE.sub(r'', text, pos)` is fundamentally flawed because it would require passing the entire remaining string from `pos` onward to the regex engine, which defeats the purpose of efficient incremental parsing. It would also break the parser's ability to track position correctly since regex substitution doesn't return a new position index, and it would be significantly slower than the current O(1) set membership checks.
+
+STEELMAN: A better approach would be to use the regex to pre-skip whitespace at the beginning of parsing functions, but still maintain position tracking manually — essentially using the regex to identify a contiguous block of whitespace and advancing the position by that amount, rather than repeatedly calling `_skip_ws` in a loop.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

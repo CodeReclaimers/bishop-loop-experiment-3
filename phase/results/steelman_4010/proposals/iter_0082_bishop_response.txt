@@ -1,0 +1,43 @@
+To optimize the given JSON parser, we can consider a more efficient approach for whitespace skipping by using a generator function that yields characters one at a time instead of collecting them into a string. This reduces the overhead of building a large string in memory during the parsing process. The modified version would look like this:
+
+```python
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Generator function for whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        yield text[pos]
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    # ... rest of the function remains unchanged ...
+```
+
+This change makes it faster because it avoids building a large string during whitespace skipping, which can be time-consuming for large inputs. The generator function ` _skip_ws` yields characters one at a time, allowing us to process each character individually as we encounter them, reducing the need for additional memory allocations and improving the overall performance of the parsing process.

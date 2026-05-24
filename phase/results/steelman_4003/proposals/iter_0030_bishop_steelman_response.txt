@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `isspace()` instead of set lookup would be suboptimal because `isspace()` is not faster than frozenset lookup for single characters; in fact, it's likely slower due to function call overhead. Additionally, `isspace()` is not strictly equivalent to the custom whitespace set, as it includes characters like `\u00a0` (non-breaking space) that are not part of JSON's whitespace definition, potentially causing correctness issues. The suggestion also fails to consider that the current implementation already uses an optimized approach with precomputed sets and direct indexing.
+
+STEELMAN: A better approach would be to keep the precomputed frozenset for whitespace characters but optimize the actual skipping logic by using a more efficient loop structure, possibly by leveraging the fact that `isspace()` can be used in a batched or vectorized manner for larger chunks of text, or by minimizing the number of character lookups through smarter iteration strategies.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to precompile the number regex is partially correct but misses the fact that the current implementation already has a precompiled regex `_NUMBER_RE` defined at module level. The real issue is that the regex is used inside `_parse_number` which is called for every number, but the suggestion doesn't address that the current regex approach is inefficient because it uses a single regex to match the entire number, which can be slower than character-by-character parsing for simple cases. Also, the suggestion doesn't consider that the regex approach may not be optimal for all number formats or could introduce subtle bugs if not carefully handled.
+
+STEELMAN: The steelman version of this suggestion is to ensure that the number parsing logic is optimized by using a more efficient approach than regex for simple numbers, while still leveraging precompiled regex for complex cases like scientific notation. The key is to minimize redundant regex compilation while also optimizing the parsing of common numeric formats to avoid unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

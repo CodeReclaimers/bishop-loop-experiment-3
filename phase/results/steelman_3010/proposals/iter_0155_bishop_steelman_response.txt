@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `_WS_PATTERN` in `_skip_ws` would be problematic because the regex engine doesn't provide a way to advance the position to the *next* non-whitespace character without manually scanning the matched whitespace, which would still require a loop. Additionally, regex matching is generally more expensive than direct character checks for simple cases like skipping whitespace. The approach also fails to account for the fact that `_skip_ws` needs to advance the position to the first non-whitespace character, which is not what a regex match returns.
+
+STEELMAN: A better approach would be to use the regex to find the next non-whitespace character by matching the pattern from the current position, and then compute the new position as the start of the match plus the length of the matched whitespace. This preserves the intent of avoiding the character-by-character loop while leveraging the regex for efficient pattern matching.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

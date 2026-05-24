@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is flawed because it would require translating the entire string from the start position, not just the whitespace prefix, which is inefficient and incorrect. Additionally, the proposed approach of "locating the first non-whitespace character" after translation doesn't align with the current design where `_skip_ws` returns a new position, not a modified string. The idea also ignores that `str.translate` with `None` removes characters, so it wouldn't simply advance the position as intended.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (like a space), then use `str.translate` to replace whitespace with that sentinel, followed by `str.find` to locate the first non-sentinel character, effectively skipping the loop while maintaining correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace by replacing with sentinel
+    # and then finding the first non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Create translation table: map all whitespace to a single sentinel
+    whitespace_trans = str.maketrans(" \t\n\r", "    ")
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(whitespace_trans)
+    # Find first non-whitespace (non-space) character in translated string
+    new_pos = translated.find(" ")
+    if new_pos == -1:
+        # All characters are non-whitespace
+        return len(text)
+    # Return original position + offset
+    return pos + new_pos
+>>>>>>> REPLACE
+```

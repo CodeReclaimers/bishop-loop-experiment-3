@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `str.find` with a translation table is flawed because `str.find` cannot efficiently locate the next non-whitespace character when the input has no whitespace at all — it would still need to scan character-by-character. Additionally, building a translation table for just 4 whitespace characters is overkill and likely slower than the current set-based lookup. The approach also doesn't account for the fact that `str.find` searches for a single character, not a set of characters.
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.translate` followed by `str.find` to locate the first non-sentinel character. This leverages optimized C routines while maintaining correctness and performance across all input patterns.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table for faster whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace chars to '\0'
+    trans_table = str.maketrans("".join(_WS_CHARS), "\0" * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-null character
+    new_pos = translated.find('\0')
+    if new_pos == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

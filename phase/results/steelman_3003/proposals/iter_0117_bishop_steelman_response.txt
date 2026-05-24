@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex search would break the incremental parsing logic, since `_skip_ws` is called at multiple points in the parsing process and must return the position after the whitespace. Using `search` would only find the first whitespace run, not advance the parser correctly through multiple consecutive whitespace characters. Additionally, the regex approach would be slower for small amounts of whitespace due to regex overhead.
+STEELMAN: The steelman is to use `re.match` or `re.search` with the precompiled regex `_WS_RE` starting from the current position, but ensure that the returned match object's end position is used to advance the parser, while still maintaining the incremental parsing behavior. This preserves the performance benefit of regex while keeping the correct semantics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) per-run skip
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

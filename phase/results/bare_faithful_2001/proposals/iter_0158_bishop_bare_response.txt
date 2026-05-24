@@ -1,0 +1,142 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for faster lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a single find call to locate the next non-whitespace character
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    # Find the closing brace to parse the entire substructure
+    end_pos = text.find('}', pos)
+    if end_pos == -1:
+        raise JSONParseError("unterminated object")
+    # Parse the entire object content as a slice
+    obj_content = text[pos:end_pos]
+    out = {}
+    pos = 0
+    while pos < len(obj_content):
+        pos = _skip_ws(obj_content, pos)
+        if pos >= len(obj_content) or obj_content[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(obj_content, pos)
+        pos = _skip_ws(obj_content, pos)
+        if pos >= len(obj_content) or obj_content[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(obj_content, pos)
+        value, pos = _parse_value(obj_content, pos)
+        out[key] = value
+        pos = _skip_ws(obj_content, pos)
+        if pos >= len(obj_content):
+            raise JSONParseError("unterminated object")
+        c = obj_content[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, end_pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+    return out, end_pos + 1
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    # Find the closing bracket to parse the entire substructure
+    end_pos = text.find(']', pos)
+    if end_pos == -1:
+        raise JSONParseError("unterminated array")
+    # Parse the entire array content as a slice
+    arr_content = text[pos:end_pos]
+    out = []
+    pos = 0
+    while pos < len(arr_content):
+        pos = _skip_ws(arr_content, pos)
+        value, pos = _parse_value(arr_content, pos)
+        out.append(value)
+        pos = _skip_ws(arr_content, pos)
+        if pos >= len(arr_content):
+            raise JSONParseError("unterminated array")
+        c = arr_content[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, end_pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+    return out, end_pos + 1
+>>>>>>> REPLACE
+```

@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `ord(c) < 0x20` with a lookup table assumes all characters are ASCII, but the parser handles Unicode strings and may encounter non-ASCII characters with ordinals > 0x1F. Additionally, the suggestion doesn't address the fact that `ord(c)` is only called once per character, so the optimization may not yield meaningful gains. The lookup table approach also introduces complexity and potential memory overhead for a simple comparison.
+STEELMAN: The steelman is to create a precomputed boolean lookup table for control characters (ordinals 0-0x1F) that can be indexed directly by `ord(c)`, avoiding repeated `ord()` calls and comparisons. This approach maintains correctness, improves performance by reducing function call overhead, and only requires a small fixed-size table (32 elements).
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precomputed lookup table for control characters (0x00-0x1F)
+_CTRL_CHARS = [True if i < 0x20 else False for i in range(128)]
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+=======
+        if _CTRL_CHARS[ord(c)]:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+>>>>>>> REPLACE
+```

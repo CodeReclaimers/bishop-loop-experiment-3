@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while loop with `memoryview(text).find()` calls is flawed because `find()` returns the first occurrence of each character, but the current logic needs to skip ALL consecutive whitespace characters, not just the first one. Additionally, calling `find()` four times per iteration would be inefficient and could miss the correct next non-whitespace position if multiple characters are found at different positions. The approach doesn't account for the fact that whitespace characters can appear in any order and must be skipped entirely before continuing parsing.
+
+STEELMAN: A better approach would be to use `re.search()` with a precompiled regex that matches one or more whitespace characters, replacing the manual while loop. This preserves the intent of skipping all whitespace in one go, avoids character-by-character checking, and maintains correctness by leveraging the optimized regex engine.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

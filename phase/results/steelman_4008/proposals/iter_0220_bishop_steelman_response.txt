@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is unworkable because `str.find` would require scanning the entire input from the current position until the first non-whitespace character, which defeats the purpose of avoiding repeated checks. It also doesn't handle the case where whitespace is interspersed with other characters efficiently, and would not integrate well with the existing parser's recursive descent structure. Additionally, it fails to account for the fact that the current implementation already avoids regex in `_skip_ws`, so the suggestion doesn't address any real performance bottleneck.
+
+STEELMAN: The strongest version of the suggestion would be to optimize the existing `_skip_ws` function by using a more efficient character lookup method, such as checking against a precomputed set of whitespace characters, rather than repeatedly calling `text[pos] not in ' \t\n\r'`. This preserves the core idea of avoiding regex while improving performance by reducing the number of character comparisons and using fast set membership checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning with frozenset for performance
+    WS_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        if text[pos] not in WS_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

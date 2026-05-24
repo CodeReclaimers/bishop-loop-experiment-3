@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.find()` with `len('\\s*')` is fundamentally flawed because `find()` returns the start position of the match, not the end — the regex `\s*` matches zero or more whitespace chars, so advancing by `len('\\s*')` (which is 3) is incorrect. Additionally, the regex engine's performance benefit is negated by the overhead of calling `find()` for every whitespace skip, which defeats the purpose of optimization. The approach also introduces complexity in edge cases like empty input or malformed strings.
+STEELMAN: A better approach is to use `re.match()` or `re.search()` to find the first non-whitespace character, then advance `pos` to that position. This leverages the C-optimized regex engine for large whitespace runs while maintaining correctness and avoiding Python-level loops. The regex should match one or more whitespace characters (`\s+`) to skip them efficiently.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for O(1) lookup on large runs
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,85 @@
+CRITIQUE: The suggestion to use `ord()` checks and `int()` conversion is problematic because it doesn't actually address the core performance issue in `_parse_number`—the inefficient character-by-character scanning and building of the number string. Additionally, converting the entire number string to `int()` or `float()` after building it character-by-character is still slower than direct numeric parsing, especially for large numbers. The suggestion also ignores that the main bottleneck is in the loop that builds the string, not in the final conversion step.
+
+STEELMAN: A better approach would be to replace the character-by-character scanning of digits with a direct numeric conversion using `int()` or `float()` on substrings, while also using `ord()` to efficiently validate digit characters. This avoids building intermediate strings and leverages Python's optimized numeric parsing functions. The parsing should still be done in one pass over the numeric portion, with validation using `ord()` for performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif ord(text[pos]) >= ord("0") and ord(text[pos]) <= ord("9"):
+        while pos < n and ord(text[pos]) >= ord("0") and ord(text[pos]) <= ord("9"):
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or ord(text[pos]) < ord("0") or ord(text[pos]) > ord("9"):
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and ord(text[pos]) >= ord("0") and ord(text[pos]) <= ord("9"):
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or ord(text[pos]) < ord("0") or ord(text[pos]) > ord("9"):
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and ord(text[pos]) >= ord("0") and ord(text[pos]) <= ord("9"):
+            pos += 1
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

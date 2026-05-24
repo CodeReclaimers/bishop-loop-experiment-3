@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.search(text, f'^{pos}').end()` is fundamentally flawed because `re.search()` expects a regex pattern, not a string position, and the pattern `f'^{pos}'` would not work as intended. Additionally, `re.search()` would not properly handle the case where the position is already past the end of the string or where the regex engine would not efficiently skip whitespace in one pass without proper anchoring.
+STEELMAN: A better approach would be to use `re.match()` with a pattern that matches zero or more whitespace characters starting from the given position, and then compute the new position as `pos + match.end()`. This preserves the intent of using regex for efficient whitespace skipping while correctly handling the position tracking and avoiding redundant character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

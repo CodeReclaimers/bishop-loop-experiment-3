@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `findnext` from the `re` module is unworkable because Python's `re` module doesn't have a `findnext` method; the correct method would be `re.search()` or `re.match()`, but using regex for simple whitespace skipping introduces overhead and complexity. Additionally, the suggestion fails to account for the fact that the current implementation already avoids redundant bounds checking by using a try/except block, which is more efficient than regex-based approaches for this specific use case.
+
+STEELMAN: A better approach would be to leverage the existing `_WS_PATTERN` regex that's already defined in the codebase, but use `re.match()` or `re.search()` with a more efficient pattern that directly skips over whitespace without repeatedly checking each character. However, since we already have an optimized `_skip_ws` function using try/except, the steelman is to improve that function by using a single regex match to skip all whitespace at once, which maintains the performance benefits while being more readable and correct.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once, which is more efficient than
+    # repeatedly checking each character
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

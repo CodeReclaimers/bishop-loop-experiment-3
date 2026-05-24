@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace the while-loop with `text.find` is flawed because `text.find` only searches for a single substring, not a set of characters. It cannot efficiently skip multiple whitespace characters at once without repeatedly calling `find` or using a regex, which would be slower than the current approach. Additionally, `text.find` returns -1 for not found, which doesn't integrate cleanly with the existing loop logic.
+STEELMAN: A better approach is to use `str.translate` and `str.maketrans` to efficiently remove all whitespace characters from a slice of the string, then calculate the new position by subtracting the length difference. This preserves the performance gains of skipping large blocks of whitespace while maintaining correctness and avoiding complex loop logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Create translation table to remove whitespace chars
+    whitespace_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Skip whitespace by translating the substring
+    remaining = text[pos:]
+    translated = remaining.translate(whitespace_table)
+    # Calculate new position
+    return pos + len(remaining) - len(translated)
+>>>>>>> REPLACE
+```

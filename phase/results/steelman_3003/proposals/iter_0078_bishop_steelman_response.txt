@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is flawed because `text.find` scans linearly through the string and doesn't benefit from the early termination that the current loop provides when whitespace is sparse. Additionally, `text.find` would require a separate lookup of whitespace characters, which is less efficient than the existing O(1) frozenset membership test. It also doesn't handle the case where the entire remainder of the string is whitespace, which would result in an index beyond the string length.
+
+STEELMAN: A better approach would be to use `text.find` to locate the first non-whitespace character, but only after precomputing a set of non-whitespace characters to avoid repeated string scans. The key insight is to use `text.find` on a precomputed set of non-whitespace characters, which still leverages efficient C-level string search but avoids the inefficiency of repeated character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using text.find on non-whitespace characters
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    non_ws_pos = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if non_ws_pos == -1:
+        return len(text)
+    return non_ws_pos
+>>>>>>> REPLACE
+```

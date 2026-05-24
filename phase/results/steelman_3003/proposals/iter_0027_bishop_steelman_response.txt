@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion fails to account for the fact that `_WS_RE.search()` may return `None` if no whitespace is found, which would cause an AttributeError when calling `.end()`. Additionally, it doesn't handle the case where the regex engine might not be as efficient as the optimized frozenset lookup for small amounts of whitespace, and could introduce unnecessary overhead for simple cases.
+
+STEELMAN: The steelman version would use `_WS_RE.search(text, pos)` safely with a fallback to the original loop when no match is found, ensuring correctness while still leveraging the regex engine for longer sequences of whitespace. It should also ensure that the regex is only used when it's beneficial, such as when there's significant whitespace to skip.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency on large whitespace runs
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

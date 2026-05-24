@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is unworkable because `str.find` would require scanning forward for each whitespace character individually, negating any performance benefit and potentially being slower than the current per-character loop. Additionally, the suggestion doesn't address the core issue of redundant whitespace handling at every parsing level, which is a major bottleneck. Leveraging sets for membership checks is good, but the overall approach of avoiding regex while still using inefficient scanning methods won't yield significant gains.
+
+STEELMAN: A better approach would be to replace the per-character whitespace skipping with a single regex match that skips all leading whitespace at once, while still maintaining the existing structure and avoiding redundant whitespace checks at every parsing level. This preserves the performance gains from using sets for membership checks, but reduces the number of times whitespace is processed by leveraging a single efficient regex operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once for better performance
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

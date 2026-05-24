@@ -1,0 +1,66 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -102,12 +102,20 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+-    pos = pos + 1
+-    out: list = []
+-    pos = _skip_ws(text, pos)
+-    if pos < len(text) and text[pos] == "]":
+-        return out, pos + 1
+-    while True:
+-        pos = _skip_ws(text, pos)
+-        value, pos = _parse_value(text, pos)
+-        out.append(value)
+-        pos = _skip_ws(text, pos)
+-        if pos >= len(text):
+-            raise JSONParseError("unterminated array")
+-        c = text[pos]
+-        if c == ",":
+-            pos = pos + 1
+-            continue
+-        if c == "]":
+-            return out, pos + 1
+-        raise JSONParseError(f"expected ',' or ']' at {pos}")
++    pos = pos + 1
++    pos = _skip_ws(text, pos)
++    if pos < len(text) and text[pos] == "]":
++        return [], pos + 1
++    # Count elements to pre-allocate list
++    count = 1
++    save_pos = pos
++    while True:
++        pos = _skip_ws(text, pos)
++        if pos >= len(text):
++            raise JSONParseError("unterminated array")
++        c = text[pos]
++        if c == ",":
++            count += 1
++            pos = pos + 1
++            continue
++        if c == "]":
++            break
++        pos = _skip_ws(text, pos)
++        value, pos = _parse_value(text, pos)
++    # Pre-allocate list and fill it
++    out: list = [None] * count
++    pos = save_pos
++    i = 0
++    while True:
++        pos = _skip_ws(text, pos)
++        value, pos = _parse_value(text, pos)
++        out[i] = value
++        i += 1
++        pos = _skip_ws(text, pos)
++        if pos >= len(text):
++            raise JSONParseError("unterminated array")
++        c = text[pos]
++        if c == ",":
++            pos = pos + 1
++            continue
++        if c == "]":
++            return out, pos + 1
++        raise JSONParseError(f"expected ',' or ']' at {pos}")
+```

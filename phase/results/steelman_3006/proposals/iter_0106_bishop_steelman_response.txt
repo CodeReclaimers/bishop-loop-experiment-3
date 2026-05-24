@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work because it fundamentally changes the semantics of skipping whitespace — the original code needs to advance through characters one by one to maintain position tracking, but `translate` would map all whitespace to a single sentinel, losing the ability to determine the exact position after skipping. Additionally, this approach would not handle the case where the input string has no whitespace at all efficiently, and would introduce unnecessary overhead from constructing translation tables.
+STEELMAN: A better approach is to use `str.translate` to map whitespace characters to a single sentinel character, then use `str.find` to locate the first non-sentinel character, but only after ensuring that the translation table is properly constructed and that the result correctly calculates the final position by adding the offset to the original position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with sentinel to skip whitespace efficiently
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to a sentinel
+    trans_table = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-sentinel character
+    first_non_sentinel = translated.find(" ")
+    if first_non_sentinel == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + first_non_sentinel
+>>>>>>> REPLACE
+```

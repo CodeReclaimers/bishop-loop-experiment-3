@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex search would be unworkable because `re.search()` finds the *first* match, not the longest contiguous sequence of whitespace starting at the given position. It would also be suboptimal since it doesn't leverage the precomputed `_WS_CHARS` for O(1) lookup and would introduce regex overhead for a simple operation that's already highly optimized. Additionally, it fails to account for the fact that the current implementation is already efficient and avoids repeated string operations.
+STEELMAN: A better approach is to use the precompiled regex to find the end of whitespace starting at the current position, but we must ensure it's used correctly by using `re.match()` or `re.search()` with appropriate anchoring and then advance the position to the end of the matched whitespace, while still preserving the performance benefits of the existing O(1) character lookups for non-whitespace cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

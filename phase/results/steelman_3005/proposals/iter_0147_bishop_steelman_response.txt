@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace `isspace()` with a direct membership test using a hardcoded whitespace string fails to account for the full Unicode whitespace set that Python's `isspace()` includes, such as U+00A0 (non-breaking space) and other non-ASCII whitespace characters. This would break compatibility with valid JSON containing such characters. Additionally, the performance gain from avoiding `isspace()` is likely negligible compared to the overhead of the loop itself, and the proposed approach doesn't leverage the fact that `isspace()` is already optimized in C.
+
+STEELMAN: The steelman version uses a frozenset of all Unicode whitespace characters (including non-ASCII ones) for efficient membership testing, while keeping the loop structure to maintain correctness and performance. This preserves the intent of avoiding `isspace()` calls while ensuring compatibility with all valid JSON whitespace.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(" \t\r\n") | frozenset(chr(i) for i in range(0x10000) if chr(i).isspace())
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

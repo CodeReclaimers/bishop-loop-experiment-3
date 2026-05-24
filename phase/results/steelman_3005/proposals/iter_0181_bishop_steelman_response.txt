@@ -1,0 +1,31 @@
+CRITIQUE: The suggested regex approach using `re.search(r'\S', text[pos:]).start()` would be significantly slower than the current implementation because it creates a new regex object and recompiles the pattern for every call, and the regex engine's overhead would dwarf the simple character-by-character loop. Additionally, this approach doesn't handle the case where the entire remainder of the string is whitespace, which would cause `re.search` to return `None` and raise an AttributeError. The suggestion also ignores that the current implementation correctly handles all whitespace characters defined by `str.isspace()`, while `\S` might not match all JSON whitespace characters in edge cases.
+STEELMAN: A better approach would be to precompile the regex pattern once and reuse it, or even better, use a more efficient method like `text[pos:].lstrip()` which is both faster and simpler than regex for this use case. However, if we want to stick with regex, we should precompile it and handle the edge case where no non-whitespace is found by returning the length of the string.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    # or use a more efficient approach if needed
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

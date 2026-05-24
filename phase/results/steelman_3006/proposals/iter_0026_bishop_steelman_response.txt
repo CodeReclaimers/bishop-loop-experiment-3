@@ -1,0 +1,28 @@
+CRITIQUE: The suggested implementation using `text.find(next((c for c in text[pos:], c not in _WS_CHARS), None), pos)` is fundamentally flawed because the generator expression `next((c for c in text[pos:], c not in _WS_CHARS), None)` will never terminate correctly — it attempts to iterate over an infinite sequence and will raise a `TypeError` when `next()` is called on a generator that doesn't yield values properly. Additionally, `text.find()` expects a string, not a character, so it will not work as intended for finding the first non-whitespace character.
+STEELMAN: A better approach is to use `text.find()` with a precomputed string of all whitespace characters, but in a way that finds the first position where a non-whitespace character occurs. This can be done by iterating through the text in chunks or using a hybrid method that leverages `str.find()` on a concatenated string of whitespace characters, or simply use a loop with `str.find()` to locate the first non-whitespace character efficiently.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip large whitespace blocks efficiently
+    # Find the first non-whitespace character starting from pos
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        return len(text)
+    # If we found a space, check if it's actually a whitespace character
+    if text[next_non_ws] in _WS_CHARS:
+        # If it's whitespace, skip to the next non-whitespace character
+        while next_non_ws < len(text) and text[next_non_ws] in _WS_CHARS:
+            next_non_ws += 1
+        return next_non_ws
+    else:
+        # If it's not whitespace, return the position of this character
+        return next_non_ws
+>>>>>>> REPLACE
+```

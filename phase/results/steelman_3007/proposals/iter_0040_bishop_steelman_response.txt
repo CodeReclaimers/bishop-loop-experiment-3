@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to use a 256-element boolean table assumes all ASCII characters are equally likely to be whitespace, but in practice, only a small fraction of ASCII characters are actually whitespace, making the table mostly wasted space. Additionally, it doesn't account for the fact that most JSON parsing is dominated by parsing values, not skipping whitespace, so this optimization may not yield meaningful performance gains. The approach also doesn't consider that the current set-based lookup is already quite fast due to Python's optimized set membership testing.
+
+STEELMAN: A better approach would be to precompute a lookup table for the 256 ASCII characters where each entry indicates whether that character is whitespace, but only use this table when the input string is long enough to benefit from the O(1) lookup, and fallback to the set-based approach for short strings or when memory usage is a concern. This preserves the core idea of eliminating set iteration overhead while being more practical and adaptive.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Pre-computed boolean lookup table for whitespace characters (ASCII 0-255)
+_WS_TABLE = [False] * 256
+for char in _WS_CHARS:
+    _WS_TABLE[ord(char)] = True
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+>>>>>>> REPLACE
+```

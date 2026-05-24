@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to skip whitespace before parsing numbers is problematic because it doesn't address the actual bottleneck in number parsing — the regex matching and string conversion overhead. Additionally, it fails to consider that whitespace skipping in `_parse_value` is already handled by `_skip_ws`, which is called at every parsing step, making the proposed optimization redundant and potentially introducing bugs if not carefully coordinated with existing whitespace handling.
+
+STEELMAN: The core idea can be strengthened by ensuring that `_parse_number` uses a more efficient approach for extracting the number token without redundant whitespace checks, while still relying on the precompiled regex for correctness and performance. This means avoiding repeated calls to `_skip_ws` within `_parse_number`, and instead letting the regex-based approach handle the token boundary detection more cleanly.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

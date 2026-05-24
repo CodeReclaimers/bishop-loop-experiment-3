@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop would result in code duplication since `_skip_ws` is called in multiple places (`parse`, `_parse_value`, `_parse_object`, `_parse_array`), and inlining it everywhere would make the code harder to maintain. Additionally, the performance benefit from eliminating function call overhead is likely negligible compared to the cost of repeated code and reduced readability.
+STEELMAN: A better approach is to create a local inline loop within each function that needs whitespace skipping, but only where it's actually used, rather than inlining across all call sites. This preserves the performance benefit while avoiding excessive duplication and maintaining readability.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

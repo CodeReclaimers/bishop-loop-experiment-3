@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual whitespace skipping loop with `regex.search()` is problematic because regex engines are not necessarily faster than simple O(1) set membership checks for short sequences of whitespace. Additionally, `regex.search()` would require a new regex object for each call, negating any performance gains from avoiding the loop. It also introduces complexity in handling edge cases like empty inputs or malformed text.
+
+STEELMAN: A better approach would be to use the compiled regex pattern to skip whitespace by finding the first non-whitespace character directly, but only when there's a significant amount of whitespace to skip. This avoids the overhead of repeated character-by-character checks while still leveraging the efficiency of regex for large skips. The key is to use `regex.search()` to find the next non-whitespace character, but only when the current position is not already at a non-whitespace character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace when there's a significant amount to skip
+    # but fall back to manual check if we're already at a non-whitespace char
+    if pos < len(text) and text[pos] not in _WS_CHARS:
+        return pos
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

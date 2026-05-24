@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace regex with an iterator for whitespace skipping is problematic because it doesn't address the actual performance bottleneck — the repeated calls to `_skip_ws` throughout the parser. Additionally, the proposed change would require extensive refactoring to integrate an iterator-based approach across the entire parsing logic, which could introduce complexity and potential bugs. It also fails to consider that regex-based whitespace skipping is already optimized in the current implementation through precompilation.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by replacing the character-by-character loop with a direct regex match, leveraging the precompiled `_WS_RE` regex already defined in the code. This preserves the existing parsing structure while reducing overhead from repeated Python loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use the precompiled regex for efficient whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

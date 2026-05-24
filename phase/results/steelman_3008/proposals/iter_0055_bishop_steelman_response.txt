@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the while loop with `str.find` is flawed because `str.find` would need to search the entire remaining string for the first non-whitespace character, which could be much slower than the current O(1) set membership checks. Additionally, `str.find` doesn't handle the case where the entire remainder of the string is whitespace, as it would return -1, requiring additional logic to detect this edge case and raise an appropriate error. The performance benefit is also not guaranteed since `str.find` itself may not be faster than the optimized Python loop in typical use cases.
+STEELMAN: A better approach is to use `str.find` to locate the first non-whitespace character, but with a fallback to the existing loop when the search would be inefficient or when the entire remainder is whitespace. Specifically, we can use `str.find` to skip large blocks of whitespace, but only if the search doesn't exceed a certain threshold or if the result is not -1. If `str.find` returns -1, we fall back to the current loop-based approach to ensure correctness and maintain performance in all cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip large blocks of whitespace, falling back to loop for correctness
+    # Check if we're at the end of the string first
+    if pos >= len(text):
+        return pos
+    # Use str.find to locate the first non-whitespace character
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    if next_non_ws == -1:
+        # No non-whitespace character found, skip to end
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

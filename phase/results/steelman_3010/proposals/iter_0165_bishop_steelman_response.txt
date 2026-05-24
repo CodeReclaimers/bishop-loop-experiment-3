@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with `regex.search` is flawed because `re.search(r'[ \t\n\r]*', text, pos)` will match zero or more whitespace characters, not the *end* of the whitespace run. This means it will return the start of the match (which is always `pos`) rather than the position after the whitespace. Additionally, the regex engine isn't necessarily faster than a simple loop for this use case, especially when the whitespace is short or when the loop is optimized with precomputed sets.
+
+STEELMAN: A better approach is to use `re.search(_WS_PATTERN, text, pos)` to find the first non-whitespace character, and then return the position after the match. However, since the regex is compiled to match zero or more whitespace, we must ensure that we advance past any matched whitespace by using `match.end()` when a match is found, or returning `len(text)` if no match is found. This preserves the performance benefits of regex while correctly advancing the position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace, leveraging O(1) membership checks
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

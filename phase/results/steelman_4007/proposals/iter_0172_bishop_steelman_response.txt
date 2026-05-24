@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use regex for large inputs while keeping a loop for small inputs is flawed because regex compilation overhead would hurt performance on small inputs, and the logic for switching between approaches adds complexity. It also doesn't address the real bottleneck of repeated whitespace skipping in recursive descent parsing.
+STEELMAN: A better approach is to precompile a regex for whitespace skipping and use it consistently, but with a fast inline loop for very small inputs (e.g., < 16 chars) to avoid regex overhead. This maintains simplicity while providing performance gains.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Precompile regex for efficient whitespace skipping
+import re
+
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for very short inputs
+    if pos + 16 > len(text):
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+    # Use regex for longer inputs
+    match = _WS_REGEX.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

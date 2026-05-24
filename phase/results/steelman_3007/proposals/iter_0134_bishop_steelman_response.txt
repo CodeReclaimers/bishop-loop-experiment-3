@@ -1,0 +1,47 @@
+CRITIQUE: The suggestion to use `str.translate` for bulk whitespace skipping is problematic because `str.translate` maps characters to replacement characters, not to removals — it would require creating a translation table that maps whitespace to `None` or some sentinel, which isn't supported directly. Additionally, `str.translate` returns a new string, not a new position, so it doesn't directly yield the desired index. This naive approach fails to account for the fact that we want to skip characters and return a new position, not transform the string.
+
+STEELMAN: A better approach would be to use `str.translate` with a translation table that maps whitespace characters to a single sentinel character (like `'\0'`), then use `str.find` to locate the first non-sentinel character after the skipped portion, or alternatively, precompute a regex that matches leading whitespace and use `re.search` to find the new position directly.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+# Translation table for bulk whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans({ch: '\0' for ch in _WS_CHARS})
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using bulk translation and find
+    if pos >= len(text):
+        return pos
+    # Create a string with whitespace replaced by nulls
+    stripped = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    # Find the first non-null character
+    new_pos = stripped.find('\0')
+    if new_pos == -1:
+        return len(text)
+    return pos + new_pos
+>>>>>>> REPLACE
+```

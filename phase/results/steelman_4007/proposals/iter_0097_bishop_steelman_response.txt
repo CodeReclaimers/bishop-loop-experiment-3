@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to use regex for bulk skipping is problematic because regex compilation overhead would hurt performance on small inputs, and the regex engine's handling of Unicode and edge cases could introduce correctness issues. Additionally, the hybrid approach of switching based on input size is fragile and may not provide consistent performance improvements across different workloads.
+
+STEELMAN: A better approach would be to use a hybrid strategy that employs a fast inline loop for very small inputs (e.g., < 100 chars) and switches to a compiled regex for larger inputs, with a carefully chosen threshold that balances overhead and benefit. This preserves the core idea while addressing the fragility of size-based switching.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping for small inputs
+    # Use regex for larger inputs to avoid per-character loop overhead
+    if len(text) - pos > 100:
+        import re
+        # Compile once and reuse for performance
+        _ws_pattern = re.compile(r'^\s*')
+        match = _ws_pattern.match(text, pos)
+        if match:
+            return match.end()
+        # Fallback to manual if regex fails to match
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+    else:
+        # Inline loop for small inputs
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+>>>>>>> REPLACE
+```

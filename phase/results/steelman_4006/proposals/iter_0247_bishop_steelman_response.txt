@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion to use direct character checks instead of iterating through all characters is problematic because it misunderstands the current implementation's logic — `_skip_ws` already uses direct character checks, not `chr` iteration. The suggestion appears to conflate whitespace handling with character set membership, but the existing code already optimizes this correctly by checking against a hardcoded string of whitespace chars. Additionally, the suggestion doesn't consider that the current regex precompilation (`_WS_RE`) is likely already the most efficient approach for skipping whitespace in the full input.
+
+STEELMAN: The steelman version of the suggestion would be to optimize the whitespace skipping by precomputing a set of whitespace characters and using direct membership testing instead of the current string-based check, which is already efficient but can be made more so by using a frozenset for O(1) lookup.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_WS_CHARS = frozenset(' \t\n\r\f')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

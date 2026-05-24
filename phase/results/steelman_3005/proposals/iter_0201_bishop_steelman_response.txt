@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `text.find('\S', pos)` is fundamentally flawed because `\S` is not a valid Python string character — it's a regex pattern meaning "non-whitespace", which cannot be used directly with `str.find()` or `str.index()`. This would raise a `TypeError` at runtime. Additionally, even if it worked, `str.find()` doesn't support regex patterns at all; it only does literal string searches.
+STEELMAN: A better approach would be to use `re.search(r'\S', text, re.ASCII)` starting from `pos`, which correctly finds the next non-whitespace character using regex. This avoids the inner loop overhead while maintaining correctness. However, since the current code already uses a compiled regex `_WS_PATTERN = re.compile(r'\s*')`, we should instead optimize `_skip_ws` to avoid recompiling or reusing existing regex patterns where possible, perhaps by using `re.match` or `re.search` with a simpler pattern.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

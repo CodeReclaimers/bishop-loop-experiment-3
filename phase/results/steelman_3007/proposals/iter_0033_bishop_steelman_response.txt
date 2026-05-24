@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex match would be unworkable because it doesn't account for the fact that the current `_skip_ws` function is designed to work with an arbitrary starting position and return the new position after skipping whitespace, whereas a regex match would consume all leading whitespace from the start of the string, not from a given position. Additionally, the regex approach would likely introduce performance overhead due to regex compilation or repeated matching, especially in a tight parsing loop where this function is called frequently.
+
+STEELMAN: The steelman version would use a regex that matches zero or more whitespace characters starting from the current position, advancing `pos` directly to the next non-whitespace character. This can be done by using `re.match()` or `re.search()` with a pattern like `r'\s*'` and adjusting the position based on the match's end, while ensuring that the regex is compiled once and reused for performance.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

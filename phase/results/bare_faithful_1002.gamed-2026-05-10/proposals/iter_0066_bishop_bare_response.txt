@@ -1,0 +1,336 @@
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    lexer = JSONLexer(text)
+    value = lexer.parse()
+    if not lexer.is_eof():
+        raise JSONParseError(f"trailing content at position {lexer.pos}")
+    return value
+
+
+class JSONLexer:
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+        self.tokens = []
+        self._tokenize()
+
+    def _tokenize(self):
+        pos = 0
+        while pos < len(self.text):
+            c = self.text[pos]
+            if c in _WS_CHARS:
+                pos = self._skip_ws(pos)
+                continue
+            if c == '{':
+                self.tokens.append(('LBRACE', pos))
+                pos += 1
+            elif c == '}':
+                self.tokens.append(('RBRACE', pos))
+                pos += 1
+            elif c == '[':
+                self.tokens.append(('LBRACKET', pos))
+                pos += 1
+            elif c == ']':
+                self.tokens.append(('RBRACKET', pos))
+                pos += 1
+            elif c == ':':
+                self.tokens.append(('COLON', pos))
+                pos += 1
+            elif c == ',':
+                self.tokens.append(('COMMA', pos))
+                pos += 1
+            elif c == '"':
+                start = pos
+                pos = self._parse_string(pos)
+                self.tokens.append(('STRING', start, pos))
+            elif c == 't':
+                if pos + 4 <= len(self.text) and self.text[pos:pos+4] == 'true':
+                    self.tokens.append(('TRUE', pos))
+                    pos += 4
+                else:
+                    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            elif c == 'f':
+                if pos + 5 <= len(self.text) and self.text[pos:pos+5] == 'false':
+                    self.tokens.append(('FALSE', pos))
+                    pos += 5
+                else:
+                    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            elif c == 'n':
+                if pos + 4 <= len(self.text) and self.text[pos:pos+4] == 'null':
+                    self.tokens.append(('NULL', pos))
+                    pos += 4
+                else:
+                    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            elif c == '-' or c in _DIGIT_CHARS:
+                start = pos
+                pos = self._parse_number(pos)
+                self.tokens.append(('NUMBER', start, pos))
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        self.tokens.append(('EOF', len(self.text)))
+
+    def _skip_ws(self, pos: int) -> int:
+        n = len(self.text)
+        while pos < n and self.text[pos] in _WS_CHARS:
+            pos = pos + 1
+        return pos
+
+    def _parse_string(self, pos: int) -> int:
+        pos = pos + 1  # skip opening quote
+        n = len(self.text)
+        while pos < n:
+            c = self.text[pos]
+            if c == '"':
+                return pos + 1
+            if c == "\\":
+                pos = pos + 1
+                if pos >= n:
+                    raise JSONParseError("unterminated string escape")
+                esc = self.text[pos]
+                if esc in ('"', "\\", "/", "b", "f", "n", "r", "t"):
+                    pos = pos + 1
+                    continue
+                elif esc == 'u':
+                    if pos + 4 >= n:
+                        raise JSONParseError(f"bad unicode escape at {pos}")
+                    hex4 = self.text[pos + 1 : pos + 5]
+                    if not _is_hex4(hex4):
+                        raise JSONParseError(f"bad unicode escape at {pos}")
+                    pos = pos + 5
+                    continue
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {pos}")
+                pos = pos + 1
+                continue
+            if ord(c) < 0x20:
+                raise JSONParseError(f"unescaped control character at {pos}")
+            pos = pos + 1
+        raise JSONParseError("unterminated string")
+
+    def _parse_number(self, pos: int) -> int:
+        n = len(self.text)
+        start = pos
+        if pos < n and self.text[pos] == "-":
+            pos = pos + 1
+        if pos >= n:
+            raise JSONParseError(f"bad number at {pos}")
+        if self.text[pos] == "0":
+            pos = pos + 1
+        elif self.text[pos] in _DIGIT_CHARS:
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        else:
+            raise JSONParseError(f"bad number at {pos}")
+        if pos < n and self.text[pos] == ".":
+            pos = pos + 1
+            if pos >= n or self.text[pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number fractional at {pos}")
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        if pos < n and self.text[pos] in ("e", "E"):
+            pos = pos + 1
+            if pos < n and self.text[pos] in ("+", "-"):
+                pos = pos + 1
+            if pos >= n or self.text[pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number exponent at {pos}")
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        return pos
+
+    def is_eof(self):
+        return self.pos >= len(self.tokens) or self.tokens[self.pos][0] == 'EOF'
+
+    def peek(self):
+        if self.is_eof():
+            return None
+        return self.tokens[self.pos]
+
+    def consume(self, expected_type):
+        token = self.peek()
+        if not token or token[0] != expected_type:
+            raise JSONParseError(f"expected {expected_type}, got {token[0] if token else 'EOF'}")
+        self.pos += 1
+        return token
+
+    def parse(self):
+        return self._parse_value()
+
+    def _parse_value(self):
+        token = self.peek()
+        if not token:
+            raise JSONParseError("unexpected end of input")
+        token_type = token[0]
+        if token_type == 'LBRACE':
+            return self._parse_object()
+        if token_type == 'LBRACKET':
+            return self._parse_array()
+        if token_type == 'STRING':
+            self.pos += 1
+            return token[1]  # We'll need to decode this properly
+        if token_type == 'TRUE':
+            self.pos += 1
+            return True
+        if token_type == 'FALSE':
+            self.pos += 1
+            return False
+        if token_type == 'NULL':
+            self.pos += 1
+            return None
+        if token_type == 'NUMBER':
+            self.pos += 1
+            return token[1]  # We'll need to decode this properly
+        raise JSONParseError(f"unexpected token {token_type}")
+
+    def _parse_object(self):
+        self.consume('LBRACE')
+        out = {}
+        token = self.peek()
+        if token and token[0] == 'RBRACE':
+            self.pos += 1
+            return out
+        while True:
+            token = self.peek()
+            if not token or token[0] != 'STRING':
+                raise JSONParseError(f"expected string key at {self.pos}")
+            key = self._decode_string(token[1], token[2])
+            self.pos += 1
+            self.consume('COLON')
+            value = self._parse_value()
+            out[key] = value
+            token = self.peek()
+            if not token:
+                raise JSONParseError("unterminated object")
+            if token[0] == 'COMMA':
+                self.pos += 1
+                continue
+            elif token[0] == 'RBRACE':
+                self.pos += 1
+                return out
+            else:
+                raise JSONParseError(f"expected ',' or '}}' at {self.pos}")
+
+    def _parse_array(self):
+        self.consume('LBRACKET')
+        out = []
+        token = self.peek()
+        if token and token[0] == 'RBRACKET':
+            self.pos += 1
+            return out
+        while True:
+            value = self._parse_value()
+            out.append(value)
+            token = self.peek()
+            if not token:
+                raise JSONParseError("unterminated array")
+            if token[0] == 'COMMA':
+                self.pos += 1
+                continue
+            elif token[0] == 'RBRACKET':
+                self.pos += 1
+                return out
+            else:
+                raise JSONParseError(f"expected ',' or ']' at {self.pos}")
+
+    def _decode_string(self, start, end):
+        s = self.text[start:end]
+        # Remove the surrounding quotes
+        s = s[1:-1]
+        # Decode escape sequences
+        out = []
+        i = 0
+        while i < len(s):
+            c = s[i]
+            if c == '\\':
+                i += 1
+                if i >= len(s):
+                    raise JSONParseError("unterminated string escape")
+                esc = s[i]
+                if esc == '"':
+                    out.append('"')
+                elif esc == '\\':
+                    out.append("\\")
+                elif esc == '/':
+                    out.append("/")
+                elif esc == 'b':
+                    out.append("\b")
+                elif esc == 'f':
+                    out.append("\f")
+                elif esc == 'n':
+                    out.append("\n")
+                elif esc == 'r':
+                    out.append("\r")
+                elif esc == 't':
+                    out.append("\t")
+                elif esc == 'u':
+                    if i + 4 >= len(s):
+                        raise JSONParseError(f"bad unicode escape at {i}")
+                    hex4 = s[i+1:i+5]
+                    if not _is_hex4(hex4):
+                        raise JSONParseError(f"bad unicode escape at {i}")
+                    cp = int(hex4, 16)
+                    if 0xD800 <= cp <= 0xDBFF:
+                        if i + 5 >= len(s) or s[i+5] != '\\' or i + 6 >= len(s) or s[i+6] != 'u':
+                            raise JSONParseError(f"unpaired high surrogate at {i}")
+                        if i + 10 >= len(s):
+                            raise JSONParseError(f"bad low surrogate at {i}")
+                        hex4b = s[i+7:i+11]
+                        if not _is_hex4(hex4b):
+                            raise JSONParseError(f"bad low surrogate at {i+7}")
+                        cp2 = int(hex4b, 16)
+                        if not (0xDC00 <= cp2 <= 0xDFFF):
+                            raise JSONParseError(f"bad low surrogate at {i+7}")
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                        out.append(chr(cp))
+                        i += 11
+                        continue
+                    out.append(chr(cp))
+                    i += 5
+                else:
+                    raise JSONParseError(f"bad escape \\{esc} at {i}")
+            else:
+                out.append(c)
+            i += 1
+        return "".join(out)
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+```

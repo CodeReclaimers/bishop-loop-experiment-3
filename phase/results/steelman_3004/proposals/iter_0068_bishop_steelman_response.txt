@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the incremental `_skip_ws` loop with a single regex match would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same error reporting granularity as character-by-character scanning. It also fails to account for the fact that the current implementation skips only whitespace, not other tokens, and would incorrectly advance past non-whitespace characters. Additionally, it doesn't consider that the regex approach would require re-parsing the entire whitespace region from the start, which is inefficient for large whitespace runs.
+
+STEELMAN: A better approach is to use the regex to find the end of the whitespace sequence and then advance the position by that amount, but still ensure that the parser maintains proper error handling and continues to work correctly when the regex match is followed by non-whitespace content. This preserves the performance gain of skipping large whitespace runs while keeping the existing logic intact.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

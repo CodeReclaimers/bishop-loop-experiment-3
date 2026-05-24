@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the while-loop with `str.find` is flawed because `str.find` scans forward until it finds ANY whitespace character, not just the set of whitespace characters defined in `_WS_CHARS`. This would incorrectly advance the position past non-whitespace characters that happen to appear before the next whitespace. Additionally, `str.find` is not a drop-in replacement since it doesn't handle the case where the input string is all whitespace or ends with whitespace.
+
+STEELMAN: The steelman version would use `str.translate` and `str.lstrip` to efficiently skip whitespace characters, leveraging C-level optimizations while maintaining correctness. We can create a translation table that maps all whitespace characters to a single sentinel character (e.g., `'\0'`), then use `str.lstrip` to skip leading sentinel characters, which effectively skips all whitespace in one operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.lstrip for efficient whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to null character
+    trans_table = str.maketrans(" \t\n\r", "\0\0\0\0")
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Count leading nulls to determine how many whitespace chars to skip
+    skip_count = len(translated) - len(translated.lstrip('\0'))
+    return pos + skip_count
+>>>>>>> REPLACE
+```

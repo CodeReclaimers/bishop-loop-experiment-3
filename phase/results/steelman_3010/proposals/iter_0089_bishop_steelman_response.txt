@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion fails to account for the fact that whitespace skipping is not a one-time operation but happens repeatedly throughout parsing at various positions in the input. Precomputing a skip-table would require O(n) space and doesn't amortize well if whitespace is sparse. Additionally, the approach doesn't consider that the parser may need to skip whitespace at arbitrary positions, not just at fixed intervals.
+
+STEELMAN: A better approach is to precompute a skip-table for the entire input string once, but only when needed, and use it to avoid repeated character-by-character checks during whitespace skipping. This table maps each index to the index of the next non-whitespace character, allowing O(1) lookup instead of O(k) where k is the number of whitespace characters. The skip-table can be computed once at the start of parsing and reused across all `_skip_ws` calls.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

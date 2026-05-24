@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to replace the manual loop with `_WS_RE.search(text, pos).end()` is problematic because it doesn't account for the fact that the regex engine will still need to scan each character in the input string sequentially, negating any performance benefit for short whitespace runs. Additionally, the regex approach may introduce overhead from regex compilation or matching that outweighs the gains, especially for typical JSON inputs with minimal whitespace. It also fails to consider that the current implementation is already optimized for common cases and avoids unnecessary operations like regex overhead.
+
+STEELMAN: A better approach would be to use `re.match(_WS_RE, text, pos)` or `re.search(_WS_RE, text, pos)` but ensure that the regex is only used when there's a significant amount of whitespace to skip, or alternatively, use a hybrid strategy where small amounts of whitespace are handled manually and larger chunks are skipped with regex. However, the most practical improvement is to use `re.search(_WS_RE, text, pos).end()` with a check that avoids the regex for trivial cases, such as when the first non-whitespace character is found within a few characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use regex for long runs of whitespace, manual loop for short ones
+    if pos + 10 < len(text):
+        match = _WS_RE.search(text, pos)
+        if match:
+            return match.end()
+    # Fallback to manual loop for short runs or when regex fails
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

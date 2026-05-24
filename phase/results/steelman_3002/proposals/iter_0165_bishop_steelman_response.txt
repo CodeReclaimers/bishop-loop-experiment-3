@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace the regex-based `_skip_ws` with a simple while-loop checking `text[pos] in ' \t\n\r'` is problematic because it fails to account for the fact that JSON whitespace can include Unicode whitespace characters beyond just space, tab, line feed, and carriage return. This would cause the parser to incorrectly parse valid JSON containing such characters. Additionally, the performance gain from avoiding regex is minimal compared to the cost of repeated string lookups, especially when dealing with large amounts of whitespace.
+
+STEELMAN: A better approach would be to maintain a frozenset of all valid JSON whitespace characters (including Unicode whitespace) and use direct membership testing in a tight loop, which preserves the performance benefits of avoiding regex while correctly handling all valid whitespace according to the JSON specification.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_JSON_WHITESPACE = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _JSON_WHITESPACE:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

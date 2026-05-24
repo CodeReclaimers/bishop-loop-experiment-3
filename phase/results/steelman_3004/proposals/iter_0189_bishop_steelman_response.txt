@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to precompute a list of non-whitespace character indices and use binary search is flawed because it would require building and storing a sparse index structure for every input string, which is memory-inefficient and adds overhead. Additionally, the performance gain from O(log w) vs O(w) is negligible for typical whitespace blocks, and the binary search itself introduces more overhead than benefit. The approach also breaks the existing parser state model and would complicate the parsing logic significantly.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a hybrid strategy: for short whitespace blocks, continue using the linear scan, but for longer blocks (>10 chars), use a precomputed lookup table or SIMD-style techniques to skip efficiently, while keeping the parser state simple and maintaining the existing API.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # For small whitespace blocks, use linear scan
+    if pos + 10 < len(text):
+        # Fast path: skip contiguous whitespace using a simple loop
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+    else:
+        # Fallback to linear scan for short blocks
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+    return pos
+>>>>>>> REPLACE
+```

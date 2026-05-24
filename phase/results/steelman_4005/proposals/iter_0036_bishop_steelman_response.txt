@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace `if text[pos] == "t" or c == "f":` with `return text[pos] in ("t", "f")` is problematic because it doesn't address the actual performance bottleneck — the repeated string slicing and comparison operations in `_parse_bool` and `_parse_null`. Additionally, using `in ("t", "f")` on a tuple is still O(n) for membership checking, not O(1), which misses the core optimization opportunity. The suggestion also fails to consider that the current code already uses precomputed sets like `_DIGIT_CHARS` and `_WS_CHARS` for efficient lookups.
+
+STEELMAN: The strongest version of this idea is to leverage precomputed frozensets for all character membership checks, replacing inefficient string comparisons and tuple lookups with fast O(1) set membership checks. This includes using existing precomputed sets like `_WS_CHARS`, `_DIGIT_CHARS`, and `_HEX_CHARS` more consistently, and ensuring that all character validation uses these sets instead of repeated comparisons.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+>>>>>>> REPLACE
+```

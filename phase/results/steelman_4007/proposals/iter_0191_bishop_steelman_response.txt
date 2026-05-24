@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion is unworkable because it references a "regex-based approach" that doesn't exist in the current implementation—there is no existing regex usage in `_skip_ws` or anywhere else in the code. Additionally, the suggestion's proposed hybrid strategy of inline loops for small inputs and regex for large inputs is poorly defined and would likely introduce complexity without performance gains, especially since the current inline loop is already optimized. The suggestion also fails to address the actual performance bottleneck which is the character-by-character parsing of numbers and strings.
+
+STEELMAN: The strongest version of this idea would replace the current `_skip_ws` function with a more efficient implementation that uses `str.lstrip()` or a compiled regex pattern to skip whitespace in bulk for large inputs, while still maintaining the current inline loop for small inputs or when performance is critical. This approach preserves the core idea of optimizing whitespace skipping without introducing unnecessary complexity or breaking correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping for small inputs
+    # Use str.lstrip for larger inputs
+    if pos < 100:  # Threshold for when to use inline vs. lstrip
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+    else:
+        # For large inputs, use lstrip to skip whitespace in bulk
+        # We need to find the start of non-whitespace from pos onwards
+        # lstrip on a set of chars is not directly supported, so we'll use a regex
+        import re
+        match = re.match(r'^\s*', text[pos:])
+        if match:
+            return pos + len(match.group(0))
+        return pos
+>>>>>>> REPLACE
+```

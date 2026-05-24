@@ -1,0 +1,64 @@
+CRITIQUE: The suggestion to use built-in string methods for whitespace checking is naive because the current implementation already uses `frozenset` membership testing which is already O(1); replacing it with `str.isspace()` or similar would likely be slower. The claim about compiling regex once is partially correct but the current code already compiles `_NUMBER_RE` at module level, so this is not a missed optimization. The suggestion to avoid regex for number parsing is good, but the current implementation already uses regex for number parsing, so this is a valid optimization, though the suggestion doesn't specify how to avoid regex entirely.
+STEELMAN: The strongest version of the suggestion should focus on eliminating the regex-based number parsing entirely by implementing a direct numeric conversion using Python's built-in `float()` and `int()` functions, while preserving the existing optimized whitespace handling and ensuring the regex is compiled once at module level as it already is.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Skip leading whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    
+    # Parse the number manually using built-in conversion
+    start = pos
+    if pos < len(text) and text[pos] == '-':
+        pos += 1
+    
+    # Parse integer part
+    if pos >= len(text) or not (text[pos].isdigit() or text[pos] == '0'):
+        raise JSONParseError(f"bad number at {start}")
+    
+    while pos < len(text) and text[pos].isdigit():
+        pos += 1
+    
+    # Parse fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+    
+    # Parse exponent part
+    if pos < len(text) and text[pos].lower() == 'e':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        if pos >= len(text) or not text[pos].isdigit():
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos].isdigit():
+            pos += 1
+    
+    # Extract the number string
+    s = text[start:pos]
+    
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

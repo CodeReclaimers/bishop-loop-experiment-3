@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the manual loop with `_WS_RE.search(text, pos).end()` would fail because the regex pattern `r"[ \t\n\r]*"` is greedy and would consume all whitespace from the current position onward, not just the minimal amount needed. This could incorrectly advance `pos` past the intended parsing boundary, especially in cases where whitespace is followed immediately by a token. Additionally, the regex engine might not be as fast as the optimized frozenset lookup for small amounts of whitespace.
+STEELMAN: The steelman version would use `re.match` instead of `re.search` to match only the prefix of whitespace at the current position, and then advance `pos` by the match length. However, since `re.match` only matches at the start of the string, we should use `re.search` but ensure it's applied to a substring starting at `pos` and only advances by the matched whitespace length, or better yet, use a hybrid approach that leverages the existing `re.compile` but applies it correctly to avoid overconsumption.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with a skip table approach is unworkable because it assumes a fixed-size table can be precomputed for all possible input characters, which would require an enormous memory footprint for Unicode text. Additionally, it fails to account for the fact that whitespace skipping is a common operation that happens frequently in parsing, so the overhead of table lookups may not be justified unless the table is cached or optimized for typical use cases.
+
+STEELMAN: The steelman version of this idea is to implement a hybrid approach where a precomputed lookup table is used for the most common ASCII whitespace characters, with a fallback to the existing O(n) loop for rare or non-ASCII cases. This preserves the performance benefit of direct jumps for common cases while maintaining correctness and avoiding excessive memory usage.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use fast lookup for common ASCII whitespace, fallback to O(n) for others
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

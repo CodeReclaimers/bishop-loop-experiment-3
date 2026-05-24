@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with `text.find` is problematic because `text.find` only returns the first occurrence of a character from the set, not the first non-whitespace character. This would fail to skip multiple consecutive whitespace characters correctly and could lead to incorrect parsing. Additionally, `text.find` would need to be called repeatedly in a loop to handle all whitespace characters, negating any performance benefit.
+
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character by searching for the complement of whitespace characters, or alternatively, implement a hybrid approach where `text.find` is used to skip large blocks of whitespace, but fall back to the existing loop for edge cases or when the skip distance is small.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using text.find for large skips
+    while pos < len(text):
+        # Find the next non-whitespace character
+        next_non_ws = text.find(' ', pos)
+        if next_non_ws == -1:
+            next_non_ws = len(text)
+        else:
+            # Check if the found character is actually whitespace
+            if text[next_non_ws] not in _WS_CHARS:
+                return next_non_ws
+            # If it's whitespace, we need to skip it and continue
+            pos = next_non_ws + 1
+            continue
+        # If no whitespace found, return current pos
+        return pos
+    return pos
+>>>>>>> REPLACE
+```

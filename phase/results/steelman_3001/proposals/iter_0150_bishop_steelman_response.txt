@@ -1,0 +1,39 @@
+CRITIQUE: The suggestion to replace `text.find` with a while-loop is problematic because it would completely eliminate the performance benefit of `text.find` which is implemented in C and optimized for skipping large amounts of whitespace. The naive while-loop would process each character individually, leading to significant slowdowns on inputs with long whitespace runs. Additionally, the current `_skip_ws` function already uses a while-loop internally, so this change would be redundant and potentially harmful.
+
+STEELMAN: The steelman is to optimize the existing while-loop implementation by using `text.find` to skip large runs of whitespace efficiently, but only when the whitespace is uniform and can be skipped in bulk. The key insight is to use `text.find` to locate the first non-whitespace character, but only when we expect to skip many characters, while falling back to character-by-character skipping for small skips or when we're near the end of the string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    # Skip large runs of whitespace using find, but fall back to character-by-character
+    # for small skips or when near end of string to avoid unnecessary overhead
+    while pos < n and text[pos] in _WS_CHARS:
+        # If we're skipping more than 10 characters, try to use find for efficiency
+        if n - pos > 10:
+            next_non_ws = text.find(' ', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\t', pos)
+                if next_non_ws == -1:
+                    next_non_ws = text.find('\n', pos)
+                    if next_non_ws == -1:
+                        next_non_ws = text.find('\r', pos)
+                        if next_non_ws == -1:
+                            return n
+            if next_non_ws != -1:
+                # Check if it's actually whitespace
+                if next_non_ws < n and text[next_non_ws] in _WS_CHARS:
+                    pos = next_non_ws
+                    continue
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

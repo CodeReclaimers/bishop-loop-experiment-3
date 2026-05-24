@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to use `ord()` for whitespace skipping is problematic because it doesn't address the actual performance bottleneck in `_skip_ws` — which is the repeated character-by-character lookup in `_WS_CHARS`. Simply switching to `ord()` doesn't eliminate the need to check each character against a set, and the overhead of calling `ord()` on every character may even slow things down. Additionally, the suggestion doesn't consider that the current implementation already uses a `frozenset` for O(1) lookup, which is already optimal for this operation.
+
+STEELMAN: The core idea of the suggestion can be improved by optimizing the `_skip_ws` function to avoid repeated membership checks in a set by using a more efficient loop structure. Instead of repeatedly checking `text[pos] in _WS_CHARS`, we can precompute a set of ASCII values for whitespace and use `ord()` to directly check against that set, reducing the overhead of string lookups and improving performance by avoiding the string-to-character conversion in the loop.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_WS_ORDS = frozenset(ord(c) for c in " \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and ord(text[pos]) in _WS_ORDS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

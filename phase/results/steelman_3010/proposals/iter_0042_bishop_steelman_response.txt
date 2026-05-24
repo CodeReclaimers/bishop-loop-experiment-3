@@ -1,0 +1,44 @@
+CRITIQUE: The suggestion to strip all whitespace at the start with `re.sub` is fundamentally flawed because it would remove *all* whitespace, including that within string literals and escape sequences, corrupting the parse tree. It also ignores that whitespace is not uniformly distributed and often occurs in small, localized chunks, making a bulk regex operation less efficient than targeted skipping. Additionally, the approach breaks the incremental parsing model by eliminating the ability to track position accurately during parsing.
+
+STEELMAN: A better approach would be to use a single regex match to skip leading whitespace at the start of `parse`, and then use a regex-based skip function that efficiently advances the position by matching one or more whitespace characters, without modifying the original string. This preserves the incremental parsing model while leveraging the regex engine for efficient whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _WS_PATTERN.match(text, 0).end()
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _WS_PATTERN.match(text, pos).end()
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # This function is now unused and can be removed, but kept for compatibility
+    # or in case of future reversion
+    return _WS_PATTERN.match(text, pos).end()
+>>>>>>> REPLACE
+```

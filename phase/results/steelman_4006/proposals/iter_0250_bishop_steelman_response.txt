@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a lookup table for whitespace detection is problematic because the current `_skip_ws` function already uses direct character comparisons against a hardcoded set of whitespace characters (' \t\n\r\f'), which is already quite efficient. A lookup table would add complexity and memory overhead without clear benefit for this specific use case. Additionally, the suggestion doesn't address the fact that the current implementation is already fast enough for most practical purposes.
+
+STEELMAN: The steelman version would involve precomputing a set of whitespace characters and using a fast lookup mechanism like `str.translate` or a frozenset-based check, which maintains the performance benefits while being more maintainable and avoiding redundant character comparisons in the hot path.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using frozenset lookup
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use Python's built-in `str` methods for whitespace detection is naive because it doesn't address the core performance issue: the current implementation already uses an optimized inline loop in `_skip_ws`. Replacing this with `str.find` or similar methods would likely be slower due to function call overhead and the need to re-scan from the start. Additionally, the suggestion fails to consider that the parser needs to skip *all* whitespace characters, not just the first one, and that `str` methods are not necessarily faster for this specific use case.
+
+STEELMAN: The steelman version of the suggestion would be to optimize the `_skip_ws` function by using a more efficient approach than the current inline loop, such as leveraging `str.translate` or `str.rstrip` with a precomputed translation table that maps whitespace characters to a sentinel value, allowing for faster bulk skipping of whitespace. This preserves the intent of avoiding character-by-character checks while using more efficient string operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate for efficient whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to None (removes them)
+    trans_table = str.maketrans("", "", "".join(_WS_CHARS))
+    # Find first non-whitespace character
+    while pos < len(text):
+        if text[pos] not in _WS_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

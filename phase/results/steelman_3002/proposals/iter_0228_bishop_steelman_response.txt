@@ -1,0 +1,203 @@
+CRITIQUE: The suggestion to use a pre-computed skip table assumes that whitespace skipping can be done in O(1) time by indexing into a table, but this approach fails to account for the fact that the skip table would need to be computed for each input string, negating any performance gains. Additionally, it doesn't consider that the skip table would need to be precomputed for all possible character sequences, which is infeasible for variable-length inputs. The suggestion also ignores that the current `_skip_ws` function is already quite efficient and the performance bottleneck is likely elsewhere.
+
+STEELMAN: A better approach would be to precompute a skip table for the entire input string once, where each position maps to the next non-whitespace character. This can be done in linear time once per parse operation, and then all subsequent whitespace skips become O(1) lookups. The table should be computed once per string and reused, maintaining the same parsing logic while dramatically improving performance in loops that call `_skip_ws` repeatedly.
+
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is the optimized version of the JSON parser. It maintains correctness
+against `json.loads` on the full corpus while significantly improving
+performance through various optimizations:
+
+- Uses regex for whitespace skipping.
+- Uses efficient number parsing with str() and int()/float().
+- Uses list.append() and dict.update() for collection building.
+- Eliminates redundant whitespace handling.
+- Uses direct character comparisons instead of membership checks.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is the optimized version of the JSON parser. It maintains correctness
+against `json.loads` on the full corpus while significantly improving
+performance through various optimizations:
+
+- Uses regex for whitespace skipping.
+- Uses efficient number parsing with str() and int()/float().
+- Uses list.append() and dict.update() for collection building.
+- Eliminates redundant whitespace handling.
+- Uses direct character comparisons instead of membership checks.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for the entire text
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, skip_table)
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table for the entire text where each index maps to the next non-whitespace position."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in ' \t\n\r':
+            if pos + 1 < n:
+                skip_table[pos] = skip_table[pos + 1]
+            else:
+                skip_table[pos] = n
+        else:
+            skip_table[pos] = pos
+            if pos + 1 < n:
+                skip_table[pos] = skip_table[pos + 1]
+        pos -= 1
+    return skip_table
+
+
+def _skip_ws_with_table(text: str, pos: int, skip_table: list[int]) -> int:
+    """Skip whitespace using precomputed skip table."""
+    if pos >= len(text):
+        return pos
+    return skip_table[pos]
+
+
+def _parse_value(text: str, pos: int, skip_table: list[int]) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos, skip_table)
+    if c == "[":
+        return _parse_array(text, pos, skip_table)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int, skip_table: list[int]) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        value, pos = _parse_value(text, pos, skip_table)
+        # Use dict.update() to avoid rebuilding the dict each iteration.
+        out[key] = value
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int, skip_table: list[int]) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        value, pos = _parse_value(text, pos, skip_table)
+        # Use list.append() to avoid rebuilding the list each iteration.
+        out.append(value)
+        pos = _skip_ws_with_table(text, pos, skip_table)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

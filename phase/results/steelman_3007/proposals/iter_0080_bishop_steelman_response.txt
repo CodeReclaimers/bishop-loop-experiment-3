@@ -1,0 +1,46 @@
+CRITIQUE: The suggestion fails to account for the fact that whitespace runs can be of arbitrary length, so precomputing a lookup array would require O(n) space and time to build, negating any benefits of O(1) lookups. It also doesn't consider that the parser may need to skip over multiple whitespace characters in a single call, which a simple array lookup cannot efficiently handle without redundant computation. Additionally, the approach doesn't address how to properly handle the edge case where the array index might point beyond the string or into the middle of a whitespace run.
+STEELMAN: The steelman version would compute a "next_non_ws" array that maps each position to the index of the first non-whitespace character after a contiguous whitespace run starting at that position, but only for positions that actually begin whitespace runs. This allows O(1) skipping by using the array when we're at the start of a whitespace run, falling back to the existing method otherwise, and avoiding the O(n) cost of building a full array.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute next_non_ws array for efficient whitespace skipping
+    next_non_ws = [0] * len(text)
+    pos = len(text) - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            # Find the start of this whitespace run
+            start = pos
+            while pos >= 0 and text[pos] in _WS_CHARS:
+                pos -= 1
+            # Fill the array from start to pos+1 with the index after the run
+            for i in range(start, pos, -1):
+                if i < len(next_non_ws):
+                    next_non_ws[i] = pos + 1
+        else:
+            next_non_ws[pos] = pos
+        pos -= 1
+    pos = next_non_ws[0] if 0 < len(next_non_ws) else 0
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = next_non_ws[pos] if pos < len(next_non_ws) else pos
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

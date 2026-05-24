@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(text[pos:])` is fundamentally flawed because it doesn't actually skip whitespace — it searches for the substring starting at `pos` within the entire string, which will almost certainly return `pos` itself or a later position that has no relevance to whitespace skipping. This approach would break on any input with whitespace and would not advance `pos` correctly.
+STEELMAN: A better approach would be to use `re.search(r'[^\s]', text, pos)` to find the next non-whitespace character, or alternatively, to precompute a regex pattern that matches one or more whitespace characters and use `re.match` or `re.search` to skip them all in one go, leveraging C-optimized regex engines while maintaining correct semantics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all consecutive whitespace characters at once
+    import re
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + match.end()
+    return pos
+>>>>>>> REPLACE
+```

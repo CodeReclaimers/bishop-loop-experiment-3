@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to avoid `float()` conversion is problematic because it fails to address the core issue of accurate number parsing—especially for large integers that cannot be represented as `int` or `float` in Python without precision loss. Additionally, implementing a custom number parser from scratch introduces risk of bugs and is likely to be slower than the optimized `int()` and `float()` built-ins. The suggestion also ignores that the current regex-based approach already correctly identifies valid number formats.
+
+STEELMAN: A better approach is to refine the existing number parsing logic by leveraging Python’s fast built-in `int()` and `float()` functions, but with an optimization that avoids unnecessary string operations and ensures the parsing is done in a single step. The goal is to keep the correctness and performance of built-ins while reducing redundant checks or intermediate string handling in the parsing pipeline.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    # Check if it's a valid int that fits in Python's int range
+    try:
+        return int(s), pos
+    except ValueError:
+        # Fall back to float for very large integers that may be represented as floats
+        return float(s), pos
+>>>>>>> REPLACE
+```

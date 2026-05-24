@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace direct character checks with `isspace()` is flawed because `isspace()` checks for all Unicode whitespace characters, not just the ASCII ones (` \t\n\r\f`) that the current implementation targets. This would break the JSON parser's strict adherence to RFC 7159, which only allows ASCII whitespace. Additionally, `isspace()` is not significantly faster than direct character checks for this specific use case and could introduce subtle performance regressions due to the overhead of the method call and broader character set checking.
+
+STEELMAN: The steelman version would retain the performance benefits of avoiding regex compilation while using a more efficient approach than the current loop. Instead of manually checking each character in a loop, we can optimize `_skip_ws()` to skip consecutive whitespace characters by advancing the position in a tight loop using `text[pos].isspace()` only when needed, but still limiting to ASCII whitespace to maintain JSON compliance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

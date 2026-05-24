@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace character-by-character whitespace skipping with regex matching is flawed because it would introduce regex overhead for every whitespace character, negating any performance gains. The current implementation already uses a precomputed frozenset for O(1) lookup, which is faster than regex matching for simple character sets. Additionally, regex-based skipping would not handle the incremental nature of parsing, requiring full string scans instead of efficient forward progress.
+
+STEELMAN: The steelman version would leverage regex for skipping *multiple* consecutive whitespace characters at once, rather than replacing the character-by-character loop entirely. This approach maintains the performance of direct character lookup for individual characters while using regex to efficiently skip large blocks of whitespace, reducing the number of loop iterations and improving overall parsing throughput.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk skipping
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

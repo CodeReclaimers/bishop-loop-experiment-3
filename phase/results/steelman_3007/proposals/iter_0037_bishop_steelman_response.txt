@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the iterative whitespace loop with a single regex call would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same error reporting granularity as character-by-character checking. Additionally, it would introduce a performance regression for cases with little or no whitespace, as regex compilation and matching overhead would outweigh the benefits of skipping multiple characters at once. The regex approach also fails to integrate well with the existing error recovery strategy, which relies on precise position tracking and character-level inspection.
+
+STEELMAN: A better approach would be to use a regex to skip whitespace, but only when there's a significant amount of it (e.g., more than 3 consecutive whitespace chars), falling back to the iterative approach for small amounts or when error handling is needed. This preserves performance gains for large whitespace runs while maintaining correctness and error reporting fidelity.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large runs, fallback to iterative for small ones
+    if pos < len(text) and text[pos] in _WS_CHARS:
+        # Use regex for large runs of whitespace (>3 chars)
+        match = _WS_RE.match(text, pos)
+        if match and len(match.group(0)) > 3:
+            return match.end()
+    # Fallback to iterative skipping for small runs or non-whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `STRING_ESCAPE_PATTERN` with direct parsing lacks specificity about how the replacement would work, and directly handling escape sequences without regex overhead could introduce bugs if not carefully implemented. It fails to account for the complexity of Unicode escape sequences like `\uXXXX` which require multi-step validation and conversion. The approach also doesn't consider that the current regex-based solution already handles edge cases such as unpaired surrogates correctly.
+
+STEELMAN: A better approach would be to replace the regex-based escape sequence matching with a direct character-by-character parsing loop that still maintains correctness for complex cases like Unicode surrogates, while reducing regex overhead by precomputing valid escape characters and using efficient lookups instead of repeated regex matching.
+
+```python
+<<<<<<< SEARCH
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+=======
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+# Precompute valid escape characters for direct lookup
+_VALID_ESCAPES = frozenset('\"\\/bfnrt')
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+>>>>>>> REPLACE
+```

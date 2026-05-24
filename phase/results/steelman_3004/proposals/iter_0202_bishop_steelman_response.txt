@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to precompute a cumulative skip table would not work because whitespace skipping is context-dependent — for example, inside strings or escape sequences, the parser must process characters individually. Additionally, building such a table would require scanning the entire input twice, negating the intended performance benefit. The approach also fails to account for the fact that many parsing functions need to handle variable-length tokens like numbers, strings, and booleans that can't be represented in a simple jump table.
+STEELMAN: A better approach is to compute a skip table that accounts for the context of each position — specifically, it should track the next non-whitespace character index, but only for positions outside of string literals and escape sequences. This allows O(1) jumps while preserving correct parsing behavior. The table can be built once at the start and used throughout parsing without redundant scanning.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = skip_table[0]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, skip_table)
+    pos = skip_table[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

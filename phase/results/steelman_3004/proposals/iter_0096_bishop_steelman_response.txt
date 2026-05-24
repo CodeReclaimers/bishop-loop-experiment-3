@@ -1,0 +1,57 @@
+CRITIQUE: The suggestion to use a pre-computed `_ws_table` assumes that whitespace skipping can be done in O(1) by direct lookup, but this approach fails because the table would need to be computed for every input string, negating any performance benefit and requiring O(n) preprocessing per parse. Additionally, it doesn't account for the fact that whitespace skipping is often partial and variable, making a lookup table impractical for dynamic inputs.
+
+STEELMAN: A better approach is to precompute a single lookup table for the first few characters of whitespace, and for longer sequences, use a hybrid strategy: scan ahead only a few characters at a time using the table, then fall back to the current method for longer whitespace runs. This maintains the O(1) average case for short skips while keeping the implementation practical and avoiding O(n) preprocessing.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized version: check first few characters with direct lookup
+    while pos < len(text):
+        c = text[pos]
+        if c not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

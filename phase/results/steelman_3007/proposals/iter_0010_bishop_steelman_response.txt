@@ -1,0 +1,20 @@
+CRITIQUE: The suggested regex approach `re.search(r'\S', text[pos:]).start() + pos` would not work correctly because it assumes the entire remaining string is processed in one go, but the current implementation needs to handle cases where the regex might not match (e.g., if the rest of the string is all whitespace) and would fail to properly advance the position. Additionally, it doesn't leverage the precomputed `_WS_CHARS` set which is optimized for fast character lookups and avoids regex overhead in tight loops.
+
+STEELMAN: A better approach is to use a compiled regex that skips all leading whitespace characters efficiently by matching a pattern like `r'\s*'` from the current position, and then advancing the position by the length of the matched whitespace. This preserves the intent of avoiding character-by-character checking while maintaining correctness and performance by using the existing precompiled regex `_WS_RE` that was already defined for this purpose.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precompiled regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

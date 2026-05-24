@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `str.lstrip()` for whitespace skipping is problematic because it would remove ALL leading whitespace from the remaining string, not just the initial contiguous block, which would break parsing logic that relies on precise position tracking. Additionally, `lstrip()` is not necessarily faster than a hand-rolled loop for small amounts of whitespace, and it would complicate the position management throughout the parser.
+STEELMAN: A better approach is to use a regex-based whitespace skip that efficiently matches the longest possible sequence of whitespace characters starting at the current position, preserving the original position tracking while leveraging optimized regex engines for the heavy lifting.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Precompile the regex for whitespace skipping
+_WS_REGEX = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `str.find(''.join(_WS_CHARS), pos)` is flawed because `str.find()` searches for the entire whitespace string as a substring, not individual characters, which would not correctly identify the first non-whitespace character. Additionally, it doesn't handle the case where the input is all whitespace, leading to incorrect behavior or exceptions. It also assumes that `str.find` is faster than a simple loop, which isn't necessarily true for small inputs or when the loop can be optimized by the Python interpreter.
+
+STEELMAN: A better approach would be to use a hybrid method that leverages `str.find()` for large stretches of whitespace, but falls back to a manual loop for small inputs or when `str.find` returns an invalid index. This preserves the performance benefit of C-level substring search while avoiding the pitfalls of the naive approach. Specifically, we can precompute a combined whitespace string and use `str.find()` to skip large blocks, but ensure that we handle edge cases like empty input or all-whitespace strings properly.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find for large whitespace blocks, fallback to loop for small inputs
+    if pos >= len(text):
+        return pos
+    # Precompute the whitespace string for use with str.find
+    ws_str = ''.join(_WS_CHARS)
+    # Find the first non-whitespace character using C-level str.find
+    found_pos = text.find(ws_str, pos)
+    if found_pos == -1:
+        # No whitespace found, return original pos (or end of string)
+        return len(text)
+    # If found_pos == pos, we have whitespace at the start; skip all leading whitespace
+    if found_pos == pos:
+        # Skip all consecutive whitespace characters
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+    # If found_pos > pos, we found a non-whitespace character at found_pos
+    return found_pos
+>>>>>>> REPLACE
+```

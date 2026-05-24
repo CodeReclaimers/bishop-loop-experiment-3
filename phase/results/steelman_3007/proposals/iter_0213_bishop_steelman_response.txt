@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to inline the `_skip_ws` function would eliminate the compiled regex but introduces a naive optimization that doesn't account for the fact that `_skip_ws` is called in multiple places, and inlining would require duplicating the while-loop logic. Additionally, the performance gain from avoiding the function call is likely negligible compared to the cost of the set membership check, and could make the code harder to maintain without significant speedup.
+STEELMAN: The steelman version would replace the `_skip_ws` function with an inlined while-loop that directly checks `_WS_CHARS` and increments `pos`, but it should be applied consistently across all call sites to avoid code duplication and ensure the optimization is actually effective.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline _skip_ws
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline _skip_ws
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

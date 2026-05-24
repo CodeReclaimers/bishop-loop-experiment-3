@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the iterative whitespace loop with a single regex match fails because `_WS_RE` is compiled with `r'\s*'` which matches zero or more whitespace characters, not just the next sequence of whitespace. This would skip past the intended position and potentially consume too much text. Additionally, the regex approach doesn't integrate cleanly with the existing parser's position tracking, which relies on character-by-character advancement.
+
+STEELMAN: The steelman version would use the regex to efficiently skip whitespace by finding the next non-whitespace character, but it should be implemented carefully to ensure the match position aligns with the parser's expected behavior. The regex should be used to find the first non-whitespace character after the current position, and the resulting match object's end position should be used to advance the parser's index, preserving exact behavior while gaining performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

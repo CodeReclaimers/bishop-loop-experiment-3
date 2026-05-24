@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to use regex only for large inputs is flawed because it introduces conditional logic that adds overhead for small inputs, and the threshold for when to switch is arbitrary and likely suboptimal. It also doesn't address the real performance bottleneck in `_skip_ws`, which is the repeated `in` checks against `_WS_CHARS` set. The approach still requires maintaining two code paths and doesn't leverage the fact that modern Python's `str` methods are highly optimized for small inputs.
+
+STEELMAN: The steelman is to optimize `_skip_ws` by using a hybrid approach that leverages Python's built-in `str.translate` and `str.maketrans` for large inputs, while preserving the current loop-based approach for small inputs. This avoids the overhead of regex while still achieving better performance for larger inputs by using highly optimized string operations.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    # For small inputs, use the loop approach to avoid regex overhead
+    if len(text) - pos < 100:
+        try:
+            while text[pos] in _WS_CHARS:
+                pos += 1
+        except IndexError:
+            pass
+        return pos
+    
+    # For larger inputs, use str.translate for better performance
+    # Create a translation table that maps whitespace to a sentinel character
+    # Then use find to locate the first non-whitespace character
+    whitespace_table = str.maketrans(' \t\n\r', '    ')
+    translated = text[pos:].translate(whitespace_table)
+    new_pos = pos
+    while new_pos < len(text) and translated[new_pos - pos] == ' ':
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

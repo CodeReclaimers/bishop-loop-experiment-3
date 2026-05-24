@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex call would break the function's behavior because the current implementation advances the position past whitespace and returns the new index, while a regex match would only tell us the length of the matched whitespace but not the actual position after it. Additionally, using regex for such a simple and frequent operation could introduce overhead that negates any performance gains from avoiding the loop.
+
+STEELMAN: A better approach is to use the precompiled regex to find the position after all leading whitespace, but still maintain the exact same interface and behavior as the original function — specifically returning the index after the whitespace, not just the match length. This preserves correctness while leveraging the regex for efficiency.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

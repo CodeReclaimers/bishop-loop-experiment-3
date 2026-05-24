@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a fixed-size buffer for whitespace skipping is unworkable because it introduces unnecessary complexity without addressing the core performance issue. The approach doesn't actually eliminate redundant scanning; it just changes where the scanning happens. Additionally, it would require managing buffer boundaries and could introduce bugs around edge cases where whitespace spans across buffer boundaries.
+
+STEELMAN: A better approach would be to use a regex-based whitespace skip that leverages Python's optimized regex engine to quickly advance the position pointer. This can be implemented by pre-compiling a regex pattern that matches one or more whitespace characters, and using it to efficiently skip whitespace instead of the current character-by-character loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+import re
+
+# Pre-compile the whitespace regex for performance
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

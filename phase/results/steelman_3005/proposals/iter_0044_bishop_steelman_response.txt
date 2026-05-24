@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `next(_WS_PATTERN.find, len(text), pos)` is fundamentally flawed because `re.find` doesn't work that way — it returns the start position of the *first* match, not a position after skipping all whitespace. Additionally, `_WS_PATTERN` matches zero or more whitespace characters, so calling `find` would just return the current position if there's no whitespace, or the start of a whitespace sequence, not the end of it. This would not skip whitespace correctly and would likely cause incorrect parsing or infinite loops.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with the `_WS_PATTERN` to find the next non-whitespace character by advancing the position past any leading whitespace. Specifically, we can use `re.match(_WS_PATTERN, text, pos)` to get the match object, then advance `pos` by the match's length to skip all leading whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `text.find(' \t\n\r', pos)` is flawed because it only finds the first whitespace character, not the end of all consecutive whitespace. This would incorrectly skip over only one space/tab/return/linefeed and leave the rest of the whitespace unprocessed. Additionally, it doesn't account for the fact that `find` returns -1 when no character is found, which would cause incorrect behavior when reaching the end of the string.
+STEELMAN: A better approach would be to use `text.find(' \t\n\r', pos)` to find the first non-whitespace character, then advance the position to that point. This avoids the per-character loop while correctly handling the full whitespace sequence. The implementation should loop until no more whitespace is found, using `find` to locate the next non-whitespace character in each iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        next_ws = text.find(' \t\n\r', pos)
+        if next_ws == -1:
+            # No more whitespace, return current position
+            return pos
+        if next_ws == pos:
+            # Current character is whitespace, advance
+            pos += 1
+        else:
+            # Found non-whitespace at next_ws, return that position
+            return next_ws
+    return pos
+>>>>>>> REPLACE
+```

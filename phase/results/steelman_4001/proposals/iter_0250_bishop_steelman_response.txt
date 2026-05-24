@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace regex with set lookup in `_skip_ws` is naive because it fails to account for the fact that the current implementation already uses a set for whitespace characters (`_WS_CHARS`), and the function `_skip_ws` already performs set lookups. The suggestion doesn't address the actual performance bottleneck, which is the repeated per-character loop in `_skip_ws` rather than the regex usage. Additionally, this change would not improve performance for large contiguous whitespace runs since the loop would still iterate character-by-character.
+
+STEELMAN: The strongest version of the suggestion is to optimize `_skip_ws` by using a more efficient loop that skips contiguous whitespace in larger chunks, reducing the number of iterations needed for large whitespace sections, while preserving the set-based membership testing for individual characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    # Skip whitespace in chunks for better performance
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

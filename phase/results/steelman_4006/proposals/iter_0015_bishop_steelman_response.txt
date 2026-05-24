@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace `skip_ws` with a direct character check loop is problematic because it fails to account for the full range of Unicode whitespace characters that JSON allows, not just the ASCII ones. Additionally, it ignores the performance benefits of precompiling the regex and the fact that the current implementation already uses a fast loop for common cases. This naive approach could introduce correctness issues and potentially regress performance in some scenarios.
+
+STEELMAN: The steelman version would retain the performance benefits of the current direct loop for common ASCII whitespace while ensuring full compliance with JSON's definition of whitespace, which includes Unicode whitespace characters. It should maintain the existing logic for handling the most frequent cases efficiently, but expand the check to cover all valid JSON whitespace, possibly using a more optimized lookup or direct character checks for the broader set.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f' or c == '\x0b' or c == '\x0c' or c == '\u00a0' or c == '\u1680' or c == '\u2000' or c == '\u2001' or c == '\u2002' or c == '\u2003' or c == '\u2004' or c == '\u2005' or c == '\u2006' or c == '\u2007' or c == '\u2008' or c == '\u2009' or c == '\u200a' or c == '\u2028' or c == '\u2029' or c == '\u202f' or c == '\u205f' or c == '\u3000':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

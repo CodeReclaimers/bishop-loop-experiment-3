@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to use `re.sub()` for whitespace skipping is fundamentally flawed because `re.sub()` is designed for pattern replacement, not position tracking. It would require parsing the entire matched whitespace region to compute the new position, which defeats the performance benefit of avoiding Python loops. Additionally, `re.sub()` doesn't have a `pos` parameter for starting position, so it would not work correctly with the existing parser's position-based architecture.
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the compiled pattern to find the next non-whitespace character, then compute the new position as the end of the matched whitespace. This preserves the core idea of using regex for efficient whitespace detection while maintaining the parser's position-based design.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

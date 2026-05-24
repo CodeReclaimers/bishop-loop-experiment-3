@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to inline the whitespace skipping loop would eliminate the function call overhead but doesn't address the fact that `_skip_ws` is used in multiple places throughout the parser, so inlining it in just one location wouldn't provide consistent performance gains. Additionally, it fails to consider that the current implementation already uses a pre-computed set for O(1) lookup, which is the key optimization already in place.
+STEELMAN: The steelman version of the suggestion is to refactor `_skip_ws` to be a simple inline loop directly in `parse`, but to also ensure that all other uses of `_skip_ws` are similarly optimized or inlined for consistency. However, since the function is used in multiple locations, the most practical approach is to make the `parse` function directly inline the loop while keeping the function for other uses, since inlining everywhere would be excessive and reduce code maintainability.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline whitespace skipping loop for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline whitespace skipping loop for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

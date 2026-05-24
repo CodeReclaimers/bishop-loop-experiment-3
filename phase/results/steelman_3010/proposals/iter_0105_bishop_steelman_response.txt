@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace character-by-character whitespace skipping with a single regex match fails because it doesn't account for the fact that the parser needs to advance the position pointer incrementally. A regex match would consume all whitespace at once, but the parser logic requires precise position tracking after each token. Additionally, regex-based skipping would not integrate cleanly with the existing `_skip_ws` function's usage pattern, which is called in multiple places and expects to return the new position after skipping whitespace.
+
+STEELMAN: The steelman version of the suggestion would use the regex to efficiently skip whitespace, but still maintain the incremental position tracking by using `re.match` or `re.search` with a `pos` parameter, or by leveraging the regex engine's ability to match from a specific position while returning the end position. This preserves the performance benefit of regex while maintaining compatibility with the existing parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once for performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

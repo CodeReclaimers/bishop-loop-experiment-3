@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with direct index increments is flawed because it would require manually inlining the whitespace-skipping logic in every location where whitespace is skipped, leading to code duplication and reduced maintainability. It ignores that `_skip_ws` handles Unicode whitespace correctly and would break if the parser encounters non-ASCII whitespace characters. Additionally, the performance gain from avoiding function calls is minimal compared to the complexity and error-prone nature of the manual approach.
+
+STEELMAN: A better approach is to optimize `_skip_ws` itself by replacing the loop with a more efficient direct scanning method that avoids the overhead of `isspace()` calls, and potentially use a precomputed lookup table or direct character checks for common ASCII whitespace. This preserves correctness while reducing function call overhead and improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    # Using a set of common ASCII whitespace characters for fast lookup
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text) and text[pos] in _WHITESPACE_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the iterative whitespace loop with a regex match would not work because `_WS_RE` is compiled to match zero or more whitespace characters (`\s*`), which would consume all trailing whitespace including any that should be preserved for subsequent parsing. Additionally, using regex for this simple task introduces overhead from regex engine setup and backtracking that could be slower than the current O(1) set membership checks.
+
+STEELMAN: A better approach is to use the regex to skip whitespace but only match the *prefix* of consecutive whitespace characters starting at the current position, and then advance the position by the length of that match. This preserves the performance benefit of regex while avoiding the issue of over-consuming whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using compiled regex for faster traversal
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex match would break the parser's ability to handle invalid JSON correctly, since the regex would skip all whitespace without validating that the input is well-formed. It would also not preserve the exact position tracking needed for error messages, which rely on character-by-character advancement. Additionally, it could introduce performance regressions in cases where whitespace is minimal or absent, as regex matching has overhead compared to direct character checks.
+
+STEELMAN: A better approach is to use the precompiled regex to skip whitespace in one step, but still maintain accurate position tracking for error reporting and ensure that the parser continues to validate the input correctly. This means using the regex to find the next non-whitespace character, but only advancing the position by the matched whitespace length, not skipping past it entirely.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace regex with a state machine for number parsing is misguided because it ignores the fact that the current implementation already uses a precompiled regex (`_NUMBER_RE`) to avoid repeated compilation overhead. Additionally, a custom state machine would likely be more complex and error-prone than the well-tested regex approach, especially for handling edge cases like scientific notation and floating-point precision. The suggestion also fails to address the main performance bottlenecks such as repeated string concatenation and inefficient whitespace skipping.
+
+STEELMAN: A better approach would be to optimize the existing whitespace skipping by replacing the per-character loop with a regex-based skip that matches one or more whitespace characters at once, and to improve the number parsing by using a more efficient state machine for parsing digits, while still leveraging the precompiled regex for validation and extracting the full number token. This preserves the performance gains from precompilation while reducing the overhead of character-by-character processing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once, avoiding per-character loop
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

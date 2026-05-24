@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion is fundamentally flawed because it misunderstands the performance bottleneck. The current number parsing already uses a regex to match the full number token, then converts it with `int()` or `float()` — this is already O(1) in terms of the parsing algorithm. The suggestion to use `int()` directly on the string would not work because the number may contain multiple digits, decimal points, or exponents that need to be parsed first. Additionally, the proposed change would break the existing regex-based approach entirely.
+
+STEELMAN: The core idea is sound — leverage Python's highly optimized built-in number conversion functions. However, instead of replacing the regex-based approach, we should optimize the existing number parsing by ensuring that we extract the number string efficiently and then pass it to `int()` or `float()` for conversion. The current implementation already does this correctly, but we can improve performance by reducing the overhead in the regex matching and string slicing.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

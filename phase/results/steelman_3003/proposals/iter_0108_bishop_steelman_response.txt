@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `_WS_RE.span(pos, 0)` is fundamentally flawed because `span()` doesn't work that way — it returns the start and end of a match, not a jump position, and the second argument should be the string to match against, not a length. Additionally, using regex for simple whitespace skipping introduces overhead that negates any benefit, especially since the current O(k) loop is already highly optimized and the regex engine is not designed for such small, predictable patterns.
+
+STEELMAN: A better approach would be to use the regex to find the next non-whitespace character by matching the pattern from the current position, then calculate the new position as the start of that match. This preserves the intent of using regex for fast skipping while avoiding the misuse of `span()` and ensuring the regex is used correctly for its strengths.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

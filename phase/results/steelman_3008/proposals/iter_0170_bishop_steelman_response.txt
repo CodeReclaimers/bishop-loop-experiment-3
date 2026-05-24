@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel value won't work because `str.translate` maps characters to replacement characters, not to a "skip" mechanism. A sentinel value would need to be mapped to a character that doesn't exist in the input, which is not practical and would break the logic. Additionally, `str.find` can't be used directly after `translate` since the translation changes the string content, and the approach doesn't actually skip whitespace in one pass without re-parsing or using complex state tracking.
+STEELMAN: The steelman approach is to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.find` to locate the first non-sentinel character. However, we must avoid modifying the input string and instead use `str.translate` in a way that allows us to compute the next position efficiently by tracking where the first non-whitespace character occurs, while still maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute translation table to map whitespace to sentinel
+    # Use str.translate to replace all whitespace with a sentinel
+    # Then use str.find to locate the next non-sentinel character
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping all whitespace to a sentinel
+    trans_table = str.maketrans(_WS_CHARS, '\0' * len(_WS_CHARS))
+    # Translate the substring starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    next_non_ws = translated.find('\0')
+    if next_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    # Return the original position plus the offset
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

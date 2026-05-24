@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a precomputed skip table is flawed because it assumes a single skip table can be used globally, but the parser's state changes as it progresses through different contexts (object keys, values, array elements), making a static skip table inadequate. Additionally, building such a table would require scanning the entire input once upfront, which negates the performance benefits of avoiding character-by-character scans during parsing. The approach also fails to consider that skip tables would need to be recomputed for each new input string, defeating the purpose of precomputation.
+STEELMAN: A better approach is to compute a skip table on-the-fly for each input string, but only for the specific parsing context where whitespace is needed. This can be achieved by building a skip table that maps each position to the next non-whitespace character, computed once per input and reused for all subsequent whitespace skips during parsing. This maintains the O(1) skip behavior while preserving correctness across different parsing contexts.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = skip_table[0]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, skip_table)
+    pos = skip_table[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+>>>>>>> REPLACE
+```

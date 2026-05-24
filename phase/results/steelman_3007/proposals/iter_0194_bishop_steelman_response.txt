@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the set lookup with `str.isspace()` is problematic because `str.isspace()` is not equivalent to checking against `_WS_CHARS` — it considers a broader set of Unicode whitespace characters beyond just space, tab, newline, and carriage return. This could lead to incorrect parsing behavior or silently accept invalid JSON input. Additionally, while `.isspace()` is implemented in C, it's not necessarily faster than a simple set lookup for the limited ASCII whitespace characters used in JSON.
+
+STEELMAN: A better approach would be to use `str.isspace()` but only for the specific case where we are confident that the character is an ASCII whitespace, or to create a more targeted optimization that leverages C-level functions while preserving correctness by restricting the scope of whitespace detection to exactly the characters defined in `_WS_CHARS`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using str.isspace() for performance
+    # but ensure only ASCII whitespace is considered
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

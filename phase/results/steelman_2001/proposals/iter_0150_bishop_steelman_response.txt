@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.translate` with `str.find` is unworkable because `str.translate` removes characters rather than skipping them, so it wouldn't locate the next non-whitespace position correctly. Additionally, the proposed approach doesn't actually achieve O(1) time per call since `str.find` still needs to scan the string. The core idea of avoiding per-character loops is good, but the implementation details are flawed.
+
+STEELMAN: A better approach would be to use a regex pattern to match leading whitespace and advance the position by the length of the match, which avoids per-character iteration while correctly identifying the next non-whitespace character. This preserves the intent of eliminating character-by-character loops while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use set lookup for O(1) membership test
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile regex for skipping whitespace
+_WS_PATTERN = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

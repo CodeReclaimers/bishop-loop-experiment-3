@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion to precompute a set of whitespace characters and check membership is fundamentally flawed because it doesn't address the core performance bottleneck in `_skip_ws` — the repeated character-by-character iteration. Even with a set lookup, the function still needs to iterate through the string sequentially, and the overhead of set membership testing doesn't outweigh the cost of the iteration. Additionally, this approach would require modifying the function signature or using global state, which could break existing code or introduce thread-safety issues.
+
+STEELMAN: A better approach is to precompute a set of whitespace characters and use it to optimize the `_skip_ws` function by replacing the character-by-character comparison with a fast set lookup. However, to maintain correctness and performance, we should avoid modifying global state and instead use a local set lookup within the function. The optimization should be limited to the actual whitespace skipping logic, not the entire parsing flow.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

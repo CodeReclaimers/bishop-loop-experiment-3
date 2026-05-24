@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to pre-compute a whitespace-skip table would not work because it assumes a fixed table can be built once and reused, but whitespace skipping must account for the actual input string's content at each position. Additionally, the approach doesn't consider that the table would need to be built for every call to `_skip_ws`, negating any benefit of pre-computation, and it ignores the fact that the current implementation already uses O(1) set lookups for whitespace characters.
+
+STEELMAN: A better approach would be to build a single lookup table for all possible ASCII characters once at module initialization, where each entry indicates how many consecutive whitespace characters start at that position. This table would be used in `_skip_ws` to jump directly past whitespace, making it truly O(1) per skip operation and avoiding repeated string scanning or set lookups.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Pre-computed lookup table for skipping whitespace
+# Each index corresponds to a character (0-255) and stores how many whitespace chars to skip
+_WS_SKIP_TABLE = [0] * 256
+for char in _WS_CHARS:
+    _WS_SKIP_TABLE[ord(char)] = 1
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+>>>>>>> REPLACE
+```

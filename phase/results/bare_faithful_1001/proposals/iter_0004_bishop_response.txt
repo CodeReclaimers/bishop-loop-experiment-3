@@ -1,0 +1,32 @@
+To optimize the JSON parser, we can refactor the `parse_value` function to handle string parsing more efficiently. Specifically, we can use a stack-based approach to avoid rebuilding the output list for each key-value pair. This will significantly reduce the overhead of concatenation and improve performance.
+
+Here's how the change could look:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    stack = [out]
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] == "}":
+            break
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        # Use direct dict assignment to avoid rebuilding
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+```
+
+This change uses a stack to keep track of the current dictionary being built. When we encounter a key-value pair, we push the current dictionary onto the stack, update the current dictionary with the new key-value pair, and then pop the stack to get back to the previous dictionary if there is one. This eliminates the need for string concatenation at each step, resulting in faster parsing times.

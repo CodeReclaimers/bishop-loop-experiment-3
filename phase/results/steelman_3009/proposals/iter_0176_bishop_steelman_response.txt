@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the per-call `_skip_ws` loop with `text.find` and a generator expression is problematic because `next((c for c in text[pos:] if c not in _WS_CHARS), None)` still iterates character-by-character in Python, negating any performance benefit. Additionally, `text.find` isn't suitable for this use case since it searches for a single character, not a set of characters, and would require multiple calls or a different approach to find the next non-whitespace character efficiently.
+
+STEELMAN: A better approach would be to use a compiled regex or a more efficient lookup method to find the next non-whitespace character in one go, avoiding repeated Python iteration. The idea of jumping over whitespace in a single operation is sound, but it must be implemented using efficient string operations like `re.search` with a precompiled pattern or a fast character set lookup that avoids Python-level iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a compiled regex to find the next non-whitespace character
+    import re
+    match = re.search(r'[^' + re.escape(''.join(_WS_CHARS)) + r']', text, pos)
+    return match.start() if match else len(text)
+>>>>>>> REPLACE
+```

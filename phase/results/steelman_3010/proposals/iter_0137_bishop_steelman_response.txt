@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with `re.finditer` is problematic because `finditer` would require scanning the entire remaining string from the current position, which defeats the performance benefit of skipping only whitespace. Additionally, `finditer` is not designed for incremental matching and would introduce overhead from regex engine setup and state management for each call. The approach also doesn't leverage the existing precomputed character sets and would likely be slower than the current O(1) membership checks.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with the precompiled `_WS_PATTERN` to directly advance the position past whitespace, leveraging the regex engine's efficiency while maintaining the incremental nature of the parsing. This avoids repeated Python loops and uses the optimized C-level regex engine, but still allows the parser to advance the position correctly without full-string scanning.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

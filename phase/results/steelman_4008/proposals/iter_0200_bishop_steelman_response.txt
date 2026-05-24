@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use `str.find` for large whitespace blocks is problematic because `str.find` has O(n) complexity and will be slower than direct character scanning for small skips. It also doesn't handle the case where whitespace is interleaved with non-whitespace in a way that would require fallback to character-by-character scanning. Additionally, it doesn't address the fact that the current `_skip_ws` function is already quite efficient for small skips, and the hybrid approach may introduce unnecessary overhead from branch prediction and function call overhead.
+
+STEELMAN: A better approach would be to use a hybrid strategy that switches between `str.find` and direct scanning based on the size of the whitespace block — using `str.find` for large blocks (>10 chars) and direct scanning for smaller ones (<10 chars), while maintaining the same interface and correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: use str.find for large whitespace blocks, direct scan for small
+    if pos >= len(text):
+        return pos
+    # For large blocks, use str.find to skip quickly
+    if len(text) - pos > 10:
+        # Find the first non-whitespace character
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            # No more whitespace, skip to end
+            return len(text)
+        return next_non_ws
+    # For small blocks, use direct character scanning
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

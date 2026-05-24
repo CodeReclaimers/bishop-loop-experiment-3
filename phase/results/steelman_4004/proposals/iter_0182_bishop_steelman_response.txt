@@ -1,0 +1,48 @@
+CRITIQUE: The suggestion to use regex for whitespace skipping is problematic because regex compilation overhead would likely negate any gains, especially since the whitespace skipping is called very frequently. Additionally, regex matching in Python isn't necessarily faster than optimized character-by-character loops for small, predictable patterns like whitespace. The approach also doesn't address the more significant performance bottlenecks in the parser like repeated string concatenation and redundant parsing steps.
+
+STEELMAN: A better approach would be to use a compiled regex pattern to skip multiple whitespace characters at once, but only for cases where there's a significant amount of consecutive whitespace. This avoids the overhead of repeated small regex compilations while still providing performance gains for large whitespace sections. The regex should be compiled once at module level and reused.
+
+```python
+<<<<<<< SEARCH
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+=======
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+import re
+from __future__ import annotations
+
+from typing import Any
+>>>>>>> REPLACE
+```

@@ -1,0 +1,35 @@
+We need to suggest a specific change: maybe replace character-by-character appending to list in string escape handling with pre-allocated list? Or use a list comprehension? Or avoid repeated _skip_ws calls? Probably the biggest bottleneck is the loop in _parse_array where after each character we check ord(c) < 0x20 and raise error, and also handle escapes. Could replace that with a simple check: if ord(c) < 0x20 raise error else out.append(c). But already done. Maybe pre-allocate list of same length? Not needed. Better: use list.extend with a view? Or use a bytearray? Or use memoryview? Another idea: replace _skip_ws using string method lstrip? But that's regex.
+
+Maybe change _parse_number to use built-in ast.literal_eval? No.
+
+Better: pre-allocate list for array values? Already out list.
+
+Maybe change the way we handle Unicode escapes: compute code point in one go using int(text[pos+1:pos+5],16) etc. That's already.
+
+Maybe the biggest gain is the regex for whitespace _skip_ws; use text.lstrip(maxsplit=pos) but not.
+
+Simplify: replace the nested loop in _parse_value that checks for "t" or "f" by using .lower() substring? But already.
+
+Perhaps the change: replace the while loop in _parse_object that skips whitespace repeatedly with a single lstrip using text[pos:].lstrip()? That would avoid repeated calls to _skip_ws and regex.
+
+So suggestion: replace repeated _skip_ws calls in loop with a single lstrip to advance past whitespace, reducing function call overhead and regex compilation.
+
+Let's propose: In _parse_object and _parse_array, use text[pos:].lstrip() to skip whitespace instead of _skip_ws calls. That reduces overhead.
+
+But need be specific: In _parse_object, replace pos = _skip_ws(text, pos) with pos = text[pos:].lstrip() and pos = pos + len(text[pos:] - text[pos:].lstrip())? Actually simpler: pos = text[pos:].lstrip(); pos = pos + len(text[pos:])? Wait.
+
+Better: use text[pos:].lstrip() gives new string; we can get new position: pos = text[pos:].lstrip(); pos = pos + len(text[pos:])? That's messy.
+
+Actually: new_pos = pos + len(text[pos:] - text[pos:].lstrip())? Let's think.
+
+Simpler: use while char.isspace(): pos+=1. But that's loop.
+
+Better: use str.lstrip to find new index: pos = text[pos:].lstrip(); pos = pos + len(text[pos:])? Hmm.
+
+Maybe best: replace _skip_ws with a simple loop pos+=1 while pos<len(text) and text[pos].isspace(): pos+=1. That's still loop.
+
+But the suggestion: Use built-in string method lstrip to skip whitespace in one operation instead of regex.
+
+Thus suggestion: replace repeated _skip_ws calls with text[pos:].lstrip() to compute new pos in O(1) time.
+
+Let's output: Suggest replacing the repeated _skip_ws calls in _parse_object and _parse_array loops with a single call to text[pos:].lstrip() to advance past whitespace, eliminating the overhead of the regex and function call. This reduces per-character overhead and improves speed.

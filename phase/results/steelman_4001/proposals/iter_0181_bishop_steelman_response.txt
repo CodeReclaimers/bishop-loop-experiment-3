@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `str.lstrip()` for whitespace skipping is flawed because `lstrip()` removes ALL leading whitespace characters from the start of the string, not just from the current position, which would skip too much content. Additionally, `lstrip()` doesn't return the new position index; it returns a new string, so it can't be used directly to advance the parser's position. This approach would also break the incremental parsing logic that relies on precise position tracking.
+
+STEELMAN: A better approach would be to use `str.lstrip()` on a slice of the string starting from the current position, but then compute the new position by comparing the length of the original slice with the result of `lstrip()`. This preserves the intent of using a more efficient built-in method while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.lstrip on the remaining text to efficiently skip whitespace
+    remaining = text[pos:]
+    stripped = remaining.lstrip()
+    # Calculate the new position by subtracting the difference in lengths
+    return pos + (len(remaining) - len(stripped))
+>>>>>>> REPLACE
+```

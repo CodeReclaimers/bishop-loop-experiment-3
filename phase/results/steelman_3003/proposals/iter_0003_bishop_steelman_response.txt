@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the regex with a while-loop using a frozenset would break the whitespace skipping behavior because the current regex `r"[ \t\n\r]*"` advances past *zero or more* whitespace characters, but a simple loop would only advance past *one* whitespace character at a time. This would cause incorrect parsing of multiple consecutive whitespace characters and could lead to parsing failures or incorrect token boundaries. Additionally, the regex approach is already optimized for performance in most cases, so the proposed change may not provide meaningful gains.
+
+STEELMAN: The steelman version of the suggestion is to replace the regex-based `_skip_ws` with an optimized while-loop that advances `pos` as long as `text[pos]` is in `_WS_CHARS`, ensuring that all consecutive whitespace characters are skipped in one pass, while still using the precomputed frozenset for O(1) lookup. This preserves the performance benefits of avoiding regex overhead while maintaining correct behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace
+    m = _WS_RE.match(text, pos)
+    return m.end() if m else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

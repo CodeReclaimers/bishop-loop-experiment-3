@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the manual whitespace loop with a regex search has a critical flaw: `_WS_PATTERN.search()` only finds the next non-whitespace character, not the end of the whitespace sequence. This means it would return the position of the first non-whitespace character, not the end of the whitespace block, breaking the expected semantics of `_skip_ws`. Additionally, it would likely be slower than the current approach due to regex overhead for simple whitespace skipping.
+
+STEELMAN: The steelman version would use `_WS_PATTERN.match(text, pos)` to match the whitespace sequence and return `pos + match.end()` to advance past the whitespace, which correctly advances to the first non-whitespace character. This approach preserves the performance benefits of regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

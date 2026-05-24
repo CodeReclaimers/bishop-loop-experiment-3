@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is problematic because it would require scanning forward from the current position to find the next non-whitespace character, which doesn't integrate well with the existing parser's state tracking. It also fails to address the core performance issue of repeated whitespace checks in recursive descent parsing and could introduce overhead from repeated string slicing or indexing operations. Additionally, `str.find` would not be significantly faster than the current character-by-character loop for small amounts of whitespace.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a single pass through the string with a while loop that accumulates the position, but avoid redundant checks by using `str.isspace()` or precomputed character sets, and potentially leveraging `str.lstrip()` for large contiguous whitespace blocks in a more targeted way, while maintaining the existing parser architecture and correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    # Optimized to avoid repeated checks by using a more efficient loop
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

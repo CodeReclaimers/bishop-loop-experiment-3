@@ -1,0 +1,47 @@
+CRITIQUE: The suggestion is unworkable because it proposes using regex for whitespace skipping, which would add overhead and complexity without clear benefit—regex compilation and matching are slower than direct set membership checks for the small, predictable set of whitespace characters. It also fails to address the actual performance bottleneck, which is the repeated string concatenation and inefficient parsing loops. Additionally, the idea of precomputed tables for whitespace patterns is overly complex and likely to introduce bugs or misoptimizations.
+
+STEELMAN: A better approach is to optimize the existing `_skip_ws` function by using a hybrid strategy: for short inputs, use the current direct loop; for longer inputs, use a simple unrolled loop or vectorized lookup to avoid repeated set membership checks. This preserves the existing logic while improving performance in the most common cases without introducing complex regex or precomputed tables.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping with hybrid approach
+    try:
+        # For short inputs, use direct loop; for longer, unroll to reduce loop overhead
+        if len(text) - pos > 16:
+            # Unrolled loop for better performance on longer inputs
+            while True:
+                c = text[pos]
+                if c not in _WS_CHARS:
+                    break
+                pos += 1
+                c = text[pos]
+                if c not in _WS_CHARS:
+                    break
+                pos += 1
+                c = text[pos]
+                if c not in _WS_CHARS:
+                    break
+                pos += 1
+                c = text[pos]
+                if c not in _WS_CHARS:
+                    break
+                pos += 1
+        else:
+            # Direct loop for short inputs
+            while text[pos] in _WS_CHARS:
+                pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

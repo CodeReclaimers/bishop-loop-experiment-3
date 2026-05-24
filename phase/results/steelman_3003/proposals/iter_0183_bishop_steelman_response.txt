@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to remove the compiled regex `_WS_RE` and rely solely on `_skip_ws` is unworkable because `_skip_ws` processes whitespace character-by-character, which is inefficient for large amounts of consecutive whitespace. This approach would lead to O(n) time complexity for skipping n consecutive whitespace characters, whereas the regex can skip them in O(1) time. Additionally, the regex approach is more idiomatic and readable for this use case.
+STEELMAN: The steelman is to replace the regex-based whitespace skipping with a hybrid approach: use a loop to skip initial whitespace with the frozenset lookup, but for large contiguous whitespace sections, use a regex to skip the entire block in one operation, thereby combining the benefits of both methods.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip initial whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    # Skip any additional consecutive whitespace with regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        pos = match.end()
+    return pos
+>>>>>>> REPLACE
+```

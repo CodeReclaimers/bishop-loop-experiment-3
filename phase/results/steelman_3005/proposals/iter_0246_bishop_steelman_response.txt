@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a direct loop fails to account for the fact that `str.isspace()` is not equivalent to the regex `\s*` in terms of what characters are considered whitespace. Additionally, it ignores that the original implementation was designed to work with the existing parsing logic that expects the function to advance the position correctly and consistently. This naive replacement could break parsing on inputs with non-ASCII whitespace or cause performance regressions if the loop isn't optimized.
+
+STEELMAN: The steelman version of the suggestion would involve implementing a direct index-advancing loop that properly handles all Unicode whitespace characters (not just ASCII ones), while still maintaining the performance benefits of avoiding regex overhead. It should preserve correctness by using a more inclusive whitespace detection method, and the change should be localized to `_skip_ws` only.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    # Use a set of common whitespace characters for performance
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text) and text[pos] in _WHITESPACE_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the whitespace loop with a regex would break the parser's ability to handle malformed inputs correctly, since regex matching would consume whitespace and skip past error positions, making error reporting imprecise. It also doesn't address the core performance issue of repeated string concatenation in `_parse_string` or the redundant whitespace checks in recursive descent. Additionally, regex-based skipping would not integrate well with the existing error recovery and position tracking logic.
+
+STEELMAN: The strongest version of the suggestion is to use a precompiled regex to skip whitespace, but only at strategic points where we can still maintain accurate position tracking and error reporting, such as in the main parsing loop and after consuming tokens. We should avoid using regex in tight loops or within string parsing, and instead apply it where it can improve performance without sacrificing correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile the regex for skipping whitespace
+_WS_RE = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, but only at strategic points
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to strip all whitespace with a single regex replacement would break JSON syntax because it removes all whitespace, including that which separates tokens like `true` and `false` from each other or from literals, making valid JSON like `true,false` invalid. It also ignores the need to preserve position tracking for error reporting, which requires knowing where parsing failures occurred. Additionally, the approach doesn't account for the fact that whitespace skipping is not just about removing characters, but also about maintaining parsing context and state.
+
+STEELMAN: A better approach would be to use a compiled regex to skip whitespace at the start of each parsing step, rather than manually looping through characters. This preserves the ability to track positions accurately, allows for better error reporting, and still benefits from fast compiled regex operations without the overhead of repeated membership checks.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

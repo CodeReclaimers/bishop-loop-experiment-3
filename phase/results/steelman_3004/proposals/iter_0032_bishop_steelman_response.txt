@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to use `re.search()` in `_skip_ws` is problematic because `re.search()` will always return a match (or raise an exception), but if there's no whitespace at the current position, it will match zero-width whitespace at the current position, leading to incorrect parsing. Additionally, this approach doesn't handle the case where the regex engine fails to match, which could cause runtime errors.
+
+STEELMAN: The steelman version would use `re.match()` or `re.search()` with proper bounds checking to ensure that we only advance past actual whitespace characters, not zero-width matches. We should also ensure that if the regex fails to match anything, we fall back to the original character-by-character loop for correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,301 @@
+You are suggesting an optimization idea for a Python JSON parser.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser. The optimizations
+include:
+- Using regex for whitespace skipping
+- Using built-in int/float conversion
+- Avoiding repeated dict/list construction
+- Using efficient string building
+- Optimizing number parsing
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompiled regex for whitespace
+_WS_RE = re.compile(r'\s*')
+# Precomputed digit characters for fast lookup
+_DIGIT_CHARS = frozenset("0123456789")
+# Precomputed escape sequences
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precomputed bool and null values
+_TRUE = "true"
+_FALSE = "false"
+_NULL = "null"
+# Precompiled regex for number parsing
+_NUMBER_RE = re.compile(r'(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() with a character list for whitespace skipping
+    whitespace_chars = ' \t\n\r'
+    while pos < len(text):
+        if text[pos] not in whitespace_chars:
+            break
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t":
+        if text[pos:pos+4] == _TRUE:
+            return True, pos + 4
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    if c == "f":
+        if text[pos:pos+5] == _FALSE:
+            return False, pos + 5
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    if c == "n":
+        if text[pos:pos+4] == _NULL:
+            return None, pos + 4
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+# ... 26 lines elided ...
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc in _ESCAPE_MAP:
+                out.append(_ESCAPE_MAP[esc])
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _DIGIT_CHARS and not ("a" <= ch <= "f") and not ("A" <= ch <= "F"):
+            return False
+    return True
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to find the complete number
+    m = _NUMBER_RE.match(text, pos)
+    if not m:
+        raise JSONParseError(f"bad number at {pos}")
+    s = m.group(1)
+    pos = m.end()
+    # Use built-in conversion to avoid string construction overhead
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        else:
+            return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+```
+
+Recent ideas already tried:
+Accepted improvements (most recent first):
+  - [bishop_bare] PROMOTE z=+1.96 mean=0.0118 (baseline 0.0122)
+  - [skippy] PROMOTE z=+1.53 mean=0.0115 (baseline 0.0118)
+  - [bishop_bare] PROMOTE z=+1.53 mean=0.0113 (baseline 0.0115)
+  - [bishop_bare] PROMOTE z=+1.96 mean=0.0108 (baseline 0.0113)
+  - [bishop_bare] PROMOTE z=+1.53 mean=0.0105 (baseline 0.0108)
+
+Rejected attempts (most recent first):
+  - [bishop_bare] REJECT z=-1.96 mean=0.0137 (baseline 0.0105)
+  - [skippy] correctness failed: 173 fixed + 50 random failures; e.g. shallow_000:valid raised JSONParseError: trailing content at position 6 on '"J"', shallow_001:valid raised JSONParseError: expected string key at 4 on '{"C5Jau2
+  - [bishop_bare] REJECT z=-1.09 mean=0.0107 (baseline 0.0105)
+  - [skippy] correctness failed: 173 fixed + 50 random failures; e.g. shallow_000:valid raised JSONParseError: trailing content at position 6 on '"J"', shallow_001:valid raised JSONParseError: expected string key at 4 on '{"C5Jau2
+  - [bishop_bare] REJECT z=-1.96 mean=0.0138 (baseline 0.0105)
+
+Excerpts from the most recent rejected candidates (avoid repeating these mistakes):
+
+--- rejection 1 ---
+# (top of file, lines 22-33)
+_WS_RE = re.compile(r'\s*')
+# Precomputed digit characters for fast lookup
+_DIGIT_CHARS = frozenset("0123456789")
+# Precomputed escape sequences
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+# ...
+# (function at lines 57-74)
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for fast whitespace skipping
+    return pos + _WS_RE.match(text, pos).end()
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t":
+        if text[pos:pos+4] == _TRUE:
+
+--- rejection 2 ---
+# (top of file, lines 22-33)
+_WS_RE = re.compile(r'\s*')
+# Precomputed digit characters for fast lookup
+_DIGIT_CHARS = frozenset("0123456789")
+# Precomputed escape sequences
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+# ...
+# (function at lines 57-74)
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for fast whitespace skipping
+    return pos + _WS_RE.match(text, pos).end()
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t":
+        if text[pos:pos+4] == _TRUE:
+
+
+Your task: in 2-3 sentences, suggest one specific change to try in `json_parser.py`
+to make it faster while keeping it correct. Do NOT include code. Describe the approach
+only. Be specific about which part of the code changes and what mechanism makes it faster.
+
+Output: just the 2-3 sentence suggestion. No preamble. No postamble. No code.

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace `_WS_RE.match` with a while-loop using a hardcoded string of whitespace characters would fail to handle Unicode whitespace characters that are valid in JSON but not included in `" \t\n\r\f\v"`, such as `\u00A0` (non-breaking space) or `\u2000` through `\u200A` (en quad through hair space). Additionally, it would not benefit from the optimized regex engine's ability to skip large blocks of whitespace efficiently, potentially degrading performance on inputs with many consecutive whitespace characters.
+
+STEELMAN: A better approach is to use a frozenset of all Unicode whitespace characters defined by the JSON specification (including U+0009, U+000A, U+000D, and U+0020, plus any additional Unicode whitespace like U+00A0), and implement a while-loop that advances `pos` while `text[pos]` is in this set. This preserves the performance benefits of avoiding regex overhead while maintaining correctness.
+
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -12,6 +12,7 @@
+ 
+ # Pre-compiled regex for whitespace skipping
+ _WS_RE = re.compile(r'\s*')
++_WS_CHARS = frozenset('\t\n\r ')  # JSON whitespace characters
+ _DIGIT_CHARS = frozenset("0123456789")
+ _HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+ 
+@@ -24,11 +24,11 @@
+ def _skip_ws(text: str, pos: int) -> int:
+-    m = _WS_RE.match(text, pos)
+-    return m.end() if m else pos
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
+```

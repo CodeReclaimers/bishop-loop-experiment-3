@@ -1,0 +1,37 @@
+To optimize the `json_parser.py` for speed, we can use a more efficient regex pattern for whitespace skipping. Specifically, we can use the `re.compile()` function to compile a regular expression once and reuse it throughout the parsing process. This reduces the overhead of compiling the regex for each call to `_skip_ws`. The optimized version would look like this:
+
+```python
+import re
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 46-63)
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompile the regex once
+    _ws_pattern = re.compile(r'^\s*')
+    # Use the compiled regex to find the end of whitespace
+    match = _ws_pattern.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+```
+
+This optimization reduces the time complexity of skipping whitespace from O(n) to O(1), where n is the length of the text.

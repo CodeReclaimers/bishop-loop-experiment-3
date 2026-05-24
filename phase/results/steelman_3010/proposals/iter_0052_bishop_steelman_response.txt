@@ -1,0 +1,48 @@
+CRITIQUE: The suggestion to use `re.sub()` for whitespace skipping is flawed because `re.sub()` is designed for pattern replacement, not position tracking, and would require additional logic to return the new position. It also doesn't handle the case where the regex matches zero-width patterns or where the position needs to be advanced correctly after skipping. Furthermore, it would be less efficient than the existing O(1) set membership checks for individual characters.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the precompiled `_WS_PATTERN` to find the end of whitespace starting at `pos`, then advance `pos` by the length of the matched whitespace. This preserves the performance benefits of regex while maintaining correct position tracking and avoiding the overhead of character-by-character iteration.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        pos = match.end()
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

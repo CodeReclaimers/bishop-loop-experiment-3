@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_PATTERN.search(text, pos)` is problematic because `re.search` will match zero or more whitespace characters, but the current implementation needs to skip *all* leading whitespace, not just a prefix. Additionally, `re.search` is slower than direct iteration for small amounts of whitespace and doesn't handle edge cases like malformed input gracefully in the same way.
+
+STEELMAN: A better approach would be to use `re.match` instead of `re.search` to ensure we match only from the current position, and to fall back to the original loop-based method if the regex doesn't match or if performance is worse than expected. This preserves the intent of using regex for bulk skipping while retaining correctness and performance characteristics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, falling back to loop if needed
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to original loop for correctness and edge cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to use binary-search-style scanning for whitespace skipping is flawed because it assumes that long runs of whitespace can be efficiently skipped by jumping ahead, but this approach breaks down when whitespace is interspersed with non-whitespace characters. It also introduces complexity that could hurt performance in typical cases where whitespace is sparse or short. The O(1) claim is misleading since the algorithm still needs to check each character in the worst case.
+
+STEELMAN: A better approach would be to implement a hybrid strategy for `_skip_ws` that uses a fast bulk scan (like checking 8 or 16 characters at a time using `str.find` or similar techniques) for long stretches of whitespace, falling back to the current character-by-character approach only when necessary. This preserves the intent of reducing index checks while maintaining correctness and performance across all input patterns.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using a hybrid approach: fast bulk scan for long runs,
+    # fallback to character-by-character for short/interleaved cases
+    n = len(text)
+    while pos < n:
+        # Fast bulk skip for long runs of whitespace
+        if pos + 8 <= n:
+            # Check 8 characters at a time for whitespace
+            chunk = text[pos:pos + 8]
+            i = 0
+            while i < 8 and chunk[i] in _WS_CHARS:
+                i += 1
+            if i == 8:
+                pos += 8
+                continue
+            # If we found a non-whitespace char, skip to it
+            pos += i
+        # Fallback to character-by-character for remaining checks
+        if pos < n and text[pos] in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

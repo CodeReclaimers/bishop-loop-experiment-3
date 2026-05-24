@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a regex call would break the parser's ability to handle invalid input correctly, since `search()` would skip all whitespace but not validate that the next non-whitespace character is valid. It also fails to account for the fact that the current implementation carefully tracks position and raises errors at specific locations, which a regex-based approach would not preserve. Additionally, it doesn't consider that the regex might not be faster than the optimized loop for small amounts of whitespace.
+
+STEELMAN: A better approach is to use the regex to efficiently skip whitespace, but still validate that after skipping, we're at a valid JSON token or end-of-input, and ensure error messages still point to the correct positions. The key is to preserve the existing error handling while improving performance via regex for the skip operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

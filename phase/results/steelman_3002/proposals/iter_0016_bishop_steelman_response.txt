@@ -1,0 +1,46 @@
+CRITIQUE: The suggestion to use a boolean array indexed by `ord(c)` for whitespace and hex digit checks would fail because it assumes all possible Unicode characters can be indexed, but Python strings can contain arbitrary Unicode code points beyond the typical ASCII range, making a fixed-size array impractical. Additionally, the lookup table approach would not be beneficial for the small, fixed sets currently being checked, as the overhead of table initialization and memory usage would outweigh any performance gains for such simple membership tests.
+
+STEELMAN: A better approach is to precompute a lookup table using a frozenset or a boolean array for the specific character sets (whitespace, hex digits) that are repeatedly checked, but only for the ASCII range since that's sufficient for JSON parsing. This avoids repeated string iteration and set membership checks while keeping memory usage reasonable and performance gains measurable.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# Precompute lookup tables for ASCII characters
+_WS_CHARS = [False] * 128
+for c in ' \t\n\r':
+    _WS_CHARS[ord(c)] = True
+_HEX_CHARS_ARRAY = [False] * 256
+for c in _HEX_CHARS:
+    _HEX_CHARS_ARRAY[ord(c)] = True
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if ord(c) < 128 and _WS_CHARS[ord(c)]:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

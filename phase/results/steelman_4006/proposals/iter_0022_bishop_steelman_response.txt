@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to replace `c in ' \t\n\r\f'` with `ord(c) < 0x20` is flawed because it would incorrectly classify many control characters (like tab `\t` = 0x09, newline `\n` = 0x0A, etc.) as whitespace, but it would also miss the explicit whitespace characters like form feed `\f` (0x0C) which is not covered by `ord(c) < 0x20`. This change would break the JSON spec's whitespace handling, which specifically allows only space, tab, newline, and carriage return as whitespace, not all control characters.
+
+STEELMAN: The steelman version of the suggestion is to optimize the whitespace check by using a more efficient lookup mechanism, such as checking against a precomputed frozenset of valid whitespace characters, instead of repeated string membership tests. This preserves the correct behavior of only treating space, tab, newline, and carriage return as whitespace, while improving performance through efficient set membership testing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

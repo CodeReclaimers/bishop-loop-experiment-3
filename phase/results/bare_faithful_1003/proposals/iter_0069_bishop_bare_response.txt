@@ -1,0 +1,461 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    
+    # State machine implementation
+    class ParserState:
+        def __init__(self, text: str):
+            self.text = text
+            self.pos = 0
+            self.stack = []
+            self.current = None
+            self.key = None
+            self.in_string = False
+            self.escape_next = False
+            self.string_buffer = []
+            self.number_buffer = []
+            self.in_number = False
+            self.in_object = False
+            self.in_array = False
+            self.expect_key = False
+            self.expect_value = False
+            self.expect_comma = False
+            self.in_bool = False
+            self.in_null = False
+            self.in_number_int = False
+            self.in_number_frac = False
+            self.in_number_exp = False
+            self.in_number_exp_sign = False
+            self.in_unicode = False
+            self.unicode_buffer = []
+            self.unicode_count = 0
+            
+        def advance(self):
+            self.pos += 1
+            
+        def current_char(self):
+            if self.pos >= len(self.text):
+                return None
+            return self.text[self.pos]
+            
+        def skip_whitespace(self):
+            while self.pos < len(self.text) and self.text[self.pos].isspace():
+                self.pos += 1
+                
+        def parse_value(self):
+            self.skip_whitespace()
+            if self.pos >= len(self.text):
+                raise JSONParseError("unexpected end of input")
+                
+            c = self.current_char()
+            if c == '{':
+                self.stack.append({'type': 'object', 'value': {}})
+                self.in_object = True
+                self.expect_comma = False
+                self.expect_key = True
+                self.advance()
+                return
+            elif c == '[':
+                self.stack.append({'type': 'array', 'value': []})
+                self.in_array = True
+                self.expect_comma = False
+                self.advance()
+                return
+            elif c == '"':
+                self.in_string = True
+                self.string_buffer = []
+                self.advance()
+                return
+            elif c == 't':
+                self.in_bool = True
+                self.advance()
+                return
+            elif c == 'f':
+                self.in_bool = True
+                self.advance()
+                return
+            elif c == 'n':
+                self.in_null = True
+                self.advance()
+                return
+            elif c == '-' or c in "0123456789":
+                self.in_number = True
+                self.number_buffer = []
+                self.in_number_int = True
+                self.number_buffer.append(c)
+                self.advance()
+                return
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {self.pos}")
+                
+        def parse_string(self):
+            while self.pos < len(self.text):
+                c = self.current_char()
+                if self.escape_next:
+                    if c == '"':
+                        self.string_buffer.append('"')
+                    elif c == '\\':
+                        self.string_buffer.append('\\')
+                    elif c == '/':
+                        self.string_buffer.append('/')
+                    elif c == 'b':
+                        self.string_buffer.append('\b')
+                    elif c == 'f':
+                        self.string_buffer.append('\f')
+                    elif c == 'n':
+                        self.string_buffer.append('\n')
+                    elif c == 'r':
+                        self.string_buffer.append('\r')
+                    elif c == 't':
+                        self.string_buffer.append('\t')
+                    elif c == 'u':
+                        self.in_unicode = True
+                        self.unicode_buffer = []
+                        self.unicode_count = 0
+                        self.advance()
+                        continue
+                    else:
+                        raise JSONParseError(f"bad escape \\{c} at {self.pos}")
+                    self.escape_next = False
+                    self.advance()
+                    continue
+                elif c == '\\':
+                    self.escape_next = True
+                    self.advance()
+                    continue
+                elif c == '"':
+                    self.in_string = False
+                    self.advance()
+                    value = ''.join(self.string_buffer)
+                    if self.stack:
+                        top = self.stack[-1]
+                        if top['type'] == 'object':
+                            if self.key is not None:
+                                top['value'][self.key] = value
+                                self.key = None
+                                self.expect_key = True
+                            else:
+                                raise JSONParseError(f"unexpected string in object at {self.pos}")
+                        elif top['type'] == 'array':
+                            top['value'].append(value)
+                    else:
+                        self.current = value
+                    return
+                elif ord(c) < 0x20:
+                    raise JSONParseError(f"unescaped control character at {self.pos}")
+                else:
+                    self.string_buffer.append(c)
+                    self.advance()
+            raise JSONParseError("unterminated string")
+            
+        def parse_bool(self):
+            c = self.current_char()
+            if c == 't':
+                self.advance()
+                if self.pos + 3 < len(self.text) and self.text[self.pos:self.pos+4] == "true":
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    value = True
+                    if self.stack:
+                        top = self.stack[-1]
+                        if top['type'] == 'object':
+                            if self.key is not None:
+                                top['value'][self.key] = value
+                                self.key = None
+                                self.expect_key = True
+                            else:
+                                raise JSONParseError(f"unexpected bool in object at {self.pos}")
+                        elif top['type'] == 'array':
+                            top['value'].append(value)
+                    else:
+                        self.current = value
+                    return
+                else:
+                    raise JSONParseError(f"bad bool at {self.pos}")
+            elif c == 'f':
+                self.advance()
+                if self.pos + 4 < len(self.text) and self.text[self.pos:self.pos+5] == "false":
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    value = False
+                    if self.stack:
+                        top = self.stack[-1]
+                        if top['type'] == 'object':
+                            if self.key is not None:
+                                top['value'][self.key] = value
+                                self.key = None
+                                self.expect_key = True
+                            else:
+                                raise JSONParseError(f"unexpected bool in object at {self.pos}")
+                        elif top['type'] == 'array':
+                            top['value'].append(value)
+                    else:
+                        self.current = value
+                    return
+                else:
+                    raise JSONParseError(f"bad bool at {self.pos}")
+            else:
+                raise JSONParseError(f"bad bool at {self.pos}")
+                
+        def parse_null(self):
+            c = self.current_char()
+            if c == 'n':
+                self.advance()
+                if self.pos + 3 < len(self.text) and self.text[self.pos:self.pos+4] == "null":
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    self.advance()
+                    value = None
+                    if self.stack:
+                        top = self.stack[-1]
+                        if top['type'] == 'object':
+                            if self.key is not None:
+                                top['value'][self.key] = value
+                                self.key = None
+                                self.expect_key = True
+                            else:
+                                raise JSONParseError(f"unexpected null in object at {self.pos}")
+                        elif top['type'] == 'array':
+                            top['value'].append(value)
+                    else:
+                        self.current = value
+                    return
+                else:
+                    raise JSONParseError(f"bad null at {self.pos}")
+            else:
+                raise JSONParseError(f"bad null at {self.pos}")
+                
+        def parse_number(self):
+            while self.pos < len(self.text):
+                c = self.current_char()
+                if c in "0123456789":
+                    self.number_buffer.append(c)
+                    self.advance()
+                elif c == '.':
+                    self.number_buffer.append(c)
+                    self.in_number_frac = True
+                    self.advance()
+                elif c in 'eE':
+                    self.number_buffer.append(c)
+                    self.in_number_exp = True
+                    self.advance()
+                    if self.pos < len(self.text) and self.text[self.pos] in '+-':
+                        self.number_buffer.append(self.text[self.pos])
+                        self.advance()
+                else:
+                    break
+                    
+            s = ''.join(self.number_buffer)
+            if self.in_number_frac or self.in_number_exp:
+                value = float(s)
+            else:
+                value = int(s)
+                
+            if self.stack:
+                top = self.stack[-1]
+                if top['type'] == 'object':
+                    if self.key is not None:
+                        top['value'][self.key] = value
+                        self.key = None
+                        self.expect_key = True
+                    else:
+                        raise JSONParseError(f"unexpected number in object at {self.pos}")
+                elif top['type'] == 'array':
+                    top['value'].append(value)
+            else:
+                self.current = value
+                
+            self.in_number = False
+            self.in_number_int = False
+            self.in_number_frac = False
+            self.in_number_exp = False
+            self.in_number_exp_sign = False
+            
+        def parse_object(self):
+            self.skip_whitespace()
+            if self.pos >= len(self.text):
+                raise JSONParseError("unexpected end of input")
+            c = self.current_char()
+            if c == '}':
+                self.advance()
+                if self.stack:
+                    self.stack.pop()
+                    self.in_object = False
+                    self.expect_comma = False
+                    self.expect_key = False
+                else:
+                    raise JSONParseError("unexpected end of object")
+            elif c == '"':
+                self.in_string = True
+                self.string_buffer = []
+                self.advance()
+            elif self.expect_key and c != '"':
+                raise JSONParseError(f"expected string key at {self.pos}")
+            elif self.expect_comma and c != ',':
+                raise JSONParseError(f"expected ',' at {self.pos}")
+            elif c == ',':
+                self.advance()
+                self.expect_comma = False
+                self.expect_key = True
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {self.pos}")
+                
+        def parse_array(self):
+            self.skip_whitespace()
+            if self.pos >= len(self.text):
+                raise JSONParseError("unexpected end of input")
+            c = self.current_char()
+            if c == ']':
+                self.advance()
+                if self.stack:
+                    self.stack.pop()
+                    self.in_array = False
+                    self.expect_comma = False
+                else:
+                    raise JSONParseError("unexpected end of array")
+            elif c == ',':
+                self.advance()
+                self.expect_comma = False
+            else:
+                self.parse_value()
+                
+        def parse_unicode(self):
+            while self.pos < len(self.text) and self.unicode_count < 4:
+                c = self.current_char()
+                if c in "0123456789abcdefABCDEF":
+                    self.unicode_buffer.append(c)
+                    self.unicode_count += 1
+                    self.advance()
+                else:
+                    raise JSONParseError(f"bad unicode escape at {self.pos}")
+                    
+            if self.unicode_count == 4:
+                hex4 = ''.join(self.unicode_buffer)
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if self.pos + 5 < len(self.text) and self.text[self.pos:self.pos+5] == "\\u":
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                        self.advance()
+                        self.unicode_buffer = []
+                        self.unicode_count = 0
+                        while self.pos < len(self.text) and self.unicode_count < 4:
+                            c = self.current_char()
+                            if c in "0123456789abcdefABCDEF":
+                                self.unicode_buffer.append(c)
+                                self.unicode_count += 1
+                                self.advance()
+                            else:
+                                raise JSONParseError(f"bad low surrogate at {self.pos}")
+                        if self.unicode_count == 4:
+                            hex4b = ''.join(self.unicode_buffer)
+                            cp2 = int(hex4b, 16)
+                            if not (0xDC00 <= cp2 <= 0xDFFF):
+                                raise JSONParseError(f"bad low surrogate at {self.pos}")
+                            cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    else:
+                        raise JSONParseError(f"unpaired high surrogate at {self.pos}")
+                self.string_buffer.append(chr(cp))
+                self.in_unicode = False
+                self.unicode_buffer = []
+                self.unicode_count = 0
+                
+    # Main parsing loop
+    state = ParserState(text)
+    state.skip_whitespace()
+    if state.pos >= len(text):
+        raise JSONParseError("empty input")
+        
+    while state.pos < len(text):
+        if state.in_string:
+            state.parse_string()
+        elif state.in_bool:
+            state.parse_bool()
+        elif state.in_null:
+            state.parse_null()
+        elif state.in_number:
+            state.parse_number()
+        elif state.in_object:
+            state.parse_object()
+        elif state.in_array:
+            state.parse_array()
+        elif state.in_unicode:
+            state.parse_unicode()
+        else:
+            state.parse_value()
+            
+        if state.pos >= len(text):
+            break
+            
+        if not state.in_string and not state.in_bool and not state.in_null and not state.in_number and not state.in_object and not state.in_array and not state.in_unicode:
+            # We're in a top-level state
+            state.skip_whitespace()
+            if state.pos >= len(text):
+                break
+            c = state.current_char()
+            if c == '{':
+                state.stack.append({'type': 'object', 'value': {}})
+                state.in_object = True
+                state.expect_comma = False
+                state.expect_key = True
+                state.advance()
+            elif c == '[':
+                state.stack.append({'type': 'array', 'value': []})
+                state.in_array = True
+                state.expect_comma = False
+                state.advance()
+            elif c == '"':
+                state.in_string = True
+                state.string_buffer = []
+                state.advance()
+            elif c == 't':
+                state.in_bool = True
+                state.advance()
+            elif c == 'f':
+                state.in_bool = True
+                state.advance()
+            elif c == 'n':
+                state.in_null = True
+                state.advance()
+            elif c == '-' or c in "0123456789":
+                state.in_number = True
+                state.number_buffer = []
+                state.in_number_int = True
+                state.number_buffer.append(c)
+                state.advance()
+            else:
+                break
+                
+    # Final checks
+    if state.stack:
+        raise JSONParseError("unterminated object or array")
+        
+    if state.pos != len(text):
+        raise JSONParseError(f"trailing content at position {state.pos}")
+        
+    return state.current
+
+```

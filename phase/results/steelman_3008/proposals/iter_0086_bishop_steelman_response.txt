@@ -1,0 +1,71 @@
+CRITIQUE: The suggestion to use 256-byte lookup tables assumes that all characters are ASCII, but JSON strings can contain Unicode characters, and the current implementation already handles this correctly by checking individual characters. Additionally, the performance gain from a lookup table is minimal compared to the overhead of creating and maintaining such tables, especially for a parser that's already optimized with set lookups. The approach also introduces complexity without clear benefit since Python's set membership is already highly optimized.
+STEELMAN: A better approach is to precompute lookup tables for ASCII characters only (since that's all we need for whitespace and digit checks), and use these tables to speed up the character checks in `_skip_ws` and digit parsing loops. This maintains correctness, leverages the performance benefits of direct indexing, and avoids the complexity of handling Unicode in the lookup logic.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Pre-computed lookup tables for ASCII characters
+_WS_TABLE = [False] * 256
+for c in _WS_CHARS:
+    _WS_TABLE[ord(c)] = True
+
+_DIGIT_TABLE = [False] * 256
+for c in _DIGIT_CHARS:
+    _DIGIT_TABLE[ord(c)] = True
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with lookup table for performance
+    while pos < len(text) and _WS_TABLE[ord(text[pos])]:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif _DIGIT_TABLE[ord(text[pos])]:
+        while pos < n and _DIGIT_TABLE[ord(text[pos])]:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex call is flawed because it doesn't account for the fact that `_skip_ws` is called repeatedly in tight parsing loops, and regex matching may not be faster than the existing O(1) set membership checks. Additionally, using a regex for this simple task introduces overhead from regex compilation and matching that could outweigh any gains, especially in performance-critical parsing paths.
+
+STEELMAN: A better approach would be to leverage the existing compiled `_WS_PATTERN` to directly compute the new position after skipping whitespace, by applying the regex to the remaining string slice and extracting the match length, which allows for efficient skipping while preserving the performance benefits of precomputed data structures.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

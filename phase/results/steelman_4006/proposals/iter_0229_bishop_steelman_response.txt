@@ -1,0 +1,108 @@
+CRITIQUE: The suggestion to avoid `int()` and `float()` is problematic because manual parsing would be significantly more complex and error-prone, especially for handling edge cases like overflow, underflow, and precise IEEE 754 representation. It would also likely be slower than built-in functions optimized in C, negating any theoretical performance gains. Additionally, the approach doesn't account for the fact that built-in conversion handles many subtle cases correctly that manual parsing would miss.
+STEELMAN: A better approach would be to pre-validate the number string format using efficient string checks before delegating to `int()` or `float()`, avoiding unnecessary conversions for invalid formats while still leveraging optimized built-in functions for valid cases.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos = pos + 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    # Use built-in conversion for better performance
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid number format at {start}")
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos = pos + 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    # Validate format before conversion to avoid invalid number errors
+    if not _is_valid_number_format(s, is_float):
+        raise JSONParseError(f"invalid number format at {start}")
+    # Use built-in conversion for better performance
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid number format at {start}")
+
+
+def _is_valid_number_format(s: str, is_float: bool) -> bool:
+    # Basic validation to avoid invalid conversions
+    if not s:
+        return False
+    if s == "-" or s == "+":
+        return False
+    if is_float:
+        # Ensure there's at least one digit before and after decimal point
+        if "." in s:
+            parts = s.split(".")
+            if len(parts) != 2:
+                return False
+            if not parts[0] and not parts[1]:
+                return False
+        if "e" in s.lower():
+            parts = s.lower().split("e")
+            if len(parts) != 2:
+                return False
+    return True
+>>>>>>> REPLACE
+```

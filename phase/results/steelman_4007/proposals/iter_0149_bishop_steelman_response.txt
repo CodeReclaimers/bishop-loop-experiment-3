@@ -1,0 +1,101 @@
+CRITIQUE: The suggestion to use a stack-based approach instead of recursion is problematic because it fails to address the actual performance bottlenecks in the current implementation, which are primarily due to inefficient string operations, repeated whitespace skipping, and suboptimal number parsing. Simply replacing recursion with iteration won't improve performance without addressing these core issues.
+
+STEELMAN: The steelman version would involve implementing an iterative parser using a stack to manage the parsing state, but still leveraging optimized operations like precompiled regexes for whitespace skipping, bulk string operations for building collections, and efficient number parsing techniques. The key is to retain the recursive structure's clarity while eliminating the function call overhead through explicit stack management.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    
+    # Stack-based parsing approach
+    stack = [(out, True)]  # (current_dict, expecting_key)
+    while stack:
+        current_dict, expecting_key = stack[-1]
+        if expecting_key:
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != '"':
+                raise JSONParseError(f"expected string key at {pos}")
+            key, pos = _parse_string(text, pos)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos += 1
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            current_dict[key] = value
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos += 1
+                continue
+            elif c == "}":
+                stack.pop()
+                if not stack:
+                    return out, pos + 1
+                else:
+                    # Continue with parent dict
+                    continue
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+        else:
+            # We're expecting a value to be parsed
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            current_dict.append(value)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated array")
+            c = text[pos]
+            if c == ",":
+                pos += 1
+                continue
+            elif c == "]":
+                stack.pop()
+                if not stack:
+                    return out, pos + 1
+                else:
+                    # Continue with parent dict
+                    continue
+            raise JSONParseError(f"expected ',' or ']' at {pos}")
+    
+    return out, pos
+>>>>>>> REPLACE
+```

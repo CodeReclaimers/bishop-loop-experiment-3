@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion to use `text.find(' ', pos)` is fundamentally flawed because it only looks for space characters, not all whitespace characters as required by the JSON standard. It also fails to handle consecutive whitespace properly since `find()` would return the index of the first space, not the end of a block of whitespace. Additionally, it doesn't account for other whitespace characters like tabs, newlines, or carriage returns.
+
+STEELMAN: A better approach would be to use `str.find()` with a set of all whitespace characters to locate the next non-whitespace character, then advance the position to that point. This preserves the intent of using optimized C-level string operations while correctly handling all JSON whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using str.find
+    while pos < len(text):
+        # Find the next non-whitespace character
+        next_non_ws = text.find(' ', pos)
+        if next_non_ws == -1:
+            # No more spaces, check if there are other whitespace chars
+            # We need to scan for any whitespace character
+            while pos < len(text) and text[pos].isspace():
+                pos += 1
+            return pos
+        # If we found a space at next_non_ws, check if it's the first non-whitespace
+        if next_non_ws == pos:
+            pos += 1
+        else:
+            # There are non-whitespace characters between pos and next_non_ws
+            # Check if they are all whitespace
+            while pos < next_non_ws:
+                if not text[pos].isspace():
+                    return pos
+                pos += 1
+            # All characters between pos and next_non_ws are whitespace
+            pos = next_non_ws + 1
+    return pos
+>>>>>>> REPLACE
+```

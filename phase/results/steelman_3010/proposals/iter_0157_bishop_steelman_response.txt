@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the while-loop with a regex search would break the incremental parsing logic because `search()` finds the first match starting at `pos`, but doesn't advance `pos` to the end of the match; it returns a match object whose `end()` gives the position. Also, the regex would need to be updated to match zero or more whitespace characters, which is not how the current loop works — the loop skips *all* consecutive whitespace, not just one run.
+STEELMAN: The steelman version would use `_WS_PATTERN.search(text, pos)` and advance `pos` to `match.end()`, but only if a match is found, otherwise fall back to the original loop to handle the case where no whitespace is present. This preserves correctness while leveraging the optimized regex engine.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace when possible, falling back to manual loop
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

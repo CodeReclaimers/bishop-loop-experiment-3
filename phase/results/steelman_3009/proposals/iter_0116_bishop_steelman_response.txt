@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use `bytes.find` on UTF-8 encoded input is problematic because it doesn't properly handle multi-byte UTF-8 characters — a single UTF-8 character can be multiple bytes, so advancing by the byte offset of the next non-whitespace character may land in the middle of a UTF-8 sequence, causing invalid decoding. Additionally, `bytes.find` only works on byte-level searches, so it won't correctly identify Unicode whitespace characters that are not ASCII.
+STEELMAN: A better approach would be to convert the string to bytes once, then use `bytes.find` to locate the next non-whitespace byte index, and then convert back to a character-based index to maintain proper UTF-8 semantics and avoid misaligning on multi-byte characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    # Precompute the bytes once to avoid repeated encoding overhead
+    if pos >= len(text):
+        return pos
+    # Convert to bytes for fast lookup, but only for the remaining string
+    remaining_bytes = text[pos:].encode('utf-8')
+    # Find the first non-whitespace byte
+    byte_pos = 0
+    while byte_pos < len(remaining_bytes):
+        byte_val = remaining_bytes[byte_pos]
+        # Check if this byte corresponds to a whitespace character
+        if byte_val in (0x20, 0x09, 0x0A, 0x0D):  # space, tab, newline, carriage return
+            byte_pos += 1
+        else:
+            break
+    # Convert byte position back to character position
+    # This works because we know the first few bytes are ASCII whitespace
+    # and we are only advancing by full characters
+    char_pos = pos + byte_pos
+    return char_pos
+>>>>>>> REPLACE
+```

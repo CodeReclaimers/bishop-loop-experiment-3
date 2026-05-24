@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use regex-based whitespace skipping is problematic because Python's regex engine has significant overhead for simple operations like skipping whitespace, especially when called repeatedly in tight loops. Additionally, the idea to optimize number scanning by using integer values instead of `ord()` is unclear and potentially incorrect, since `ord()` is already being used correctly for control character validation and not for numeric conversion.
+
+STEELMAN: A better approach would be to replace the character-by-character loop in `_skip_ws` with a compiled regex that efficiently skips whitespace in bulk, reducing function call overhead. For number parsing, we can optimize by using `int()` and `float()` directly on substrings rather than building numbers character-by-character, which will reduce redundant checks and improve performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for common case: skip whitespace using a loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast path for common case: skip whitespace using regex
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

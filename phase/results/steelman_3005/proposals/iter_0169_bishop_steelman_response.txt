@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use a translation table with `text.find` is flawed because it doesn't properly handle the case where multiple consecutive whitespace characters exist — `text.find` will only find the first occurrence, not advance through all whitespace. Additionally, it fails to consider that `text.find` returns -1 when the character isn't found, which would break the logic. The approach also assumes a fixed set of whitespace characters, which is incorrect since Python's `str.isspace()` considers a much broader set of Unicode whitespace characters.
+
+STEELMAN: A better approach would be to build a global set of all Unicode whitespace characters once at module load, and then use a loop with `text.find` or `str.isspace()` in a way that advances the pointer correctly through all consecutive whitespace characters. This preserves the intent of avoiding regex overhead while correctly handling all whitespace characters and maintaining the same semantics as the current implementation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+# Precompute set of all Unicode whitespace characters
+_WHITESPACE_CHARS = frozenset(chr(i) for i in range(0x10000) if chr(i).isspace())
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos] in _WHITESPACE_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

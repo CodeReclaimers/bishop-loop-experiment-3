@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace regex whitespace skipping with direct character checks is naive because it ignores the fact that `_skip_ws` is called repeatedly and in performance-critical paths. Direct character checks would still require looping character-by-character, which is inefficient compared to optimized regex engines or bulk string operations. It also fails to consider that the current implementation already uses a precomputed frozenset for O(1) lookup, making the proposed change redundant and potentially less readable.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by using a more efficient loop structure that avoids repeated index lookups and leverages the precomputed `_WS_CHARS` frozenset, while also reducing the number of function calls and improving cache locality. This preserves the performance benefits of the current design while making the code more streamlined.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup with optimized loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a regex match fails because `_WS_RE = re.compile(r'\s*')` matches zero or more whitespace characters and would only advance the position by the length of the matched whitespace, not the position of the next non-whitespace character. This would still require iteration over the matched whitespace, negating the intended performance benefit. Additionally, using regex for such a simple and frequent operation may introduce overhead from regex engine setup and matching that outweighs any gains from C-level optimization.
+
+STEELMAN: The steelman version would use the precompiled regex to match a run of whitespace and then advance the position by the length of the match, effectively jumping directly to the next non-whitespace character. This preserves the core idea of leveraging the compiled regex while ensuring correct behavior by using `re.match` or `re.search` with proper position advancement.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precompiled regex to skip all whitespace at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

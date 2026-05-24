@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is flawed because it doesn't preserve the position tracking needed by the parser. The parser expects to return the next non-whitespace position, but `translate` would require post-processing to find that position, defeating the performance benefit. Additionally, `str.translate` is not designed for this kind of incremental parsing and would complicate the existing control flow.
+
+STEELMAN: A better approach is to use `str.translate` to efficiently skip whitespace by mapping all whitespace characters to a sentinel value, then use `str.find` to locate the first non-sentinel character. This maintains the parser's existing position semantics while leveraging C-level string operations for performance. The key is to avoid breaking the existing API contract and position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Create translation table mapping whitespace to null character
+    trans_table = str.maketrans("".join(_WS_CHARS), "\0" * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find first non-null character
+    first_non_null = translated.find("\0")
+    if first_non_null == -1:
+        # All characters are whitespace
+        return len(text)
+    return pos + first_non_null
+>>>>>>> REPLACE
+```

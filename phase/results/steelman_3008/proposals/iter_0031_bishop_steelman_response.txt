@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to replace `ord(c) < 0x20` with a pre-computed byte mask is problematic because it assumes all control characters are ASCII, but the code already handles Unicode correctly by using `ord(c)` and checking against 0x20. A byte mask approach would only work for ASCII and could silently fail on non-ASCII control characters or introduce incorrect behavior for extended ASCII. Additionally, the performance gain from avoiding `ord()` is minimal compared to the complexity and correctness risks.
+STEELMAN: The steelman version would use a precomputed frozenset of control characters (including those below 0x20) for fast membership testing, which maintains correctness while improving performance. This avoids function calls and comparisons by using a set lookup, but correctly handles all Unicode characters, not just ASCII.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+_CTRL_CHARS = frozenset(chr(i) for i in range(0x20))
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+=======
+        if c in _CTRL_CHARS:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+>>>>>>> REPLACE
+```

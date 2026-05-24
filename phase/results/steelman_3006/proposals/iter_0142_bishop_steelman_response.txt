@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is flawed because `str.translate` maps characters to replacement characters, not to removals, so it cannot directly eliminate whitespace characters. Additionally, the approach would require constructing a translation table that maps all whitespace characters to `None`, which is not supported by `str.translate` and would break the function's logic entirely.
+
+STEELMAN: A better approach would be to use `str.translate` with a translation table that maps whitespace characters to a sentinel character (like `'\0'`), then use `str.split` or `str.rstrip` to efficiently skip whitespace in one pass, while still maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate with a translation table to efficiently skip whitespace
+    # Create a translation table mapping whitespace to a sentinel character
+    trans_table = str.maketrans({ch: '\0' for ch in _WS_CHARS})
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    new_pos = pos
+    while new_pos < len(text) and translated[new_pos - pos] == '\0':
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,109 @@
+CRITIQUE: The suggestion to use binary search over precomputed whitespace positions is flawed because it assumes a static list of whitespace indices that would need to be recomputed for every input, making it O(n) setup cost. It also doesn't account for the fact that whitespace skipping is typically done in a streaming fashion, not in batched precomputed steps, and would require maintaining global state or passing around indices, which breaks the current clean functional interface.
+
+STEELMAN: A better approach is to precompute a list of all whitespace character positions in the input string once, then use binary search to find the next non-whitespace character, avoiding repeated linear scans. This maintains the current interface by computing the whitespace indices once per parse call, and the binary search allows O(log m) skipping where m is the number of whitespace characters, while still using O(1) set lookups for membership checks.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def _build_whitespace_indices(text: str) -> list[int]:
+    """Build a list of indices where whitespace characters occur."""
+    indices = []
+    for i, char in enumerate(text):
+        if char in _WS_CHARS:
+            indices.append(i)
+    return indices
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    whitespace_indices = _build_whitespace_indices(text)
+    pos = _skip_ws(text, 0, whitespace_indices)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, whitespace_indices)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int, whitespace_indices: list[int]) -> int:
+    # Binary search for the next non-whitespace character
+    left, right = 0, len(whitespace_indices) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        idx = whitespace_indices[mid]
+        if idx <= pos:
+            left = mid + 1
+        else:
+            right = mid - 1
+    # `left` now points to the first whitespace index >= pos
+    if left < len(whitespace_indices) and whitespace_indices[left] == pos:
+        # Skip all consecutive whitespace characters starting at pos
+        while left < len(whitespace_indices) and whitespace_indices[left] == pos:
+            pos += 1
+            left += 1
+        # Continue binary search to find next non-whitespace
+        return _skip_ws(text, pos, whitespace_indices)
+    return pos
+>>>>>>> REPLACE
+```

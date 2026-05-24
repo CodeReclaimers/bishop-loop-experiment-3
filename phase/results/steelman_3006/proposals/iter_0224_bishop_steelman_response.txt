@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion fails to address the fundamental incompatibility between using a bit-mask approach and the general Unicode string handling in Python, where characters are not guaranteed to fit into a small integer range. It also ignores that the performance benefit of bit-masking is only realized when the character set is small and fixed, which isn't the case here since the input is arbitrary Unicode text. Additionally, the proposed function `_is_ws_char` is not defined anywhere in the code, making the suggestion unimplementable as stated.
+
+STEELMAN: A better version would define a bit-mask function that maps ASCII whitespace characters to bits in a precomputed integer, then use bitwise operations to check membership, while keeping the rest of the parser logic unchanged. This preserves the performance goal of avoiding hash lookups, but only applies to ASCII characters, which is sufficient for JSON whitespace since JSON only allows ASCII whitespace.
+
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the JSON parser that maintains correctness
+while significantly improving performance.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def _is_ws_char(c: str) -> bool:
+    # Precomputed bit mask for ASCII whitespace characters
+    # Space=32, Tab=9, LF=10, CR=13
+    if not c:
+        return False
+    char_code = ord(c)
+    # Only check ASCII whitespace (0-127)
+    if char_code > 127:
+        return False
+    # Bit mask: 0x00000000000000000000000000011000 (bits 9, 10, 13, 32)
+    # This is equivalent to checking for 9, 10, 13, 32
+    return bool(0x180000000000000000000000000000000

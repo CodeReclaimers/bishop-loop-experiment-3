@@ -1,0 +1,62 @@
+CRITIQUE: The suggestion to use `text.translate` for whitespace skipping is flawed because `translate` with null bytes would only work if we map whitespace characters to nulls, but this approach doesn't preserve the original string structure needed for accurate position tracking. Additionally, it would require preprocessing the entire remaining string slice, which defeats the purpose of efficient incremental parsing. It also doesn't consider that the original `_skip_ws` function must return the new position, not a count of removed characters.
+
+STEELMAN: A better approach is to precompute a translation table that maps all whitespace characters to a single sentinel character (like `\x00`), then use `str.translate` to efficiently replace all whitespace in the remaining text slice, and finally count the number of sentinel characters to determine how many positions to advance. This preserves the core idea of leveraging C-optimized string operations while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precompute translation table for whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-optimized string translation to skip whitespace
+    remaining = text[pos:]
+    translated = remaining.translate(_WS_TRANSLATE_TABLE)
+    # Count null bytes in the translated string to determine skip amount
+    skip_count = translated.count('\x00')
+    return pos + skip_count
+>>>>>>> REPLACE
+```

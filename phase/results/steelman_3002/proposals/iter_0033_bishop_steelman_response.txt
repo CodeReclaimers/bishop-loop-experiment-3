@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a direct loop checking `ord(text[pos]) < 33 and text[pos] in ' \t\n\r'` is flawed because it's logically incorrect — the condition `ord(text[pos]) < 33` will match control characters like `\x00` through `\x1f`, which are not valid JSON whitespace, and thus would incorrectly skip valid non-whitespace characters. Additionally, this approach introduces redundant checks and is less readable than the existing implementation.
+
+STEELMAN: A better version of the suggestion would retain the core idea of avoiding regex by using a direct character-by-character loop that efficiently checks for valid JSON whitespace characters using a precomputed frozenset, like `_WS_CHARS = frozenset(' \t\n\r')`, and advances `pos` in a single pass without regex overhead.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

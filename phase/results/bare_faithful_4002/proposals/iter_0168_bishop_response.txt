@@ -1,0 +1,46 @@
+To speed up the JSON parser, we can use a generator to parse each value in chunks instead of building the entire output list. This reduces memory usage and speeds up the parsing process. We can do this by using a custom iterator that yields the parsed values as they are encountered during the recursion. Here's how you could modify the `parse` function:
+
+```python
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop to skip whitespace
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value_generator = _parse_value_generator(text, pos)
+    return list(value_generator)
+
+
+def _parse_value_generator(text: str, pos: int) -> Any:
+    while True:
+        try:
+            c = text[pos]
+            if c == "{":
+                yield from _parse_object(text, pos + 1)
+            elif c == "[":
+                yield from _parse_array(text, pos + 1)
+            elif c == '"':
+                yield _parse_string(text, pos + 1)
+            elif c == "t" or c == "f":
+                yield _parse_bool(text, pos + 1)
+            elif c == "n":
+                yield _parse_null(text, pos + 1)
+            elif c.isdigit() or c == "-":
+                yield _parse_number(text, pos + 1)
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        except IndexError:
+            break
+```
+
+This modification uses a generator function `_parse_value_generator` that yields each parsed value as it is encountered. The `parse` function then converts the generator to a list to return the final result. This approach reduces memory usage by avoiding building the entire output list, which can be particularly useful for large JSON documents.

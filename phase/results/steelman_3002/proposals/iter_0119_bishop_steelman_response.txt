@@ -1,0 +1,48 @@
+CRITIQUE: The suggestion to use `str.find` directly on "true" and "null" would fail because it doesn't validate that the matched substring is a complete token — for example, "true" in "truer" or "null" in "nullify" would incorrectly match. Additionally, it ignores the need to advance the position correctly after matching, and doesn't handle potential boundary issues or ensure proper JSON literal semantics.
+STEELMAN: The steelman version uses `str.find` to locate the token, but then validates that the match is a complete token by checking that the next character is not a valid part of an identifier (e.g., not a letter or digit), and ensures that the position is advanced correctly to the end of the matched literal.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    # Use str.find to locate "true" or "false" and validate it's a complete token
+    true_pos = text.find("true", pos)
+    false_pos = text.find("false", pos)
+    
+    if true_pos == pos:
+        # Check that 'true' is a complete token
+        if true_pos + 4 < len(text) and text[true_pos + 4].isalnum():
+            raise JSONParseError(f"bad bool at {pos}")
+        return True, pos + 4
+    if false_pos == pos:
+        # Check that 'false' is a complete token
+        if false_pos + 5 < len(text) and text[false_pos + 5].isalnum():
+            raise JSONParseError(f"bad bool at {pos}")
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    # Use str.find to locate "null" and validate it's a complete token
+    null_pos = text.find("null", pos)
+    
+    if null_pos == pos:
+        # Check that 'null' is a complete token
+        if null_pos + 4 < len(text) and text[null_pos + 4].isalnum():
+            raise JSONParseError(f"bad null at {pos}")
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,61 @@
+CRITIQUE: The suggestion to use binary search on precomputed non-whitespace indices would fail because it doesn't account for the fact that the parser processes input sequentially and may need to skip varying amounts of whitespace at different positions. Additionally, building a list of all non-whitespace indices would be memory-inefficient and not actually faster than the current O(1) lookup approach. The binary search would also not be faster than the current loop, especially for small inputs.
+
+STEELMAN: A better version would precompute a "skip table" that for each position in the input string, stores the index of the next non-whitespace character. This table can be built in linear time and used to jump directly to the next non-whitespace position, avoiding repeated character-by-character checks while maintaining correctness and efficiency.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Precomputed skip table for whitespace
+def _build_skip_table(text: str) -> list[int]:
+    n = len(text)
+    skip_table = [0] * n
+    skip_table[n - 1] = n
+    for i in range(n - 2, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = skip_table[i + 1]
+        else:
+            skip_table[i] = i + 1
+    return skip_table
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

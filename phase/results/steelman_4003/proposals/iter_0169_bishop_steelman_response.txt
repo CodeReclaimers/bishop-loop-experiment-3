@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to use a dictionary mapping character codes to classes is unworkable because it fails to address the core performance bottleneck — string concatenation in `_parse_string` and repeated character lookups. It also doesn't consider that character code lookups via `ord()` are already fast and that the current implementation already uses `frozenset` for O(1) membership checks. Additionally, the approach would introduce complexity without measurable benefit in this context.
+
+STEELMAN: The steelman version of the suggestion is to precompute a lookup table (using `ord()`) that maps character codes to their class (whitespace, digit, etc.), which would eliminate the need for repeated `in` checks on `frozenset` and reduce function call overhead in `_skip_ws` and `_parse_string`. This allows for faster character classification by replacing set membership tests with direct array indexing.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+# Precompute character class lookup table (0-127 ASCII range)
+_CHAR_CLASS = [0] * 128  # 0 = other, 1 = whitespace, 2 = digit, 3 = hex
+for i in range(128):
+    c = chr(i)
+    if c in _WS_CHARS:
+        _CHAR_CLASS[i] = 1
+    elif c in _DIGIT_CHARS:
+        _CHAR_CLASS[i] = 2
+    elif c in _HEX_CHARS:
+        _CHAR_CLASS[i] = 3
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+>>>>>>> REPLACE
+```

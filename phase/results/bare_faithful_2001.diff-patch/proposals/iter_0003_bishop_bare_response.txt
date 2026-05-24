@@ -1,0 +1,66 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -105,14 +105,21 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+-    pos = pos + 1
+-    out: list = []
+-    pos = _skip_ws(text, pos)
+-    if pos < len(text) and text[pos] == "]":
+-        return out, pos + 1
+-    while True:
+-        pos = _skip_ws(text, pos)
+-        value, pos = _parse_value(text, pos)
+-        out.append(value)
+-        pos = _skip_ws(text, pos)
+-        if pos >= len(text):
+-            raise JSONParseError("unterminated array")
+-        c = text[pos]
+-        if c == ",":
+-            pos = pos + 1
+-            continue
+-        if c == "]":
+-            return out, pos + 1
+-        raise JSONParseError(f"expected ',' or ']' at {pos}")
++    pos = pos + 1
++    pos = _skip_ws(text, pos)
++    if pos < len(text) and text[pos] == "]":
++        return [], pos + 1
++    # Count items first to pre-allocate list
++    count = 0
++    temp_pos = pos
++    while True:
++        pos = _skip_ws(text, temp_pos)
++        _parse_value(text, pos)
++        count += 1
++        pos = _skip_ws(text, pos)
++        if pos >= len(text):
++            raise JSONParseError("unterminated array")
++        c = text[pos]
++        if c == ",":
++            temp_pos = pos + 1
++            continue
++        if c == "]":
++            break
++        raise JSONParseError(f"expected ',' or ']' at {pos}")
++    # Now parse and fill the pre-allocated list
++    out: list = [None] * count
++    pos = _skip_ws(text, pos)
++    temp_pos = pos
++    for i in range(count):
++        pos = _skip_ws(text, temp_pos)
++        value, pos = _parse_value(text, pos)
++        out[i] = value
++        pos = _skip_ws(text, pos)
++        if pos >= len(text):
++            raise JSONParseError("unterminated array")
++        c = text[pos]
++        if c == ",":
++            temp_pos = pos + 1
++            continue
++        if c == "]":
++            return out, pos + 1
++        raise JSONParseError(f"expected ',' or ']' at {pos}")
+```

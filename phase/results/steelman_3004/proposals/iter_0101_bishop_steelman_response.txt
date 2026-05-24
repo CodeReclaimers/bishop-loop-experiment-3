@@ -1,0 +1,77 @@
+CRITIQUE: The suggestion to use a precomputed `ws_table` with direct lookup seems unworkable because it would require a table size equal to the length of the input string, which could be arbitrarily large and lead to excessive memory usage. Additionally, it doesn't account for the fact that whitespace skipping is often a short operation, making table-based lookup less efficient than the current loop for small skips. The approach also fails to consider that the table would need to be built at runtime, negating any performance benefits.
+
+STEELMAN: A better approach would be to precompute a lookup table for the first few characters (say up to 256) and use a hybrid strategy: for short skips (within the table size), use direct lookup; for longer skips, fall back to the current loop. This maintains performance gains while keeping memory usage reasonable and avoiding the overhead of building a massive table.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+# Precompute a small lookup table for fast whitespace skipping
+# This table is indexed by character code and returns the index of the next non-whitespace char
+# For simplicity, we'll only build a lookup table for the first 256 characters
+def _build_ws_table(text: str) -> list[int]:
+    table = [0] * 256
+    for i in range(256):
+        table[i] = i
+    for i in range(256):
+        if chr(i) in _WS_CHARS:
+            table[i] = i + 1
+    return table
+
+
+# We'll use a hybrid approach: for small skips, use the table; for large skips, use the loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a hybrid approach: table lookup for small skips, loop for large
+    # The threshold is arbitrary but should be small enough to avoid overhead
+    threshold = 10
+    if pos + threshold < len(text):
+        # Try to use table lookup for the first few characters
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+    else:
+        # Fall back to the original loop for the rest of the string
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

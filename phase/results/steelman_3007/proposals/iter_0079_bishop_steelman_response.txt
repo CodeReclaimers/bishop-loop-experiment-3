@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a regex match would be problematic because regex matching is generally slower than simple set membership checks for small amounts of whitespace. Additionally, the regex approach would not integrate well with the existing parser's position tracking, potentially causing issues when the regex skips past the end of the input or fails to handle edge cases like malformed input correctly. The suggested approach also doesn't consider that the current implementation already uses optimized set lookups for whitespace characters.
+
+STEELMAN: A better approach would be to use the pre-compiled regex to efficiently skip whitespace by finding the first non-whitespace character, but still ensure that the parser maintains correct position tracking and handles all edge cases. This can be done by using the regex to find the next non-whitespace position and then validating that the position is within bounds before proceeding, preserving the existing control flow while improving performance for large whitespace runs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large whitespace runs
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

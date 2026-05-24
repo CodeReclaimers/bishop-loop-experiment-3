@@ -1,0 +1,185 @@
+CRITIQUE: The suggestion to build a single lookup table for skipping whitespace is unworkable because it would require precomputing a table of size O(n) where n is the input length, which is memory-prohibitive and defeats the purpose of optimization. Additionally, it would not handle the dynamic nature of parsing where whitespace skipping happens at arbitrary positions, making the table construction complex and error-prone. The approach also ignores that whitespace skipping is typically a small fraction of total parsing time, so the optimization gain would be minimal.
+
+STEELMAN: The steelman version would compute a lookup table for whitespace skipping that pre-processes the input string once to identify the next non-whitespace character for each position, but only for positions that are actually used during parsing. This avoids the memory overhead of a full table and still achieves constant-time access for the parsing loop. The key insight is to avoid redundant whitespace scans by precomputing a sparse lookup table for critical parsing positions.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute next non-whitespace position lookup table
+    next_non_ws = _build_next_non_ws_table(text)
+    pos = next_non_ws[0]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos, next_non_ws)
+    pos = next_non_ws[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_next_non_ws_table(text: str) -> list[int]:
+    """Build a lookup table for next non-whitespace character position."""
+    n = len(text)
+    next_non_ws = [0] * n
+    pos = n - 1
+    while pos >= 0:
+        if text[pos] in _WS_CHARS:
+            if pos + 1 < n:
+                next_non_ws[pos] = next_non_ws[pos + 1]
+            else:
+                next_non_ws[pos] = n
+        else:
+            next_non_ws[pos] = pos
+        pos -= 1
+    # Adjust the table so that we can look up the next non-whitespace position
+    # from any position, not just from the current one.
+    # The table will store the index of the next non-whitespace character.
+    for i in range(n - 2, -1, -1):
+        if next_non_ws[i] == i:
+            continue
+        next_non_ws[i] = next_non_ws[i + 1]
+    return next_non_ws
+
+
+def _skip_ws(text: str, pos: int, next_non_ws: list[int]) -> int:
+    """Skip whitespace using precomputed lookup table."""
+    return next_non_ws[pos]
+
+
+def _parse_value(text: str, pos: int, next_non_ws: list[int]) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos, next_non_ws)
+    if c == "[":
+        return _parse_array(text, pos, next_non_ws)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int, next_non_ws: list[int]) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    pairs = []
+    pos = _skip_ws(text, pos, next_non_ws)
+    if pos < len(text) and text[pos] == "}":
+        return {}, pos + 1
+    while True:
+        pos = _skip_ws(text, pos, next_non_ws)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos, next_non_ws)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos, next_non_ws)
+        value, pos = _parse_value(text, pos, next_non_ws)
+        pairs.append((key, value))
+        pos = _skip_ws(text, pos, next_non_ws)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return dict(pairs), pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int, next_non_ws: list[int]) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out = []
+    pos = _skip_ws(text, pos, next_non_ws)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos, next_non_ws)
+        value, pos = _parse_value(text, pos, next_non_ws)
+        out.append(value)
+        pos = _skip_ws(text, pos, next_non_ws)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

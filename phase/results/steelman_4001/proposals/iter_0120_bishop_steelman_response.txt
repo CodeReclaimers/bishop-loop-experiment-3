@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to replace regex with a custom number parser is problematic because it ignores the fact that the current regex approach already uses a precompiled pattern, eliminating compilation overhead. Additionally, writing a custom number parser from scratch is error-prone and likely to be less efficient than Python's highly optimized `int()` and `float()` built-ins. The suggestion also fails to address the real performance bottlenecks like repeated string operations and inefficient parsing structure.
+
+STEELMAN: A better approach would be to keep the precompiled regex but optimize the number parsing logic by avoiding redundant string slicing and leveraging the built-in `int()` and `float()` functions more directly, while still using the regex to identify number boundaries. This preserves the correctness and performance benefits of the existing regex while reducing unnecessary overhead in the parsing loop.
+
+```python
+<<<<<<< SEARCH
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+import re
+
+# Precompile the regex for number parsing to avoid repeated compilation cost
+_NUMBER_RE = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    # Avoid creating substring when possible
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `ord()` for whitespace checking is naive because it doesn't address the core performance issue: the current implementation already uses a precomputed set `_WS_CHARS` for O(1) membership checks. Simply switching to `ord()` comparisons doesn't eliminate the expensive per-character loop in `_skip_ws`. Additionally, the suggestion doesn't clarify how `ord()` would be used to improve performance, making it unclear and potentially misleading.
+
+STEELMAN: The strongest version of the suggestion would optimize `_skip_ws` by using a more efficient loop structure that leverages `ord()` for faster character comparisons, while still maintaining the same O(1) lookup behavior. This can be achieved by using `ord(c) < 33` or similar checks to quickly identify whitespace, but only after confirming that the character is within a reasonable ASCII range, avoiding unnecessary `ord()` calls on non-ASCII characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop using ord() for faster whitespace detection
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS or ord(c) < 33:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

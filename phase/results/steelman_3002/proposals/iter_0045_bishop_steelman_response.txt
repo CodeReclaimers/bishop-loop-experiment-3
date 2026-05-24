@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `text.startswith()` instead of string slicing fails because it doesn't account for the fact that `startswith()` requires the full keyword to be present at the given position, but the current code checks for partial matches (e.g., `text[pos:pos+4] == "true"` allows for early termination if the first 4 characters don't match). Additionally, `startswith()` doesn't handle the case where the keyword is not fully present in the input, which would cause an incorrect match or error.
+STEELMAN: The steelman version uses `text.startswith()` but ensures that the full keyword is present by checking bounds before calling `startswith()` and verifying that the match is complete, avoiding false positives and maintaining performance benefits.
+
+```python
+<<<<<<< SEARCH
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+=======
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if pos + 4 <= len(text) and text.startswith("true", pos):
+        return True, pos + 4
+    if pos + 5 <= len(text) and text.startswith("false", pos):
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+>>>>>>> REPLACE
+```
+```python
+<<<<<<< SEARCH
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+=======
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if pos + 4 <= len(text) and text.startswith("null", pos):
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+>>>>>>> REPLACE
+```

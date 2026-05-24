@@ -1,0 +1,44 @@
+To optimize the JSON parser, we can use a more efficient method for parsing numbers. Specifically, instead of converting the number string to a float or integer using built-in functions like `float()` and `int()`, we can directly parse it from the string as a string representation of a number. This approach avoids the overhead of parsing and converting the string in Python's internal parser.
+
+To implement this optimization, we can modify the `_parse_number` function as follows:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Skip leading zeros
+    if text[pos] == "0":
+        pos = pos + 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    # Directly parse as a string representation of a number
+    try:
+        return float(s), pos
+    except ValueError:
+        raise JSONParseError(f"invalid number format at {start}")
+```
+
+This change avoids the overhead of Python's built-in parser and directly parses the number from the string as a string representation. This makes the parsing process faster, especially for large numbers, by eliminating the need to convert the string to a different data type.

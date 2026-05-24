@@ -1,0 +1,101 @@
+CRITIQUE: The suggestion to use a streaming parser is unworkable because it fundamentally conflicts with the current design which assumes a complete input string is available for parsing. Libraries like `json-stream` or `ujson` don't provide streaming JSON parsing in the way described—most JSON parsers require the full document to be accessible. Additionally, the optimization strategy in the current code already focuses on memory and speed, so switching to a streaming approach would likely introduce complexity without performance gains.
+
+STEELMAN: A better approach would be to implement a streaming-compatible parser that can process input incrementally while still maintaining the performance optimizations already present. This would involve modifying the parsing logic to handle input in chunks, using buffered reads, and potentially integrating with a streaming JSON library that supports incremental parsing, while keeping the existing optimizations like regex matching and precomputed character sets.
+
+```python
+<<<<<<< SEARCH
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the slow but correct parser. It improves
+performance by:
+- Using regex for whitespace skipping
+- Precomputing digit and whitespace character sets for O(1) lookup
+- Avoiding string concatenation in favor of list building
+- Using efficient number parsing with direct conversion
+- Reducing redundant whitespace handling
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the slow but correct parser. It improves
+performance by:
+- Using regex for whitespace skipping
+- Precomputing digit and whitespace character sets for O(1) lookup
+- Avoiding string concatenation in favor of list building
+- Using efficient number parsing with direct conversion
+- Reducing redundant whitespace handling
+"""
+from __future__ import annotations
+
+import re
+from typing import Any, IO
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_STRING_ESCAPE_PATTERN = re.compile(r'\\(["\\/bfnrt]|u[0-9a-fA-F]{4})')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def parse_stream(stream: IO[str]) -> Any:
+    """Parse JSON from a stream."""
+    text = stream.read()
+    return parse(text)
+>>>>>>> REPLACE
+```

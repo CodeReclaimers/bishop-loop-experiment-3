@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion is unworkable because it vaguely references "short skips with loop" and "character-by-character scanning" without specifying how to balance the trade-offs between loop overhead and regex usage. It fails to address the core performance bottleneck of repeated whitespace skipping and doesn't clarify how to avoid redundant checks in the parsing logic. Additionally, it doesn't acknowledge that the current implementation already avoids regex for whitespace skipping in `_skip_ws`, making the suggestion redundant.
+
+STEELMAN: The steelman is to optimize `_skip_ws` by implementing a hybrid strategy that uses a loop to skip large contiguous whitespace regions, but switches to character-by-character scanning only when a non-whitespace character is encountered. This preserves the existing performance gains from avoiding regex while reducing the number of individual character checks and loop overhead for large skips.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: skip large chunks with loop, small skips with char-by-char
+    while pos < len(text):
+        c = text[pos]
+        if c not in ' \t\n\r':
+            return pos
+        # Skip as many whitespace characters as possible in a loop
+        pos += 1
+        # If we're not at the end, check if next few characters are also whitespace
+        if pos + 4 < len(text):
+            # Fast path: skip 4+ chars if they're all whitespace
+            while pos < len(text) and text[pos] in ' \t\n\r':
+                pos += 1
+        else:
+            # Slow path: check remaining characters one by one
+            while pos < len(text) and text[pos] in ' \t\n\r':
+                pos += 1
+    return pos
+>>>>>>> REPLACE
+```

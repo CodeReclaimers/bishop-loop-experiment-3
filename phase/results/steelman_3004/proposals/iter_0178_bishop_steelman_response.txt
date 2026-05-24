@@ -1,0 +1,62 @@
+CRITIQUE: The suggestion fails to account for the fact that Unicode surrogate pairs are not fixed 4-character hex sequences but represent a specific range of invalid code points (0xD800-0xDBFF and 0xDC00-0xDFFF) that must be paired to form valid Unicode characters. Simply precomputing a dictionary of 4-hex sequences won't handle the complex logic required to detect and combine surrogate pairs correctly. Additionally, the approach would miss the fact that valid Unicode code points beyond BMP (Basic Multilingual Plane) require special handling for surrogates, and the proposed optimization would not preserve correctness for such cases.
+
+STEELMAN: A better approach is to precompute a dictionary that maps valid 4-character Unicode hex sequences to their corresponding characters, but also to include logic for handling surrogate pairs by precomputing the resulting Unicode scalar values. This requires generating all valid surrogate pair combinations and storing their corresponding Unicode scalar values, allowing O(1) lookup while preserving correctness for all valid Unicode input.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute valid Unicode scalar values for surrogate pairs
+_UNICODE_SURROGATE_MAP = {}
+for high in range(0xD800, 0xDBFF + 1):
+    for low in range(0xDC00, 0xDFFF + 1):
+        code_point = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)
+        if code_point <= 0x10FFFF:
+            # Convert to 4-digit hex string and store the corresponding character
+            hex4 = format(code_point, '04x')
+            _UNICODE_SURROGATE_MAP[hex4] = chr(code_point)
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

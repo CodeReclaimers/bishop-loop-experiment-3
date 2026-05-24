@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to replace regex number parsing with direct conversion is naive because it ignores the complexity of JSON number formats, including scientific notation, leading zeros, and the need to handle invalid cases like "1.2.3" or "-1e+2". Direct conversion without proper validation would likely introduce bugs or fail on edge cases that the regex handles correctly.
+STEELMAN: A robust steelman would implement direct numeric conversion using Python's built-in `int()` and `float()` functions with proper error handling, while still leveraging the regex to identify number boundaries and avoid parsing invalid sequences. This preserves the performance benefits of avoiding regex matching during parsing, but maintains correctness through careful validation.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    if "." in s or "e" in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to identify number boundaries
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    
+    # Direct conversion with error handling
+    try:
+        if "." in s or "e" in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a compiled regex would introduce unnecessary overhead from regex compilation and matching, especially since the whitespace set is small and the loop is already optimized with set membership. It would also complicate error handling and potentially break on edge cases like malformed input where the regex might not behave as expected. Additionally, the regex approach would likely not be faster than the current tight loop due to regex engine overhead.
+
+STEELMAN: A better approach is to use a compiled regex to find the first non-whitespace character, but only when there's a significant amount of whitespace to skip, or to optimize the loop itself by unrolling or using more efficient iteration patterns. The key is to preserve the performance gains of avoiding Python loop overhead while keeping the logic simple and robust.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the regex for skipping whitespace
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace when there's a lot of it
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

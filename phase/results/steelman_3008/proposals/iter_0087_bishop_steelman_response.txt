@@ -1,0 +1,66 @@
+CRITIQUE: The suggestion to use `str.translate` with a sentinel character won't work because the current `_skip_ws` function needs to consume whitespace characters and return the new position, but `translate` with a sentinel would require pre-processing the entire string or using a complex mapping that doesn't preserve position tracking. Additionally, `str.find` on the translated string wouldn't give the correct position in the original string, breaking the parser's logic.
+
+STEELMAN: A better approach is to build a single translation table that maps all whitespace characters to a unique sentinel character (like `'\0'`), then use `str.translate` to replace all whitespace with the sentinel, followed by `str.find` to locate the first non-sentinel character, effectively skipping the whitespace in one optimized operation while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Build translation table once for performance
+_WS_TRANSLATE_TABLE = str.maketrans({ch: '\0' for ch in _WS_CHARS})
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find to skip whitespace in one C-level operation
+    if pos >= len(text):
+        return pos
+    # Translate all whitespace to sentinel character '\0'
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    # Find first non-sentinel character
+    new_pos = translated.find('\0')
+    if new_pos == -1:
+        # No more whitespace, return end of string
+        return len(text)
+    # Return original position of first non-whitespace character
+    return pos + new_pos
+>>>>>>> REPLACE
+```

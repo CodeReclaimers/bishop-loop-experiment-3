@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a single regex call is problematic because `find()` only returns the start position of the match, not the end position after skipping whitespace. This would require an additional scan or complex logic to determine how many characters were skipped. Additionally, the regex approach would not integrate well with the existing parsing flow that relies on incremental position tracking and could introduce performance regressions due to regex overhead for small whitespace sequences.
+
+STEELMAN: The steelman version uses `re.search(_WS_PATTERN, text, pos)` to find the next non-whitespace character, then calculates the number of whitespace characters skipped by comparing the match start with the original position. This preserves the intent of skipping multiple characters in one step while maintaining correct position tracking and avoiding redundant loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.search(text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

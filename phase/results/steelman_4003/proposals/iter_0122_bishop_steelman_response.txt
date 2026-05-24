@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the regex with a direct loop is problematic because it fails to account for the fact that the whitespace pattern `r"[ \t\n\r]*"` is used in `_skip_ws()` which is called repeatedly throughout the parser, and a naive loop would not handle the case where the input string is very long and contains many consecutive whitespace characters efficiently. Additionally, it ignores the fact that regex engines are highly optimized for such operations and that the current implementation already uses a precompiled regex for performance.
+
+STEELMAN: The steelman version of the suggestion is to implement a direct loop-based whitespace skipping function that uses a frozenset lookup for ASCII whitespace characters, similar to how `_WS_CHARS` is already defined, but replaces the regex-based `_skip_ws` with an optimized inline loop that checks `text[pos]` against the precomputed set, avoiding regex overhead while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup with precomputed set
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

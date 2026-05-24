@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to precompute a digit character set is misguided because the current implementation already uses `_DIGIT_CHARS = frozenset("0123456789")` and leverages it in `_skip_ws` and other functions. The suggestion fails to recognize that the digit set is already optimized for O(1) lookup and doesn't address the actual performance bottleneck in number parsing, which lies in the regex matching and string conversion steps. It also incorrectly claims that digit lookup is O(n) in number parsing, when it's already O(1).
+
+STEELMAN: The core idea should be to optimize the number parsing logic by leveraging the precomputed digit set more effectively, especially in the `_parse_number` function, to avoid redundant character-by-character checks and improve performance. The optimization should focus on using the digit set to streamline the parsing of number components rather than redefining it.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

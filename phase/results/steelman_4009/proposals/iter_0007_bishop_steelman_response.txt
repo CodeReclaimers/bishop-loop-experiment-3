@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use "a direct loop with indexing instead of a per-call Python loop" is confusing and potentially misleading since the current `_skip_ws` function already uses indexing (`pos < n` and `text[pos]`) rather than a per-character loop. The proposed change doesn't address the actual performance bottleneck, which is the repeated membership checks against `_WS_CHARS` set in a tight loop. Additionally, replacing a simple loop with a more complex indexing strategy could introduce bugs or reduce readability without clear performance gains.
+
+STEELMAN: The core idea should be to replace the character-by-character whitespace skipping with a more efficient approach using regular expressions or a precomputed skip table, which would eliminate the repeated O(1) set membership checks in the tight loop and allow for faster bulk skipping of whitespace. This maintains the same interface and correctness while dramatically improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+# Precompile the whitespace regex for performance
+_WS_REGEX = re.compile(r'^\s*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace, which is much faster than character-by-character checks
+    match = _WS_REGEX.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the `frozenset` lookup with a simple ordered check of each whitespace character would be suboptimal because it still performs O(n) character-by-character comparisons in the worst case, not O(1) per whitespace run as claimed. It also fails to leverage the precomputed character set that's already used elsewhere in the code for efficient membership testing. The suggestion ignores the fact that the current implementation already uses O(1) lookup via `frozenset`, which is the optimal approach for this operation.
+
+STEELMAN: The steelman version of the suggestion would keep the current O(1) frozenset-based approach but optimize the loop by using a compiled regex to skip whitespace in one go, which is more efficient than the current manual loop. This preserves the performance benefit of avoiding repeated character-by-character checks while also leveraging the existing regex infrastructure.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace in one go
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

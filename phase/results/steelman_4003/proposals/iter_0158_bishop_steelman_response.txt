@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to use a generator expression for parsing numbers instead of `match` is unworkable because it misunderstands how number parsing works — regex matching is not repeated in a loop, but rather applied once per number. The suggestion also fails to account for the fact that number formats are complex and require validation that regex provides. Additionally, replacing regex with a generator expression would likely make the code more error-prone and harder to maintain.
+STEELMAN: A better approach would be to avoid regex entirely for number parsing by implementing a direct, efficient parser that handles integer and float detection without regex overhead, while still ensuring correctness through careful validation of the number format.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Parse number without regex for better performance
+    start = pos
+    # Handle optional minus sign
+    if text[pos] == '-':
+        pos += 1
+        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number at {start}")
+    # Parse integer part
+    while pos < len(text) and text[pos] in _DIGIT_CHARS:
+        pos += 1
+    # Handle fractional part
+    if pos < len(text) and text[pos] == '.':
+        pos += 1
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Handle exponent
+    if pos < len(text) and text[pos].lower() == 'e':
+        pos += 1
+        if pos < len(text) and text[pos] in '+-':
+            pos += 1
+        if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number at {start}")
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    # Validate we have at least one digit
+    if pos == start or (text[start] == '-' and pos == start + 1):
+        raise JSONParseError(f"bad number at {start}")
+    s = text[start:pos]
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

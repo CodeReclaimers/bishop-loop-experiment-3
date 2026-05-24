@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the loop with `text.find()` calls is flawed because it only looks for one whitespace character type at a time, but `_WS_CHARS` contains four distinct characters (' ', '\t', '\n', '\r'). This would require multiple `find()` calls or a regex, negating the performance benefit. Additionally, `text.find()` returns -1 for not found, which isn't handled properly, and it doesn't account for the fact that the loop skips *all* whitespace, not just the first one.
+STEELMAN: The steelman version uses a single `text.find()` call with a set of all whitespace characters, but since `str.find()` doesn't support sets, we should use `re.search()` with a regex pattern that matches any whitespace character, or alternatively, precompute the earliest position of any whitespace character using multiple `find()` calls and take the minimum. The core idea is to eliminate the per-character loop by doing a bulk skip.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace at once
+    import re
+    match = re.match(r'[ \t\n\r]*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

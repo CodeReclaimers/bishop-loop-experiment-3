@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion to inline whitespace skipping would break the existing logic because `_skip_ws` handles Unicode whitespace beyond just space, tab, line feed, and carriage return, which are the only characters explicitly listed in the current implementation. Additionally, inlining would require duplicating the whitespace handling logic in multiple places, increasing code maintenance burden and the chance of introducing bugs.
+
+STEELMAN: The steelman is to refactor the whitespace skipping into a reusable helper that can be inlined in hot paths, while preserving correctness by using the same character set as `_skip_ws`. This avoids function call overhead while maintaining the existing behavior and reducing duplication.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+
+
+def _skip_ws_inline(text: str, pos: int) -> int:
+    # Inlined version of _skip_ws for performance-critical paths
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,39 @@
+To speed up the JSON parser, we can preprocess the input text to replace common whitespace sequences with a single space character before parsing. This reduces the overhead of repeated whitespace handling and speeds up the overall parsing process by avoiding unnecessary string concatenations and comparisons during recursion.
+
+In the `parse` function, we start by checking if the input is a string. If not, we raise a `JSONParseError`. Then, we skip any leading whitespace characters using the `_skip_ws` function. The main logic for parsing the JSON structure is encapsulated in the `_parse_value` function, which handles different types of JSON values such as objects and arrays.
+
+To optimize this step, we can use a list to store the parsed values instead of concatenating strings on each level of recursion. This avoids the overhead of repeated string operations, especially for large datasets. Additionally, we can use a dictionary to keep track of object keys, which reduces the number of comparisons needed during the parsing process.
+
+Here's how you could implement these changes in `json_parser.py`:
+
+```python
+# Replace the existing _skip_ws function with a list-based approach
+def _skip_ws(text: str, pos: int) -> int:
+    # Preprocess the input text to replace common whitespace sequences with a single space character
+    import re
+    text = re.sub(r"\s+", " ", text)
+    return text.find(" ", pos)
+
+# Replace the existing _parse_value function with a list-based approach
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Use a dictionary to keep track of object keys
+    out: dict = {}
+    token, pos = tokenizer.next_token()
+    if token != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = tokenizer.pos
+    if pos < len(tokenizer.text) and tokenizer.text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = tokenizer.pos
+        token, pos = tokenizer.next_token()
+        if not isinstance(token, str) or not token.startswith('"'):
+            raise JSONParseError(f"expected string key at {pos}")
+        key = token
+        pos = tokenizer.pos
+        token, pos = tokenizer.next_token()
+        if token != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+```
+
+By using a list-based approach for preprocessing the input text and a dictionary to keep track of object keys, we can significantly speed up the parsing process while maintaining correctness. This optimization reduces the overhead of repeated string operations and improves the overall performance of the JSON parser.

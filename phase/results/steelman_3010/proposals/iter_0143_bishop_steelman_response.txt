@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the loop-based `_skip_ws` with a regex match fails because `finditer` requires a match to be found, but if the input is already at a non-whitespace character, `finditer` will still return a match starting at the current position with zero-length whitespace, which doesn't advance the parser correctly. Additionally, the regex approach would not handle the case where the input is exhausted gracefully without raising an exception.
+
+STEELMAN: The steelman version uses `finditer` but ensures that the match starts at `pos` and has a non-zero length, or handles the case where no match is found by falling back to the original loop-based approach. This preserves the performance benefit of regex for large whitespace sections while maintaining correctness and exact position reporting.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Try to use regex for fast whitespace skipping
+    match = next(_WS_PATTERN.finditer(text, pos), None)
+    if match is not None and match.start() == pos:
+        return match.end()
+    # Fall back to character-by-character loop for correctness
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

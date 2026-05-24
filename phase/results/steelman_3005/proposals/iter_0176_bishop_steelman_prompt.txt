@@ -1,0 +1,327 @@
+You are evaluating and implementing an optimization idea suggested by another developer.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser.
+The optimizations include:
+- Using regex for whitespace skipping
+- Using direct number parsing instead of character-by-character scanning
+- Using list.append() and dict.update() instead of rebuilding collections
+- Eliminating redundant whitespace handling
+- Using string slicing and built-in functions where possible
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use dict.update() to avoid rebuilding the dict each iteration
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use list.append() to avoid rebuilding the list each iteration
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in _HEX_CHARS for c in s)
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+
+```
+
+The suggestion to consider:
+
+"""
+We are focusing on the whitespace skipping function `_skip_ws`. The current implementation using `str.translate` is being rejected because it is slower than the original while loop. The problem is that the translation table approach is creating a new string and then scanning for a sentinel, which is O(n) in the length of the substring and also involves string creation. The original while loop is O(k) where k is the number of whitespace characters, but without creating a new string. However, the rejection suggests that the translation table method is actually slower because the while loop is more efficient for the typical case (skipping a few characters) and the translation table method creates a new string which is expensive.
+
+But note: the problem says "Rejected attempts (most recent first)" and the rejected ones include the translation table method. So we cannot use that.
+
+However, the baseline (original) uses a while loop that skips whitespace one character at a time. The current `_skip_ws` function (the one we are replacing) is the one that uses the translation table. We are to replace that with something better.
+
+But note: the user says "Accepted improvements (most recent first): [skippy] PROMOTE z=+1.96 mean=0.0131 (baseline 0.0172)" meaning that the translation table method (which was rejected) is actually worse than the baseline? Wait, the baseline is 0.0172 and the translation table method is 0.0131? That would be an improvement (lower mean). But the rejection says "REJECT z=-1.96 mean=0.0135 (baseline 0.0102)" which is worse. So the translation table method (with z=-1.96) is worse than the baseline (0.0102 vs 0.0135). But the accepted improvement [skippy] is z=+1.96 mean=0.0131 (baseline 0.0172) which is an improvement (0.0131 < 0.0172). So why was the translation table method rejected? Because it has negative z-score (meaning it's worse than baseline?).
+
+But note: the baseline is the original while loop? Actually, the baseline is the original implementation. The current `_skip_ws` we are looking at is the translation table version. So the baseline (original) is the while loop, and the translation table version is the one that was rejected.
+
+The problem says: "Recent ideas already tried: Accepted improvements ... Rejected attempts ... [skippy] REJECT z=-1.96 mean=0.0135 (baseline 0.0102)" meaning that the translation table method (with z=-1.96) is worse than the baseline (0.0102 vs 0.0135). So we don't want to use the translation table.
+
+But the user is asking for a specific change that is faster. The translation table method is being rejected because it's slower. So we need to replace it with something that is faster than the baseline? Actually, the baseline is the original while loop (which is 0.0172) and the translation table was 0.0135 (which is worse than baseline? but the mean is lower? Actually, the z-score is negative meaning it's worse). The accepted improvement [skippy] is z=+1.96 meaning it's better.
+
+So what is the current implementation? The current `_skip_ws` is the translation table version (which we are to replace). We want a faster version.
+
+But note: the translation table method is actually slower than the while loop? The baseline is 0.0172 (which is the while loop) and the translation table was 0.0135 (which is better in absolute terms? but the z-score is negative meaning it's worse? Actually, the z-score is calculated relative to the baseline. A negative z-score means it's worse. So 0.0135 is worse than 0.0102? Wait, the baseline is 0.0102, and the candidate is 0.0135, so it's worse. But the acceptance [skippy] is 0.0131 (which is better than 0.0172? but worse than 0.0102?).
+
+Wait, the baseline (original) is 0.0172. The [skippy] accepted is 0.0131 (which is better than 0.0172, so z=+1.96). The [bishop_steelman] rejected candidate was
+"""
+
+Your task has three parts:
+
+Part 1 — Critique (2-3 sentences). Explain why this suggestion as stated seems
+unworkable, suboptimal, or naive. Be specific about the failure modes you anticipate.
+
+Part 2 — Steelman (2-3 sentences). Propose the strongest version of this suggestion —
+the steelman that addresses the failure modes you identified. The steelman should
+preserve the core direction of the original suggestion, not replace it with a
+different idea entirely.
+
+Part 3 — Edits. Produce SEARCH/REPLACE blocks that implement the Part 2 steelman.
+
+Output format: emit the critique and steelman first, each on its own line
+prefixed exactly with `CRITIQUE:` and `STEELMAN:` (no code fence around them).
+Then a single ```python ... ``` fenced block containing the SEARCH/REPLACE
+blocks. Do not put the critique/steelman inside the code fence.
+
+Use SEARCH/REPLACE blocks. Each block specifies an exact substring of the
+current file to find, and the substring to replace it with. The format is:
+
+    <<<<<<< SEARCH
+    <exact text copied from the current file, character-for-character>
+    =======
+    <replacement text>
+    >>>>>>> REPLACE
+
+Rules:
+  - The SEARCH text must match the current file EXACTLY (whitespace, case,
+    punctuation, quotes). Copy it verbatim from the source shown above.
+  - The SEARCH text must appear in the file exactly ONCE. If a function body
+    you want to change has duplicated lines, include enough surrounding lines
+    to make the match unique.
+  - Keep each block focused on one localized change. Use multiple blocks if
+    the suggestion requires edits in several places.
+  - You do not need line numbers. You do not need a unified-diff format.
+  - Wrap all SEARCH/REPLACE blocks in a single ```python ... ``` fenced block
+    so the harness can extract them.
+  - Do NOT output the full rewritten file. Do NOT output prose explanations.
+
+Example (your blocks must target the actual file shown above):
+
+    CRITIQUE: <your critique>
+    STEELMAN: <your steelman>
+
+    ```python
+    <<<<<<< SEARCH
+    _DIGIT_CHARS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    =======
+    _DIGIT_CHARS = frozenset("0123456789")
+    >>>>>>> REPLACE
+    ```

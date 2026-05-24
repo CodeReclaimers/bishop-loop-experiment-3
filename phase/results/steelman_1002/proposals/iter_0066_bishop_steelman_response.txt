@@ -1,0 +1,309 @@
+```python
+# CRITIQUE:
+# The suggestion to use a DFA for JSON parsing is unworkable as stated because JSON's
+# syntax is not regular — it requires nested structure handling (objects and arrays),
+# which a DFA cannot inherently manage without exponential state blowup or external
+# stack simulation. Additionally, a DFA-based approach would not naturally support
+# the recursive descent structure needed for parsing numbers, strings, and other
+# nested values, leading to overly complex state transitions or incorrect parsing.
+#
+# STEELMAN:
+# A DFA can be effectively used for lexical analysis (tokenization) to identify
+# tokens like `{`, `}`, `[`, `]`, `,`, `:`, strings, numbers, booleans, and null,
+# while maintaining a stack-based recursive descent parser for the actual structure
+# parsing. This hybrid approach reduces recursion overhead, improves token
+# identification speed, and retains the clarity and correctness of recursive descent
+# for nested constructs, while leveraging the efficiency of finite state machines
+# for scanning and tokenization.
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use frozenset for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    tokenizer = _Tokenizer(text)
+    try:
+        value = _parse_value_with_tokenizer(tokenizer)
+        if not tokenizer.eof():
+            raise JSONParseError(f"trailing content at position {tokenizer.pos}")
+        return value
+    except _TokenError as e:
+        raise JSONParseError(str(e)) from None
+
+
+class _TokenError(ValueError):
+    pass
+
+
+class _Tokenizer:
+    def __init__(self, text: str):
+        self.text = text
+        self.pos = 0
+        self._token = None
+        self._token_pos = 0
+        self._advance()
+
+    def _advance(self):
+        self.pos = _skip_ws(self.text, self.pos)
+        if self.pos >= len(self.text):
+            self._token = None
+            return
+        self._token_pos = self.pos
+        c = self.text[self.pos]
+        if c in ('{', '}', '[', ']', ',', ':'):
+            self._token = c
+        elif c == '"':
+            self._token = '"'
+        elif c == 't' or c == 'f':
+            self._token = 'bool'
+        elif c == 'n':
+            self._token = 'null'
+        elif c == '-' or c in _DIGIT_CHARS:
+            self._token = 'number'
+        else:
+            raise _TokenError(f"unexpected character {c!r} at position {self.pos}")
+
+    def peek(self):
+        return self._token
+
+    def consume(self):
+        token = self._token
+        self.pos = self._token_pos
+        if token == '"':
+            self._parse_string()
+        elif token == 'bool':
+            self._parse_bool()
+        elif token == 'null':
+            self._parse_null()
+        elif token == 'number':
+            self._parse_number()
+        else:
+            self.pos += 1
+        self._advance()
+        return token
+
+    def _parse_string(self):
+        pos = self.pos + 1
+        while pos < len(self.text):
+            c = self.text[pos]
+            if c == '"':
+                self.pos = pos + 1
+                return
+            if c == "\\":
+                pos += 1
+                if pos >= len(self.text):
+                    raise _TokenError("unterminated string escape")
+                esc = self.text[pos]
+                if esc in ('"', "\\", "/", "b", "f", "n", "r", "t"):
+                    pass
+                elif esc == "u":
+                    if pos + 4 >= len(self.text):
+                        raise _TokenError(f"bad unicode escape at {pos}")
+                    hex4 = self.text[pos + 1 : pos + 5]
+                    if not _is_hex4(hex4):
+                        raise _TokenError(f"bad unicode escape at {pos}")
+                    pos += 4
+                else:
+                    raise _TokenError(f"bad escape \\{esc} at {pos}")
+            pos += 1
+        raise _TokenError("unterminated string")
+
+    def _parse_bool(self):
+        if self.text[self.pos : self.pos + 4] == "true":
+            self.pos += 4
+        elif self.text[self.pos : self.pos + 5] == "false":
+            self.pos += 5
+        else:
+            raise _TokenError(f"bad bool at {self.pos}")
+
+    def _parse_null(self):
+        if self.text[self.pos : self.pos + 4] == "null":
+            self.pos += 4
+        else:
+            raise _TokenError(f"bad null at {self.pos}")
+
+    def _parse_number(self):
+        pos = self.pos
+        n = len(self.text)
+        if pos < n and self.text[pos] == "-":
+            pos += 1
+        if pos >= n:
+            raise _TokenError(f"bad number at {pos}")
+        if self.text[pos] == "0":
+            pos += 1
+        elif self.text[pos] in _DIGIT_CHARS:
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos += 1
+        else:
+            raise _TokenError(f"bad number at {pos}")
+        if pos < n and self.text[pos] == ".":
+            pos += 1
+            if pos >= n or self.text[pos] not in _DIGIT_CHARS:
+                raise _TokenError(f"bad number fractional at {pos}")
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos += 1
+        if pos < n and self.text[pos] in ("e", "E"):
+            pos += 1
+            if pos < n and self.text[pos] in ("+", "-"):
+                pos += 1
+            if pos >= n or self.text[pos] not in _DIGIT_CHARS:
+                raise _TokenError(f"bad number exponent at {pos}")
+            while pos < n and self.text[pos] in _DIGIT_CHARS:
+                pos += 1
+        self.pos = pos
+
+    def eof(self):
+        return self._token is None
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value_with_tokenizer(tokenizer: _Tokenizer) -> Any:
+    token = tokenizer.peek()
+    if token == '{':
+        return _parse_object_with_tokenizer(tokenizer)
+    if token == '[':
+        return _parse_array_with_tokenizer(tokenizer)
+    if token == '"':
+        return _parse_string_with_tokenizer(tokenizer)
+    if token == 'bool':
+        return _parse_bool_with_tokenizer(tokenizer)
+    if token == 'null':
+        return _parse_null_with_tokenizer(tokenizer)
+    if token == 'number':
+        return _parse_number_with_tokenizer(tokenizer)
+    raise JSONParseError("unexpected token")
+
+
+def _parse_object_with_tokenizer(tokenizer: _Tokenizer) -> dict:
+    if tokenizer.peek() != '{':
+        raise JSONParseError("expected '{'")
+    tokenizer.consume()
+    out = {}
+    if tokenizer.peek() == '}':
+        tokenizer.consume()
+        return out
+    while True:
+        key = _parse_string_with_tokenizer(tokenizer)
+        if tokenizer.peek() != ':':
+            raise JSONParseError("expected ':'")
+        tokenizer.consume()
+        value = _parse_value_with_tokenizer(tokenizer)
+        out[key] = value
+        if tokenizer.peek() == ',':
+            tokenizer.consume()
+            continue
+        if tokenizer.peek() == '}':
+            tokenizer.consume()
+            return out
+        raise JSONParseError("expected ',' or '}'")
+
+
+def _parse_array_with_tokenizer(tokenizer: _Tokenizer) -> list:
+    if tokenizer.peek() != '[':
+        raise JSONParseError("expected '['")
+    tokenizer.consume()
+    out = []
+    if tokenizer.peek() == ']':
+        tokenizer.consume()
+        return out
+    while True:
+        value = _parse_value_with_tokenizer(tokenizer)
+        out.append(value)
+        if tokenizer.peek() == ',':
+            tokenizer.consume()
+            continue
+        if tokenizer.peek() == ']':
+            tokenizer.consume()
+            return out
+        raise JSONParseError("expected ',' or ']'")
+
+
+def _parse_string_with_tokenizer(tokenizer: _Tokenizer) -> str:
+    if tokenizer.peek() != '"':
+        raise JSONParseError("expected '\"'")
+    tokenizer.consume()
+    return tokenizer.text[tokenizer.pos - 1]
+
+
+def _parse_bool_with_tokenizer(tokenizer: _Tokenizer) -> bool:
+    if tokenizer.peek() == 'bool':
+        tokenizer.consume()
+        if tokenizer.text[tokenizer.pos - 4:tokenizer.pos] == "true":
+            return True
+        return False
+    raise JSONParseError("expected bool")
+
+
+def _parse_null_with_tokenizer(tokenizer: _Tokenizer) -> None:
+    if tokenizer.peek() == 'null':
+        tokenizer.consume()
+        return None
+    raise JSONParseError("expected null")
+
+
+def _parse_number_with_tokenizer(tokenizer: _Tokenizer) -> float | int:
+    if tokenizer.peek() == 'number':
+        tokenizer.consume()
+        s = tokenizer.text[tokenizer.pos:]
+        pos = tokenizer.pos
+        while pos < len(tokenizer.text) and tokenizer.text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos < len(tokenizer.text) and tokenizer.text[pos] == '.':
+            pos += 1
+            while pos < len(tokenizer.text) and tokenizer.text[pos] in _DIGIT_CHARS:
+                pos += 1
+        if pos < len(tokenizer.text) and tokenizer.text[pos] in ("e", "E"):
+            pos += 1
+            if pos < len(tokenizer.text) and tokenizer.text[pos] in ("+", "-"):
+                pos += 1
+            while pos < len(tokenizer.text) and tokenizer.text[pos] in _DIGIT_CHARS:
+                pos += 1
+        s = tokenizer.text[tokenizer.pos:pos]
+        try:
+            if '.' in s or 'e' in s.lower():
+                return float(s)
+            return int(s)
+        except ValueError:
+            raise JSONParseError(f"bad number {s}")
+    raise JSONParseError("expected number")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    return all(c in _HEX_CHARS for c in s)
+```

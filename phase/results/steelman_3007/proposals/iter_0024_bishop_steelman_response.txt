@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to inline `_skip_ws` eliminates the function call overhead but ignores that `_skip_ws` is called from multiple places with different entry conditions, making inlining risky. It also fails to consider that the current implementation handles edge cases like empty input or malformed JSON gracefully, which inlining might disrupt. Additionally, the function's logic of skipping whitespace is not trivial and inlining it without preserving its structure could lead to code duplication and maintainability issues.
+
+STEELMAN: The steelman is to optimize `_skip_ws` by inlining its core logic directly into the calling functions, but only in a way that preserves the original behavior and maintains the same control flow, avoiding redundant checks and function call overhead while keeping the code readable and maintainable.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    # Inline _skip_ws
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    # Inline _skip_ws
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

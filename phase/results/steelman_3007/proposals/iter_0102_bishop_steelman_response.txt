@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `if ord(c) < 0x20:` with `if c in _UNSAFE_CHARS` is problematic because creating a set of all 32 control characters via `{chr(i) for i in range(0, 0x20)}` would be inefficient and unnecessarily slow at import time. Additionally, this approach doesn't account for the fact that the original check is specifically for unescaped control characters in JSON strings, and the performance gain from set membership is minimal compared to the cost of constructing the set.
+
+STEELMAN: A better approach is to precompute the set of unsafe characters once during module initialization, but use a more efficient construction method like `frozenset(chr(i) for i in range(0x20))` to avoid repeated `chr()` calls. This preserves the core idea of using O(1) lookup while making the implementation more efficient and idiomatic.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+_UNSAFE_CHARS = frozenset(chr(i) for i in range(0x20))
+
+
+# Compiled regex for whitespace skipping
+>>>>>>> REPLACE
+```

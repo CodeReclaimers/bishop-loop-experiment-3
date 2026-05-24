@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `unicodedata.category()` for digit checking is unworkable because Unicode categories are much slower than set membership checks, and the performance overhead would likely negate any benefits. Additionally, this approach would incorrectly classify non-ASCII digits (like U+0660 for Arabic-Indic digits) as digits when they're not valid in JSON, and it would break the existing explicit handling of JSON's digit set. The suggestion also fails to account for the fact that JSON only accepts ASCII digits 0-9, not all Unicode decimal numbers.
+
+STEELMAN: A better approach would be to replace the current `_DIGIT_CHARS` set with a more efficient lookup mechanism that still respects JSON's ASCII-only digit requirement, such as using a frozenset for O(1) membership checks, or even better, using `str.isdigit()` on individual characters with a cached lookup for the ASCII range 0-9, which maintains the same semantic correctness while improving performance.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+_ESCAPE_CHARS = {"\"", "\\", "/", "b", "f", "n", "r", "t", "u"}
+_UNICODE_ESC_CHARS = {"u"}
+_CTRL_CHARS = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x0b", "\x0c", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c", "\x1d", "\x1e", "\x1f"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {"\"", "\\", "/", "b", "f", "n", "r", "t", "u"}
+_UNICODE_ESC_CHARS = {"u"}
+_CTRL_CHARS = frozenset("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0b\x0c\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f")
+>>>>>>> REPLACE
+```

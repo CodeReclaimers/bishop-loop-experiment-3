@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to use `text.lstrip(' \t\n\r', pos)` is flawed because `lstrip` returns a new string with leading characters removed, not a position index. This would require additional computation to determine the new position, defeating the purpose of the optimization. Additionally, `lstrip` is not designed to work with a starting position in the middle of a string — it operates from the beginning, so it wouldn't skip whitespace from `pos` onward as intended.
+STEELMAN: A better approach is to use `text[pos:].lstrip()` to get the substring starting at `pos`, then compute the new position as `pos + len(text[pos:].lstrip())`. This preserves the intent of leveraging C-optimized string methods while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use C-optimized string method to skip whitespace from current position
+    stripped = text[pos:].lstrip()
+    return pos + len(stripped) - len(text[pos:])
+>>>>>>> REPLACE
+```

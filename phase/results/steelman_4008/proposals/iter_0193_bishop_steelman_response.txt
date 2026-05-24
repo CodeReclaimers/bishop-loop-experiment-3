@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to use `str.find` for whitespace skipping is problematic because it doesn't address the core inefficiency of scanning character-by-character; `str.find` still needs to scan through the string to find the first non-whitespace character, which can be slower than direct iteration for small amounts of whitespace. Additionally, it fails to consider that the current `_skip_ws` function already uses a tight loop with direct character checks, which is typically faster than regex or `str.find` for small inputs. The approach also doesn't account for the fact that whitespace skipping is often called in tight loops, and the overhead of `str.find` might outweigh its benefits.
+
+STEELMAN: A better approach would be to use `str.find` to skip large blocks of whitespace in one go, but only when there's a significant amount of leading whitespace. This can be implemented by first scanning for the first non-whitespace character using `str.find`, and then falling back to the existing character-by-character loop for small skips or when the next non-whitespace is just a few characters away. This preserves the performance of the tight loop for small skips while leveraging `str.find` for bulk skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip large blocks of whitespace efficiently
+    # but fall back to character-by-character scanning for small skips
+    if pos >= len(text):
+        return pos
+    
+    # Fast path: use str.find to skip large amounts of whitespace
+    # Only use this if we have a reasonable amount of whitespace to skip
+    if pos + 10 < len(text):
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws != -1:
+            return next_non_ws
+        return len(text)
+    
+    # Slow path: character-by-character scanning for small skips
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

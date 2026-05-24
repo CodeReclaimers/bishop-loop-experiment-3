@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace direct character checks with regex for whitespace skipping is problematic because regex compilation and matching introduce overhead that can slow down the common case where only a few whitespace characters are encountered. Additionally, the precompiled regex `_WS_RE = re.compile(r'\s*')` is not being used in the current implementation, and simply switching to regex without optimization would likely degrade performance due to regex engine overhead.
+
+STEELMAN: A better approach would be to leverage the existing precompiled regex `_WS_RE` for whitespace skipping, but only when there's a significant amount of whitespace to skip. For small amounts of whitespace, direct character checks remain faster. The steelman would involve using the regex for large skips while falling back to the current fast path for small skips, effectively combining both strategies.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks for small skips,
+    # but regex for large skips to avoid repeated character checks.
+    # Check first few characters directly for performance.
+    if pos + 5 < len(text):
+        # Use regex for longer sequences of whitespace
+        match = _WS_RE.match(text, pos)
+        if match:
+            return match.end()
+    # Fallback to direct checks for small skips
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

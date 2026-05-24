@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call would break the parser's ability to handle malformed input correctly, since the regex would skip all whitespace without validation, potentially allowing unescaped control characters or malformed JSON to pass unnoticed. It also fails to account for the fact that `_skip_ws` is used in contexts where partial advancement is needed, such as within object/array parsing, where the parser needs to detect delimiters like commas and braces after skipping whitespace. Additionally, the regex approach would not handle the specific error cases that the current implementation does, like unterminated strings or numbers, because it would advance past the problematic content entirely.
+STEELMAN: The steelman is to optimize `_skip_ws` by using the compiled regex to skip whitespace, but only when the parser is certain that it's safe to do so — for example, in contexts where we know the next token must be a delimiter or value, and we can safely advance past any intervening whitespace without losing context. This means replacing the loop in `_skip_ws` with a regex match that returns the next non-whitespace position, but still maintaining error checking in the parser logic that depends on specific positions.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

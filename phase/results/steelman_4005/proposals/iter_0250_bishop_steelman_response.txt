@@ -1,0 +1,47 @@
+CRITIQUE: Removing all whitespace before parsing would break the JSON syntax because whitespace is not always ignorable—particularly around string literals and escape sequences where the parser needs to track positions accurately. It would also eliminate the ability to properly handle Unicode escapes and other structured elements that rely on precise character positioning. Additionally, this approach doesn't address the actual performance bottlenecks in the current implementation, which are more subtle and related to repeated bounds checking and inefficient string building.
+
+STEELMAN: A better approach is to preprocess the input to eliminate whitespace *only* when it's safe to do so, i.e., by using a more efficient whitespace-skipping mechanism that avoids redundant checks and leverages compiled regex patterns, while still maintaining position tracking for error reporting and parsing correctness. This preserves the intent of reducing overhead without sacrificing functionality.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for efficient whitespace skipping
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

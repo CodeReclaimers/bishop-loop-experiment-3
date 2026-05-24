@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `text.find` is problematic because `text.find` still scans linearly through whitespace characters one by one, so it doesn't eliminate the O(n) Python loop; it just changes the implementation detail. Additionally, it doesn't address the fact that the current loop is already efficient in practice for small amounts of whitespace, and `text.find` would require additional bounds checking and could introduce overhead for short skips.
+
+STEELMAN: The steelman version of the suggestion is to use `text.find` to skip whitespace, but only when a non-whitespace character is found beyond a certain threshold, and to fall back to the current O(1) per-character loop for small skips to avoid overhead. This preserves the intent of reducing the Python loop cost while maintaining performance for typical cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently for large skips
+    n = len(text)
+    if pos >= n:
+        return pos
+    # For small skips, use the simple loop; for large skips, use find
+    # Heuristic: if we're skipping more than 8 characters, use find
+    if n - pos > 8:
+        next_non_ws = text.find(lambda c: c not in _WS_CHARS, pos)
+        if next_non_ws == -1:
+            return n
+        return next_non_ws
+    else:
+        while pos < n and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+>>>>>>> REPLACE
+```

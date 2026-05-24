@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the per-call Python loop with a single iteration is problematic because it fails to address the core issue of redundant whitespace handling at every parsing level. The current implementation calls `_skip_ws` repeatedly at each parsing boundary, which is inefficient, but simply replacing the loop with a single pass would break the recursive descent structure that relies on incremental position tracking. Additionally, this approach doesn't consider that whitespace skipping is often a small fraction of total parsing time, so the performance gain may be minimal compared to other bottlenecks like string building or number parsing.
+
+STEELMAN: The strongest version of this idea is to optimize the `_skip_ws` function itself by using a more efficient approach that avoids repeated character-by-character checks, such as using a regex or leveraging string methods like `str.lstrip()` or `str.find()` to skip whitespace in larger chunks. However, this should be done carefully to maintain correctness and not disrupt the existing parsing logic that depends on position tracking. The key is to reduce the overhead of the whitespace skipping without changing the fundamental parsing architecture.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() to skip whitespace in larger chunks
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

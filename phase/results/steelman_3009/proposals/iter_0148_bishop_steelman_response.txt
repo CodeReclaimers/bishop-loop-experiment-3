@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to use `str.translate` with a translation table mapping whitespace to null bytes is flawed because it would fundamentally change the behavior of `_skip_ws` — it would no longer return the new position, but instead return a modified string with whitespace removed. This breaks the contract of the function and the rest of the parser that relies on position tracking. Additionally, `str.translate` doesn't jump to the next non-whitespace character directly; it processes the entire string, which would be slower than the current O(1) per-character lookup.
+
+STEELMAN: The steelman is to precompute a translation table that maps whitespace characters to a single sentinel character (like a null byte), then use `str.translate` to efficiently skip whitespace by finding the first non-sentinel character, while preserving the existing position-tracking interface. This approach can still be implemented efficiently in C-level operations without breaking the parser’s design.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# Precomputed translation table to map whitespace to null byte for fast skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\x00\x00\x00\x00")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace by mapping to null bytes
+    # and then find the first non-null byte
+    if pos >= len(text):
+        return pos
+    # Translate whitespace to null bytes
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    # Find the first non-null byte
+    new_pos = pos
+    while new_pos < len(text) and translated[new_pos - pos] == '\x00':
+        new_pos += 1
+    return new_pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a simple loop fails to account for the fact that the current implementation uses a precompiled regex `_WS_RE = re.compile(r'\s*')` which is called via `_skip_ws(text, pos)` and likely intended to skip *all* whitespace characters (including those beyond just `' \t\n\r'` like form feeds, vertical tabs, etc.), not just the four specified. This would break compliance with the JSON standard and likely cause silent failures or incorrect parsing.
+STEELMAN: The steelman version should preserve the core idea of avoiding regex overhead but correctly implement the full set of JSON whitespace characters by using a direct loop with a proper set lookup for all valid whitespace characters defined in the JSON spec, rather than just the four basic ones.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, carriage return,
+    # form feed, and vertical tab.
+    # Using a frozenset for O(1) lookup.
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f\v')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

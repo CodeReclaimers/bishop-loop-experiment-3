@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to use `re.search()` repeatedly in a loop will be significantly slower than the current manual iteration because `re.search()` has to recompile or re-evaluate the pattern for each call, negating any performance benefit. Additionally, the proposed code `pos = _WS_PATTERN.search(text, pos).start() + len(_WS_PATTERN.search(text, pos).group())` would perform two separate regex operations and is incorrect logic — it would skip past the matched whitespace instead of stopping at the first non-whitespace character. The approach also fails to consider that the regex might not match anything, leading to a `None` result and an exception.
+
+STEELMAN: A better approach is to use `re.match()` or `re.search()` once per whitespace-skipping call, and then advance the position to the end of the matched whitespace. This preserves the intent of leveraging regex for fast skipping, but avoids repeated pattern evaluation and incorrect indexing logic. The key is to match the whitespace pattern once and correctly compute the new position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

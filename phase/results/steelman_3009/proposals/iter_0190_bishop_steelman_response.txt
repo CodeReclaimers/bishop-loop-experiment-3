@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the per-character loop with `text.find(' \t\n\r', pos)` is problematic because `find()` returns the index of the first occurrence of any character in the set, but it doesn't advance past all consecutive whitespace characters in one go — it only finds the first non-whitespace char. This would still require a loop to skip all the whitespace, and the performance benefit would be minimal. Additionally, `find()` is not guaranteed to be faster than a tight loop for small amounts of whitespace.
+
+STEELMAN: The steelman version would use `text.find()` to locate the first non-whitespace character, then advance `pos` to that index. To handle cases where there's no whitespace (i.e., `find()` returns `pos`), we can check if the result equals `pos` and avoid unnecessary work. This approach reduces the overhead of repeated membership checks while still correctly skipping all whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to locate the next non-whitespace character
+    next_non_ws = text.find(' \t\n\r', pos)
+    if next_non_ws == -1:
+        return len(text)
+    return next_non_ws
+>>>>>>> REPLACE
+```

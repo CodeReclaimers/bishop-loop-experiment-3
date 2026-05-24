@@ -1,0 +1,104 @@
+CRITIQUE: The suggestion is unworkable because it proposes avoiding string conversions entirely by comparing digits directly, which fundamentally misunderstands how number parsing works. It fails to address the core issue that numeric values must be converted to their final numeric type (int or float) regardless of parsing approach, and the proposed "direct comparison" method would not produce correct numeric results. Additionally, it doesn't account for the complexity of floating-point parsing, scientific notation, or the need to handle large numbers correctly.
+
+STEELMAN: A better approach would be to optimize the number parsing by using a more efficient digit accumulation method that avoids intermediate string slicing and instead builds the numeric value incrementally using mathematical operations. This preserves the correctness of the parsing while reducing memory overhead and improving performance for large numbers by minimizing string operations.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse integer part
+    int_part = 0
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            int_part = int_part * 10 + int(text[pos])
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    is_float = False
+    # Parse fractional part
+    frac_part = 0
+    frac_digits = 0
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            frac_part = frac_part * 10 + int(text[pos])
+            frac_digits += 1
+            pos = pos + 1
+    
+    # Parse exponent part
+    exp_part = 0
+    exp_sign = 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            if text[pos] == "-":
+                exp_sign = -1
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            exp_part = exp_part * 10 + int(text[pos])
+            pos = pos + 1
+    
+    # Build final number
+    if is_float:
+        # Combine integer and fractional parts
+        result = int_part
+        if frac_digits > 0:
+            result += frac_part / (10 ** frac_digits)
+        if exp_part > 0:
+            result *= (10 ** (exp_sign * exp_part))
+        return result, pos
+    else:
+        return int_part, pos
+>>>>>>> REPLACE
+```

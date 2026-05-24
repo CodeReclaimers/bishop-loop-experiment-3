@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to remove `_WS_PATTERN` is flawed because it ignores the fact that `_skip_ws` is called in multiple places throughout the parser, and removing the regex-based optimization would mean that every call site would revert to a simple loop. This could actually hurt performance in cases where large amounts of whitespace are present, as the regex-based skipping could be more efficient than character-by-character checking. Additionally, the suggestion doesn't consider that regex skipping might be more efficient in some scenarios, especially with large contiguous whitespace runs.
+
+STEELMAN: The core idea is sound — we should rely on the efficient `_skip_ws` function that uses precomputed character sets. However, we should also optimize the `_skip_ws` function itself to use the regex for skipping large contiguous whitespace runs, while still maintaining the O(1) lookup for individual characters. This approach preserves correctness and improves performance by leveraging the strengths of both approaches.
+
+```python
+<<<<<<< SEARCH
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for large contiguous whitespace runs, fallback to set-based for small runs
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    # Fallback to character-by-character for small runs or edge cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

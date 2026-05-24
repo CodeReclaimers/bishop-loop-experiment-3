@@ -1,0 +1,39 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -105,10 +105,12 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+-    pos = pos + 1
+-    out: list = []
++    pos = pos + 1
++    # Count elements to pre-allocate list
++    element_count = 0
++    save_pos = pos
++    while save_pos < len(text):
++        save_pos = _skip_ws(text, save_pos)
++        if save_pos >= len(text):
++            break
++        if text[save_pos] == ']':
++            break
++        element_count += 1
++        # Skip this element
++        _, save_pos = _parse_value(text, save_pos)
++        save_pos = _skip_ws(text, save_pos)
++        if save_pos < len(text) and text[save_pos] == ',':
++            save_pos += 1
++    out: list = [None] * element_count
+     pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "]":
+         return out, pos + 1
+@@ -117,7 +120,10 @@
+     while True:
+         pos = _skip_ws(text, pos)
+         value, pos = _parse_value(text, pos)
+-        out.append(value)
++        out[element_count - (len(text) - pos)] = value
+         pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+```

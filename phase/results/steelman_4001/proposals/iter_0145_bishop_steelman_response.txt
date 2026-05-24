@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace `skip_ws` with a generator expression is unworkable because it would fundamentally change the control flow and break the existing recursive descent parsing logic that expects to advance a single position pointer. Additionally, the suggestion to use "Python's built-in string concatenation methods" is vague and doesn't address the core performance issue of repeated string building in `_parse_string` which uses `out.append(c)` in a loop and then `"".join(out)` at the end.
+
+STEELMAN: The core idea of optimizing whitespace skipping is sound, but it should be implemented by replacing the character-by-character loop in `_skip_ws` with a more efficient approach like `str.lstrip()` or a regex-based skip that doesn't alter the parsing architecture. The string building in `_parse_string` should be optimized by pre-allocating lists or using more efficient concatenation strategies, not by vague references to built-in methods.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.lstrip with a set of whitespace characters for efficient skipping
+    # We can't directly use lstrip with a set, so we use a regex for better performance
+    import re
+    # Precompiled regex for skipping whitespace
+    _WS_RE = re.compile(r'^[ \t\n\r]*')
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

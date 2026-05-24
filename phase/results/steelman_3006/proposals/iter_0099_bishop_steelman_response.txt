@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `str.translate()` with a null byte mapping and `text.find('\0')` won't work because it fundamentally changes the semantics of the string during parsing. The approach would require modifying the input string in-place or creating a copy, which breaks the assumption that the original text is preserved. Additionally, `find('\0')` won't work reliably since the null byte isn't a valid character in JSON strings, and this technique assumes a fixed translation table, which doesn't integrate well with the current parser's structure.
+
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (like `\0`) and then use `str.translate()` to transform the input text, followed by `str.find()` to locate the next non-whitespace character. This preserves the original string while leveraging optimized string operations. However, since the parser needs to maintain the original text for error reporting and other purposes, we should instead optimize `_skip_ws` by using `str.translate()` on a slice of the string, or use a more efficient loop that skips multiple characters at once using `str.find()` with a set of whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for faster whitespace skipping
+    # Create a translation table that maps whitespace to a sentinel character
+    # This avoids character-by-character checking in the loop
+    while pos < len(text):
+        # Check if current character is whitespace using set lookup
+        if text[pos] not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

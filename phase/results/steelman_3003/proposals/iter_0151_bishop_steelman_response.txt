@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `text.find` would fail because it only finds the first non-whitespace character, not the first whitespace character, so it couldn't correctly skip whitespace. It also doesn't handle the case where the entire string is whitespace, which would make `find` return -1, and it would miss the opportunity to leverage the precomputed `_WS_CHARS` set for fast membership testing.
+STEELMAN: The steelman version would use `text.find` to locate the first non-whitespace character, but then validate that character is indeed non-whitespace using `_WS_CHARS` to avoid off-by-one errors. If `find` returns -1 (meaning no non-whitespace found), we return the end of string. This preserves the performance benefit of `find` while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using text.find for large blocks, then validate
+    new_pos = text.find(' \t\n\r', pos)
+    if new_pos == -1:
+        return len(text)
+    if text[new_pos] in _WS_CHARS:
+        return new_pos
+    # If find returned a position that's not a whitespace char, 
+    # we need to manually skip the whitespace from pos to new_pos
+    while pos < new_pos and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

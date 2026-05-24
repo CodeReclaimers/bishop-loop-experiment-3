@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a `frozenset` for whitespace checking is misguided because the current `_skip_ws` function already uses direct character checks against a string literal `' \t\n\r\f'`, which is already quite efficient. The proposed change would not significantly improve performance and could introduce unnecessary complexity or even regress performance due to the overhead of frozenset lookups. Additionally, the suggestion doesn't address the actual performance bottlenecks in the parser, which are more likely in parsing logic rather than whitespace skipping.
+
+STEELMAN: The most effective optimization would be to precompute a frozenset of whitespace characters and use it in `_skip_ws` for fast membership testing, replacing the current loop that checks each character individually. This approach maintains the same logic but improves lookup efficiency, especially for longer input strings where whitespace is frequent.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using frozenset for membership testing
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

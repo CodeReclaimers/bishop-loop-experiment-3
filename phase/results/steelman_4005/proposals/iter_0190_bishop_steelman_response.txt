@@ -1,0 +1,32 @@
+CRITIQUE: The suggestion to pre-process the input by removing whitespace with a translation table is flawed because it would break the parser's ability to track accurate positions during error reporting and parsing. Additionally, it doesn't address the core performance bottleneck which lies in repeated bounds checking and character-by-character parsing, not the whitespace handling itself. The approach also ignores that whitespace is not uniformly distributed and may be sparse, making a full pre-processing step inefficient.
+
+STEELMAN: A better approach would be to use a more efficient whitespace skipping mechanism that avoids repeated bounds checks, such as leveraging the `re` module's `match` or `search` functions with a precompiled pattern to skip whitespace in larger chunks, while still preserving position tracking for error reporting.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in larger chunks for better performance
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

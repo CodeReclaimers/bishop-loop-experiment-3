@@ -1,0 +1,104 @@
+CRITIQUE: The suggestion to pre-compute a skip table for whitespace is flawed because it would require O(n²) space and time to build the table, negating any performance gains. It also doesn't account for the fact that whitespace skipping is typically a small fraction of total parsing time, and the overhead of table construction would likely outweigh benefits. Additionally, it would break down with very large inputs due to memory constraints.
+
+STEELMAN: A better approach is to use a single pass to compute a skip table for the entire input once, then use that to skip whitespace in O(1) time per call. This avoids repeated character-by-character checks while keeping memory usage reasonable. The table can be built once per parse operation and reused, and it should be implemented using a more efficient approach like a jump table or binary search for sparse whitespace regions.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, skip_table, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, skip_table, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table for whitespace positions."""
+    n = len(text)
+    skip_table = [0] * n
+    # Build table from right to left
+    skip_table[n-1] = n-1
+    i = n - 2
+    while i >= 0:
+        if text[i] in _WS_CHARS:
+            skip_table[i] = skip_table[i+1]
+        else:
+            skip_table[i] = i
+        i -= 1
+    # Adjust the table to point to the first non-whitespace character
+    i = 0
+    while i < n:
+        if text[i] in _WS_CHARS:
+            # Skip to the next non-whitespace character
+            next_non_ws = skip_table[i]
+            while next_non_ws < n and text[next_non_ws] in _WS_CHARS:
+                next_non_ws = skip_table[next_non_ws]
+            skip_table[i] = next_non_ws
+        else:
+            skip_table[i] = i
+        i += 1
+    return skip_table
+
+
+def _skip_ws_with_table(text: str, skip_table: list[int], pos: int) -> int:
+    """Skip whitespace using precomputed skip table."""
+    if pos >= len(text):
+        return pos
+    return skip_table[pos]
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find_first_not_of_whitespace(pos)` is unworkable because Python strings don't have such a method—this is a C++-style API. Additionally, `str.find` doesn't directly solve the problem since it would still need to scan for the first non-whitespace character, and the loop-based approach is actually quite efficient for typical whitespace runs. The suggestion fails to account for the fact that `str.find` would not provide an O(1) operation and would still require iteration in many cases.
+
+STEELMAN: The steelman version of the suggestion is to replace the character-by-character scanning in `_skip_ws` with a regex-based approach using `re.search` or `re.match` to find the next non-whitespace character, which can be more efficient than repeated `isspace()` checks, especially for long sequences of whitespace. This preserves the intent of reducing overhead while using Python-native tools.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

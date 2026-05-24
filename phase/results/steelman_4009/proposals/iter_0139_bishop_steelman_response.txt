@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use a byte-oriented `ord()` approach for whitespace skipping is problematic because it assumes ASCII-only input and doesn't account for Unicode whitespace characters that are valid in JSON. Additionally, converting characters to ordinals doesn't inherently reduce comparisons—Python's `in` operator on a set is already O(1) and highly optimized, so this change would likely not provide meaningful performance gains and could introduce bugs with non-ASCII inputs.
+
+STEELMAN: The steelman version of this suggestion would retain the O(1) set membership check but optimize the actual loop by using `ord()` comparisons directly against known whitespace ordinals (32 for space, 9 for tab, 10 for newline, 13 for carriage return) to avoid the overhead of string lookups in the set, while still maintaining correctness for all valid JSON whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop using ord() for known whitespace characters
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

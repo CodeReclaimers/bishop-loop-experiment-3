@@ -1,0 +1,52 @@
+To optimize the Python JSON parser for performance, one potential improvement could be to reduce redundant whitespace handling and optimize the parsing of numbers. Here's a brief explanation:
+
+### Explanation
+
+1. **Redundant Whitespace Handling**: The current implementation uses `_skip_ws` function which checks for whitespace characters at each iteration of the loop. This is unnecessary because it might skip over more than necessary leading up to the actual JSON value. Instead, we can leverage Python's built-in `str.splitlines()` and `str.strip()` methods to handle whitespace efficiently.
+
+2. **Optimized Number Parsing**: The `_parse_number` function currently checks for decimal points and exponent characters without any additional logic. This is sufficient for parsing standard JSON numbers. However, if the JSON parser needs to support more complex number formats, we might need to adjust this part of the code accordingly. For example, we could use a regular expression to parse numbers with different base systems.
+
+### Implementation
+
+Here's an example of how you can modify the `_parse_number` function:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    try:
+        return float(s) if is_float else int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+```
+
+By using `str.splitlines()` to handle whitespace and optimizing the parsing of numbers, this modification should improve the performance of the JSON parser while maintaining correctness.

@@ -1,0 +1,101 @@
+CRITIQUE: The suggestion to use a pre-computed lookup table for skipping whitespace assumes that the input string can be indexed directly and that the table can be built efficiently, but it doesn't account for the fact that building such a table would require scanning the entire input once, negating the benefit of O(1) lookups. Additionally, the lookup table approach would not scale well for large inputs or memory-constrained environments.
+STEELMAN: A better approach would be to precompute a "next non-whitespace" index for each position in the input string, effectively creating a jump table that allows skipping whitespace in constant time. This can be done once per parse operation by scanning the input string and storing the next non-whitespace index for each position, enabling O(1) skips without requiring repeated scanning.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute next non-whitespace positions
+    next_non_ws = _compute_next_non_ws(text)
+    pos = next_non_ws[0]
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = next_non_ws[pos]
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _compute_next_non_ws(text: str) -> list[int]:
+    """Precompute next non-whitespace position for each index."""
+    n = len(text)
+    next_non_ws = [0] * n
+    pos = n
+    # Scan backwards to fill next_non_ws
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            next_non_ws[i] = pos
+        else:
+            next_non_ws[i] = i
+            pos = i
+    return next_non_ws
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use precomputed table for O(1) skip
+    next_non_ws = _compute_next_non_ws(text)
+    return next_non_ws[pos]
+>>>>>>> REPLACE
+```

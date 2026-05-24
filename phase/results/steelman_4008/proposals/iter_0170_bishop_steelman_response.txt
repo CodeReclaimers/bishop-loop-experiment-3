@@ -1,0 +1,31 @@
+CRITIQUE: The suggested implementation has several flaws: `text.find(' \t\n\r', pos)` searches for any single character in the string, not the first non-whitespace character, so it will return the position of a whitespace character instead of skipping it. Additionally, the logic incorrectly returns `next_nonws` (undefined variable) instead of `next_non_ws`. The approach also introduces unnecessary complexity by mixing bulk skipping with character-by-character scanning without clear performance benefits.
+
+STEELMAN: A better approach would be to use `str.find` to locate the first non-whitespace character within reasonable windows, falling back to character-by-character scanning only when needed. This hybrid method avoids regex overhead while maintaining correctness and performance by minimizing the number of `find` calls and reducing the search space per iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: bulk skip with str.find, fallback to char-by-char
+    while pos < len(text):
+        # Look ahead in chunks to skip large blocks of whitespace efficiently
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            # No more whitespace, return end of string
+            return len(text)
+        if next_non_ws > pos:
+            # Skip the whitespace characters found
+            pos = next_non_ws
+        else:
+            # Found a non-whitespace character at current position
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

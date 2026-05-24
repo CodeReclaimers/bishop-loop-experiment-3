@@ -1,0 +1,94 @@
+CRITIQUE: The suggestion to cache intermediate results in dictionaries or lists is unworkable because the parser is already using direct dict and list updates (`out[key] = value`, `out.append(value)`) rather than rebuilding collections. Additionally, applying caching to substrings like numbers or strings would require tracking positions and managing memory, which adds complexity without clear performance gains for this specific parser design. The generator idea is naive because the parser is recursive and must fully parse each value before returning, making lazy evaluation incompatible with the current structure.
+
+STEELMAN: A better approach is to precompute and reuse expensive operations like digit and hex character checks using sets, and to optimize number parsing by leveraging Python's built-in `float()` and `int()` conversion functions instead of manual character-by-character scanning. These changes would reduce redundant work while preserving the recursive descent structure.
+
+```python
+<<<<<<< SEARCH
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precomputed for performance
+_DIGIT_CHARS_LIST = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+=======
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use Python's built-in conversion for better performance
+    start = pos
+    while pos < len(text):
+        c = text[pos]
+        if c in _DIGIT_CHARS or c in "+-eE.":
+            pos += 1
+        else:
+            break
+    s = text[start:pos]
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        else:
+            return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use a streaming generator approach is fundamentally incompatible with the required API `parse(text) -> Any` which must return a complete parsed value, not a stream of intermediate results. Additionally, the idea of "avoiding unnecessary string concatenation" is already partially addressed in the current implementation, and the suggestion doesn't actually address the real bottlenecks like redundant whitespace handling, character-by-character number parsing, or inefficient object/array building patterns.
+
+STEELMAN: A better approach would be to optimize the core performance bottlenecks while maintaining the same interface: replace character-by-character number parsing with direct `int()`/`float()` conversion, eliminate redundant whitespace skipping at every level by doing it once at the top level, and optimize object/array construction to avoid repeated rebuilding by using efficient append/assignment operations. The streaming idea could be used internally but must still produce a complete result.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for efficient whitespace skipping
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

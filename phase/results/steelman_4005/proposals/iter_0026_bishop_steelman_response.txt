@@ -1,0 +1,42 @@
+CRITIQUE: The suggestion to replace `if ord(c) < 0x20` with an approach that avoids bounds checking in `_skip_ws` is problematic because it misunderstands the context of the control character check — it's inside `_parse_string`, not `_skip_ws`. Additionally, modifying `_skip_ws` to skip control characters would break the JSON spec by silently skipping valid characters that should cause parsing errors.
+
+STEELMAN: A better approach is to optimize the control character check within `_parse_string` by using a precomputed set of control characters for O(1) lookup, avoiding repeated `ord()` calls while preserving correct error handling and not altering the whitespace-skipping behavior.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CTRL_CHARS = frozenset(chr(i) for i in range(0x20))
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+>>>>>>> REPLACE
+```

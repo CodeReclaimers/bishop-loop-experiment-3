@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex match would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same granular error reporting as character-by-character checking. Additionally, it would not work properly with the current design where `_skip_ws` is called in multiple places and its return value is used to advance the parsing position, potentially causing incorrect parsing behavior when whitespace is followed by invalid content.
+
+STEELMAN: A better approach is to replace `_skip_ws` with a regex-based function that skips whitespace in one pass but still maintains correct error reporting and proper position tracking, ensuring that all calls to `_skip_ws` behave consistently and efficiently without breaking the parser's correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) performance
+    match = _WS_RE.match(text, pos)
+    return match.end() if match else pos
+>>>>>>> REPLACE
+```

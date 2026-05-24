@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace `text.find` with a pre-joined whitespace string would be incorrect because `text.find(''.join(_WS_CHARS), pos)` searches for the entire whitespace set as a single substring, which would match any sequence of whitespace characters in order, not just the first non-whitespace character. This would cause incorrect parsing behavior when multiple consecutive whitespace characters are present. Additionally, this approach doesn't address the core issue of efficiently skipping whitespace without a loop, and would introduce unnecessary overhead from constructing the joined string on every call.
+
+STEELMAN: The steelman version of the suggestion is to use a more efficient lookup mechanism that avoids repeated character-by-character checks. Instead of looping through each character to check membership, we can use a single `text.find` call on a precomputed string of whitespace characters, but we must ensure that we're finding the *first* non-whitespace character, not a substring match. A better approach is to build a set of all whitespace characters and check for membership using `next((i for i in range(pos, len(text)) if text[i] not in _WS_CHARS), len(text))`, or alternatively, precompute a lookup table for faster membership checks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,41 @@
+CRITIQUE: The suggestion to replace `c in ' \t\n\r'` with a bytes lookup is problematic because it assumes all whitespace characters can be represented in a single byte, which is not true for Unicode text. Additionally, the proposed approach would require maintaining a separate lookup structure and could introduce complexity in handling edge cases or future extensions to the whitespace definition. It also doesn't address the fact that the current implementation already uses a frozenset for character membership, which is already quite efficient.
+
+STEELMAN: A better approach would be to use a frozenset of Unicode code points for whitespace characters, ensuring compatibility with the full Unicode range, and precompute this set once at module level. This preserves the performance benefits of fast membership testing while maintaining correctness and extensibility. The frozenset lookup is still O(1) and avoids the overhead of string hashing or complex byte-level operations.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# JSON whitespace includes space, tab, line feed, and carriage return
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

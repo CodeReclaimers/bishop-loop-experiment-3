@@ -1,0 +1,41 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -15,10 +15,14 @@
+ 
+ # Pre-compiled regex for whitespace skipping
+ _WS_RE = re.compile(r'\s*')
++_WS_CHARS = frozenset(' \t\n\r')
+ _DIGIT_CHARS = frozenset("0123456789")
+ _HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+ 
+ 
++def _skip_ws(text: str, pos: int) -> int:
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
++
++
+ def parse(text: str) -> Any:
+     if not isinstance(text, str):
+         raise JSONParseError("input must be a string")
+@@ -26,7 +30,7 @@
+     pos = _skip_ws(text, 0)
+     if pos >= len(text):
+         raise JSONParseError("empty input")
+-    value, pos = _parse_value(text, pos)
++    pos = _skip_ws(text, pos)
++    value, pos = _parse_value(text, pos)
+     pos = _skip_ws(text, pos)
+     if pos != len(text):
+         raise JSONParseError(f"trailing content at position {pos}")
+@@ -41,7 +45,7 @@
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+     pos = _skip_ws(text, pos)
+     if pos >= len(text):
+-        raise JSONParseError("unexpected end of input")
++        raise JSONParseError("unexpected end of input")
+     c = text[pos]
+     if c == "{":
+         return _parse_object(text, pos)
+```

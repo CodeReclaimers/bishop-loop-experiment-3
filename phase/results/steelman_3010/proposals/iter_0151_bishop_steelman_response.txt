@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `regex.search()` for skipping whitespace would be problematic because it doesn't preserve the exact semantics of the current `_skip_ws` function, which advances character-by-character and returns the exact position after whitespace. Using `search()` would skip whitespace but could misalign the parsing state, especially in contexts where the parser expects to know the precise next character. Additionally, regex engine overhead for simple whitespace skipping may not yield performance gains and could be slower than the current O(1) set membership checks.
+
+STEELMAN: A better approach would be to use `regex.match()` on the precompiled pattern starting from the current position, which would advance the position in one optimized C-level operation while still returning the correct final position. This preserves the parser's logic and avoids the per-character loop, while leveraging the regex engine for fast whitespace detection.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to skip whitespace in one C-level operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

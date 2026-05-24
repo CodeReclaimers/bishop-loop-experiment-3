@@ -1,0 +1,34 @@
+CRITIQUE: The suggestion to use Python's built-in string methods for parsing numbers is problematic because it ignores the fact that the current implementation already uses a regex to identify number tokens, which is more efficient than character-by-character scanning. Additionally, the suggestion doesn't address the core performance bottleneck of redundant whitespace handling and inefficient data structure building. It also fails to consider that built-in conversion functions like `int()` and `float()` are not necessarily faster than the existing approach when dealing with large numbers or edge cases.
+
+STEELMAN: A better approach would be to optimize the number parsing by leveraging Python's built-in `int()` and `float()` conversion functions directly on the matched number string from the regex, rather than doing manual character-by-character parsing. This preserves the efficiency of the regex-based token detection while using highly optimized built-in functions for conversion, avoiding redundant checks and improving performance.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    if '.' in s or 'e' in s.lower():
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Find the full number token using regex
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Use built-in conversion which is highly optimized
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+>>>>>>> REPLACE
+```

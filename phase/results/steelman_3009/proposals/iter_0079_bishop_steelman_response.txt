@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `str.find(' '.join(_WS_CHARS), pos)` is flawed because it would incorrectly skip over non-whitespace characters that happen to appear in the whitespace set (e.g., if `' '` were in `_WS_CHARS`, it would be treated as a delimiter). Additionally, it would not properly handle the case where `str.find` returns -1, which should mean "no more whitespace", not "jump to end of string". The approach also introduces unnecessary overhead from string concatenation and doesn't maintain the exact same behavior as the loop-based version.
+
+STEELMAN: A better approach would be to use `str.find` with a properly constructed set of whitespace characters, but handle the -1 case correctly by checking if the result is -1 and returning the end of the string. However, to maintain the exact same behavior, we should instead use a regex-based approach or a more robust lookup that avoids the pitfalls of `str.find` with space-separated characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace efficiently
+    next_non_ws = text.find(' '.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # Skip all whitespace characters at once using the original loop logic
+    while pos < next_non_ws:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

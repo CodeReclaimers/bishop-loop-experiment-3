@@ -1,0 +1,21 @@
+CRITIQUE: The suggested approach using `next((i for i in range(pos, len(text)) if text[i] not in _WS_CHARS), len(text))` is inefficient because it creates a generator and iterates through every character from `pos` onward, even when the whitespace is short. This completely defeats the purpose of optimization by avoiding repeated set membership checks, since it still does O(n) work in the worst case. Additionally, it's not a true replacement for the while loop because it doesn't short-circuit on the first non-whitespace character — it always scans the entire range.
+
+STEELMAN: A better version would use `str.find` with a custom function that efficiently skips over whitespace by leveraging Python's fast C-level string scanning, but only after checking a few characters manually to avoid the overhead of repeated membership tests. The core idea is to reduce the number of membership checks, but not to abandon the efficient short-circuiting behavior of the while loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to efficiently skip whitespace, falling back to manual loop for small skips
+    while pos < len(text):
+        if text[pos] not in _WS_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

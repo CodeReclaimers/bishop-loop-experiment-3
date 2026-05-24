@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace regex with byte-level operations or state machines is unworkable because Python strings are Unicode, not bytes, and direct byte operations would break Unicode handling. Additionally, the proposed approach doesn't address the actual performance bottleneck — the regex is only used for whitespace skipping, and the current `_skip_ws` function already uses O(1) character set membership checks. The suggestion also ignores that Python's regex engine is highly optimized for simple patterns like this one.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by using a more efficient loop structure that avoids repeated bounds checking and leverages Python's fast string iteration. Specifically, we can eliminate the repeated `pos < len(text)` checks by using a while loop that processes characters in a way that naturally terminates when the end is reached, reducing function call overhead and improving cache locality.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

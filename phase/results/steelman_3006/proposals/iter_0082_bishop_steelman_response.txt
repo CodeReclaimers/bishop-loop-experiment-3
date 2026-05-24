@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use `text.find` with a generator is fundamentally flawed because `text.find` only finds the first occurrence of a character from a set, not the first character *not* in the set. Additionally, using a generator in this context would not provide the performance benefits claimed, as it would still require scanning through whitespace characters one by one. The approach also fails to consider that `_skip_ws` must advance the position to the first non-whitespace character, which `find` alone cannot achieve efficiently without additional logic.
+STEELMAN: A better approach is to use `text.find` to locate the first non-whitespace character, but only after checking if the current position is already non-whitespace. This avoids the repeated membership checks while maintaining correctness and performance by leveraging `str.find`'s optimized C implementation for single character searches.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace in one pass
+    if pos >= len(text):
+        return pos
+    # If current character is not whitespace, return immediately
+    if text[pos] not in _WS_CHARS:
+        return pos
+    # Find first non-whitespace character
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        next_non_ws = text.find('\t', pos)
+        if next_non_ws == -1:
+            next_non_ws = text.find('\n', pos)
+            if next_non_ws == -1:
+                next_non_ws = text.find('\r', pos)
+                if next_non_ws == -1:
+                    return len(text)
+    # Find the minimum of all non-whitespace positions
+    min_pos = len(text)
+    for char in _WS_CHARS:
+        idx = text.find(char, pos)
+        if idx != -1 and idx < min_pos:
+            min_pos = idx
+    if min_pos == len(text):
+        return len(text)
+    # Return the position of the first non-whitespace character
+    return min_pos
+>>>>>>> REPLACE
+```

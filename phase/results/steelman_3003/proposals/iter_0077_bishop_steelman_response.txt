@@ -1,0 +1,86 @@
+CRITIQUE: The suggestion to use a `skip_table` assumes that a lookup table can be efficiently constructed and used in place of the existing character-by-character loop, but it fails to account for the fact that building such a table would require a full pass through the input string anyway, negating any performance gains. Additionally, the proposed approach doesn't consider that whitespace skipping is often a rare operation, so the overhead of precomputing the table may not be justified. The suggestion also ignores that the current loop is already quite fast due to the use of `frozenset` for O(1) character checks.
+STEELMAN: A better approach would be to precompute a skip table using a single pass over the input string, where each index stores the position of the next non-whitespace character. This table can then be used to jump directly to the next non-whitespace character, avoiding the per-character loop entirely. The table should be computed once per parse operation and reused, ensuring that the performance benefit is realized without excessive overhead.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a table where skip_table[i] gives the next non-whitespace position."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n
+    # Traverse backwards to build the table
+    for i in range(n - 1, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = pos
+        else:
+            skip_table[i] = i
+            pos = i
+    return skip_table
+
+
+def _skip_ws(text: str, pos: int, skip_table: list[int] | None = None) -> int:
+    # Skip whitespace using skip_table lookup
+    if skip_table is not None:
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos = skip_table[pos]
+    else:
+        # Fallback to original method if no table is provided
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+    return pos
+>>>>>>> REPLACE
+```

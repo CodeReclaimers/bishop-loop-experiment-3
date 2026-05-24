@@ -1,0 +1,23 @@
+We need to suggest a specific change: replace _skip_ws with a loop using str.find and a set membership check? Actually they already have loops; translation table may be faster. But they tried skippy with translate and it gave z=-1.09, worse. Maybe use bytearray and find? Or use memoryview? Or use C-extension? But must stay Python.
+
+Better: precompile _skip_ws as a generator? Actually the bottleneck is _parse_value scanning characters one by one. Could use compiled regex for whole parse? But too complex.
+
+Simpler: replace _is_hex4 loop with using all(c in _HEX_CHARS for c in s) which is faster? Or use int(s,16) directly? But validation needed.
+
+Maybe replace _skip_ws with a while loop using a compiled translation table via str.translate is already used; but gave negative z. Could use a lookup table for whitespace bytes? Hmm.
+
+The fastest way: use built-in str.find with a lambda? That's C-level but still scanning.
+
+Better: use _ws_bytes = set(_WS_CHARS); iterate via ord and direct addition; maybe faster than set membership? But set is hash.
+
+Maybe use __slots__? Not.
+
+Probably suggest to replace _is_hex4 with a simple length check and all(ch in _HEX_CHARS for ch in s). Or use a lookup table mapping bytes to bool.
+
+Specifically: change _is_hex4 to use a precomputed boolean array for bytes 0-255 indicating if hex digit.
+
+Implement: _HEX_BYTE = [i in _HEX_CHARS for i in range(256)]; then _is_hex4 = all(_HEX_BYTE[ord(c)] for c in s). That avoids Python set per character.
+
+Let's propose that.
+
+Answer: Replace the loop in _is_hex4 with a direct lookup using a pre‑computed byte‑lookup array for hex‑digit validity, so each character check becomes a simple array index instead of a Python set membership test. This removes the iterative Python‑level membership checks and reduces overhead.

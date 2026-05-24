@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text[pos:].find` with a compiled regex pattern is flawed because `_WS_PATTERN` matches zero or more whitespace characters (`\s*`), so `match.start()` would always return 0, not the position of the first non-whitespace character. Additionally, this approach would not correctly handle the case where the remaining string is all whitespace, since `find` would return 0 even when the entire string is whitespace, and the logic to return `pos + match.start()` would incorrectly compute the new position.
+
+STEELMAN: A better approach is to use a regex that matches one or more whitespace characters (`\s+`) starting from the current position, and then calculate the new position as `pos + match.end()` to skip all matched whitespace. This avoids per-character iteration while correctly handling the edge case where the rest of the string is all whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

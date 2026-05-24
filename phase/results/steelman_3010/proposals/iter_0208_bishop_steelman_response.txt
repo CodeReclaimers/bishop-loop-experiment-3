@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual whitespace skipping with a regex substitution is flawed because it would process all whitespace in the entire string from the start position, not just the leading whitespace. This would be incorrect behavior since `_skip_ws` is meant to advance the position pointer past only the initial whitespace, not remove all future whitespace. Additionally, using `sub()` would require creating a new string, which defeats the purpose of avoiding Python-level iteration overhead for a simple position advancement.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the precompiled `_WS_PATTERN` to find the end of the whitespace sequence starting at the given position, then advance the position pointer by the match length. This preserves the core idea of leveraging compiled regex for performance while maintaining correct semantics.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use compiled regex to find end of whitespace sequence
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

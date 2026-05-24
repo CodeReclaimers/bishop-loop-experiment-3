@@ -1,0 +1,98 @@
+CRITIQUE: The suggestion fails to account for the fact that `int()` and `float()` built-ins don't accept the same input formats as the original code's manual parsing. For example, the original code handles leading zeros in integers (like "007") correctly, but `int("007")` is valid while `int("07")` would be invalid in strict JSON. Also, the original code validates that numbers follow strict JSON grammar, which `int()`/`float()` may not enforce. Additionally, the suggested approach doesn't handle the case where the number string contains invalid characters or malformed exponents, which the original code explicitly checks.
+STEELMAN: The steelman version would replace the manual digit-by-digit parsing with a single builtin conversion, but it must ensure that the slice `text[start:pos]` is validated against strict JSON number syntax before passing it to `int()` or `float()`. This includes checking for valid leading zeros (e.g., "0" is okay, "01" is not), ensuring exponent notation is properly formed, and rejecting invalid number formats that would otherwise be accepted by Python's built-ins.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    # Validate number format before conversion
+    if not _is_valid_number_format(s):
+        raise JSONParseError(f"invalid number format {s!r}")
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+
+
+def _is_valid_number_format(s: str) -> bool:
+    # Check for valid JSON number format
+    # Reject leading zeros unless it's just "0"
+    if len(s) > 1 and s[0] == '0' and s[1] not in '.eE':
+        return False
+    # Check that all characters are valid for a number
+    valid_chars = set("0123456789+-eE.")
+    if not all(c in valid_chars for c in s):
+        return False
+    # Additional checks for scientific notation
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+>>>>>>> REPLACE
+```

@@ -1,0 +1,60 @@
+CRITIQUE: The suggestion to use binary search on a pre-computed list of non-whitespace positions is flawed because it assumes the list can be efficiently built and maintained, which would require scanning the entire input anyway. Additionally, for small amounts of whitespace, the overhead of binary search and the additional data structure would likely slow down the common case. The approach also doesn't account for the fact that whitespace is often very short between tokens, making the O(k) linear scan more efficient in practice.
+
+STEELMAN: A better approach would be to precompute a "skip table" or "whitespace jump table" that stores, for each position in the input, the next non-whitespace character's index. This avoids the need for binary search and keeps the complexity O(1) per lookup while still being simple to implement and maintain. It leverages the existing `_WS_CHARS` set and avoids redundant character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+=======
+# Precompute sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precompute a skip table for whitespace skipping
+def _build_skip_table(text: str) -> list[int]:
+    n = len(text)
+    skip_table = [0] * n
+    skip_table[n - 1] = n
+    for i in range(n - 2, -1, -1):
+        if text[i] in _WS_CHARS:
+            skip_table[i] = skip_table[i + 1]
+        else:
+            skip_table[i] = i + 1
+    return skip_table
+
+
+# Use compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+_NUMBER_PATTERN = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
+>>>>>>> REPLACE
+```

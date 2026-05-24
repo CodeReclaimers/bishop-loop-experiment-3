@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion incorrectly references `text.find(r"[^ \t\n\r]*", pos)` which is not valid Python syntax — `find()` doesn't accept regex patterns, only literal strings. Additionally, the proposed approach would not correctly handle the whitespace set because `[^ \t\n\r]*` matches zero or more non-whitespace characters, not the opposite. The suggestion also fails to consider that the current implementation needs to skip *only* whitespace characters, not find the first non-whitespace character.
+
+STEELMAN: A better approach would use `re.search()` with a regex pattern that matches one or more whitespace characters starting at `pos`, then advance the position by the match length. This preserves the intent of using a fast regex-based skip while respecting the actual whitespace set and maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

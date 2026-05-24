@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to replace the while-loop with `text[pos:].lstrip(" \t\n\r")` is flawed because it doesn't correctly compute the number of whitespace characters to skip; `lstrip` removes all leading whitespace but doesn't preserve the position tracking needed for the parser. Additionally, this approach would break the parser's ability to handle malformed input correctly, since it would not raise errors for invalid characters in the whitespace section. The approach also fails to consider that `lstrip` is not necessarily faster than a tight loop for small amounts of whitespace.
+
+STEELMAN: A better approach would be to use a regex `re.match(r'\s*', text[pos:])` to find the exact number of leading whitespace characters, which is both correct and efficient. This preserves the original intent of optimizing whitespace skipping while maintaining the necessary error handling and correctness guarantees.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace
+    match = re.match(r'\s*', text[pos:])
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

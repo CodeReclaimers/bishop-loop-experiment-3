@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use `str.find` with a concatenated whitespace string would fail because it doesn't account for the fact that `str.find` returns the index of the *first* occurrence of any character in the search string, but the current `_skip_ws` function advances through *all* consecutive whitespace characters. This would cause the parser to skip over only one whitespace character instead of skipping all leading whitespace. Additionally, `str.find` would not handle the case where the input is entirely whitespace, potentially leading to incorrect index advancement or index errors.
+
+STEELMAN: The steelman version would use `str.find` to locate the first non-whitespace character, but it must ensure that all consecutive whitespace characters are skipped by looping until the first non-whitespace is found. This preserves the performance benefit of C-level string search while maintaining correctness by ensuring all leading whitespace is consumed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to locate the first non-whitespace character
+    # Loop to skip all consecutive whitespace
+    while pos < len(text):
+        next_non_ws = text.find(_WS_CHARS, pos)
+        if next_non_ws == -1:
+            # No more whitespace, return end of string
+            return len(text)
+        if next_non_ws == pos:
+            # Current character is whitespace, advance
+            pos += 1
+        else:
+            # Found a non-whitespace character at next_non_ws
+            return next_non_ws
+    return pos
+>>>>>>> REPLACE
+```

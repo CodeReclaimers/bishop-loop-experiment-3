@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to replace the manual loop with a single regex call is flawed because `re.find()` only finds the first match, not the position after whitespace, and would require additional logic to advance the position. It also doesn't leverage the regex engine's optimizations effectively since the current approach already uses O(1) character lookup, making the regex overhead likely worse than the simple loop. Furthermore, it fails to consider that the regex engine must still scan character-by-character in many cases, especially for small whitespace sequences.
+
+STEELMAN: A better approach would be to use `re.match()` or `re.search()` with the precompiled regex `_WS_RE` to skip whitespace, but only when a significant amount of whitespace is expected. This can be combined with a fallback to the fast O(1) lookup for small or no whitespace, balancing performance and simplicity.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for large whitespace segments
+    m = _WS_RE.match(text, pos)
+    if m:
+        return m.end()
+    # Fallback to manual lookup for small or no whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

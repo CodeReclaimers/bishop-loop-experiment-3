@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `text.find(''.join(' \t\n\r'), pos)` is flawed because `find()` returns the index of the *first* occurrence of any whitespace character, not the index of the *first non-whitespace character*. This would incorrectly advance the position past whitespace instead of stopping at the first non-whitespace character. Additionally, `find()` is not necessarily faster than a simple loop for small amounts of whitespace, and could be slower due to the overhead of constructing the search string.
+
+STEELMAN: A better approach is to use `re.search()` with a precompiled regex that matches one or more whitespace characters, then advance the position by the length of the match. This preserves the intent of leveraging fast built-in string operations while correctly identifying the position of the first non-whitespace character.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

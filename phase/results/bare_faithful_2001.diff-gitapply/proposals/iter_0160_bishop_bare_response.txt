@@ -1,0 +1,30 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -19,12 +19,22 @@
+ 
+ def _skip_ws(text: str, pos: int) -> int:
+     # Use a faster loop with direct indexing
+-    try:
+-        while text[pos] in _WS_CHARS:
+-            pos += 1
+-    except IndexError:
+-        pass
+-    return pos
++    # Replace per-call loop with str.find for C-level fast string searching
++    while True:
++        # Find next occurrence of any whitespace character
++        next_space = text.find(' ', pos)
++        next_tab = text.find('\t', pos)
++        next_newline = text.find('\n', pos)
++        next_cr = text.find('\r', pos)
++
++        # Find the minimum valid position
++        candidates = [x for x in [next_space, next_tab, next_newline, next_cr] if x != -1]
++        if not candidates:
++            break
++        pos = min(candidates)
++        # Skip the whitespace character and continue
++        pos += 1
++    return pos
+```

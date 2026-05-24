@@ -1,0 +1,44 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -15,12 +15,10 @@
+ 
+ def _skip_ws(text: str, pos: int) -> int:
+     # Use a faster loop with direct indexing
+-    try:
+-        while text[pos] in _WS_CHARS:
+-            pos += 1
+-    except IndexError:
+-        pass
+-    return pos
++    # Replace per-character skipping with single lstrip call
++    stripped = text[pos:].lstrip()
++    return pos + len(stripped) - len(text[pos:])
+ 
+ 
+@@ -126,13 +126,10 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     n = len(text)
+     start = pos
+-    if pos < n and text[pos] == "-":
+-        pos += 1
+-    if pos >= n:
+-        raise JSONParseError(f"bad number at {pos}")
+-    if text[pos] == "0":
+-        pos += 1
+-    elif text[pos] in _DIGIT_CHARS:
+-        while pos < n and text[pos] in _DIGIT_CHARS:
+-            pos += 1
++    # Replace manual digit-by-digit parsing with built-in conversion
++    while pos < n and text[pos] in _DIGIT_CHARS | {"-", ".", "e", "E"}:
++        pos += 1
++    s = text[start:pos]
++    if not s:
++        raise JSONParseError(f"bad number at {start}")
++    try:
++        if "." in s or "e" in s.lower():
++            return float(s), pos
++        return int(s), pos
++    except ValueError:
++        raise JSONParseError(f"bad number at {start}")
+```

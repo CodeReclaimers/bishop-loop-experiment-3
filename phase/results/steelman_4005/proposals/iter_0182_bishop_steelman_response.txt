@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use a different regex pattern for skipping whitespace is unworkable because the current implementation already uses a compiled regex `_WS_PATTERN = re.compile(r'[ \t\n\r]*')` for whitespace skipping, and replacing it with another regex would not meaningfully improve performance or reduce memory usage. Additionally, regex-based whitespace skipping can be slower than direct character checks in tight loops, especially when the regex engine has to backtrack or handle complex patterns.
+
+STEELMAN: The steelman version of the suggestion is to replace the regex-based whitespace skipping with a more efficient loop that leverages the precomputed `_WS_CHARS` frozenset and avoids regex overhead entirely, while still maintaining the performance characteristics of the existing implementation.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

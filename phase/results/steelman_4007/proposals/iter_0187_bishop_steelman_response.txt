@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to replace regex with a simple loop for whitespace skipping is naive because it misses the actual performance bottleneck: the current `_skip_ws` function already uses an optimized inline loop with set membership checks. The proposed change would not improve performance and could introduce unnecessary complexity. Additionally, the suggestion doesn't address the real issue that the current implementation already uses efficient O(1) set lookups for whitespace characters.
+STEELMAN: The steelman version would recognize that while the current `_skip_ws` is already efficient, we can further optimize by using a more targeted approach for small inputs—specifically, unrolling the loop for the first few characters to avoid repeated set membership checks when whitespace is minimal, while maintaining the existing robustness for longer whitespace sequences.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline whitespace skipping with small-input unrolling
+    try:
+        # Unroll for small whitespace sequences (common case)
+        if pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+            if pos < len(text) and text[pos] in _WS_CHARS:
+                pos += 1
+                if pos < len(text) and text[pos] in _WS_CHARS:
+                    pos += 1
+                    # Continue with loop for longer sequences
+                    while pos < len(text) and text[pos] in _WS_CHARS:
+                        pos += 1
+                else:
+                    # Continue with loop for longer sequences
+                    while pos < len(text) and text[pos] in _WS_CHARS:
+                        pos += 1
+            else:
+                # Continue with loop for longer sequences
+                while pos < len(text) and text[pos] in _WS_CHARS:
+                    pos += 1
+    except IndexError:
+        pass
+    return pos
+>>>>>>> REPLACE
+```

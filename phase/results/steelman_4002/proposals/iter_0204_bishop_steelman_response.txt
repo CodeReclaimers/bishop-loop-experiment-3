@@ -1,0 +1,58 @@
+CRITIQUE: The suggestion to use `int(s, 16)` for hexadecimal parsing is problematic because it doesn't apply to the right part of the code — the `_parse_number` function doesn't parse hex digits directly, it parses decimal numbers. The hex parsing happens only in the Unicode escape sequence handling within `_parse_string`, not in `_parse_number`. Additionally, using `int()` on a hex string would be incorrect since it's meant for decimal conversion, not for validating hex digit sequences.
+STEELMAN: The steelman version would focus on optimizing the hex digit validation in `_parse_string` during Unicode escape processing, where actual hex parsing occurs. Instead of checking each character individually against `_HEX_CHARS`, we can use `int(hex4, 16)` to validate and convert the hex string, which is both more efficient and less error-prone than manual character-by-character checks.
+
+```python
+<<<<<<< SEARCH
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+=======
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                try:
+                    cp = int(hex4, 16)
+                except ValueError:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    try:
+                        cp2 = int(hex4b, 16)
+                    except ValueError:
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+>>>>>>> REPLACE
+```

@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use regex for whitespace skipping is problematic because it would require the regex engine to repeatedly search from the current position, which is inefficient compared to the current direct character-by-character iteration. The regex approach would also break the existing error handling flow, since regex matching doesn't provide the same fine-grained position tracking needed for detailed error messages. Additionally, the overhead of regex compilation and matching would likely slow down simple cases where whitespace is minimal.
+
+STEELMAN: A better approach would be to modify `_skip_ws` to use the pre-existing compiled regex `_WS_PATTERN` for skipping whitespace, but still maintain the current control flow and error handling. This means using `re.match` or `re.search` to find the next non-whitespace character, and then advancing the position by the matched length, which preserves performance gains while keeping error reporting intact.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to efficiently skip whitespace
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

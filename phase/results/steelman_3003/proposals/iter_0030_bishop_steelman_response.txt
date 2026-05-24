@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the loop-based `_skip_ws` with a single regex search has a critical flaw: it doesn't account for the fact that `_skip_ws` is called in multiple contexts where the current position might already be at a non-whitespace character, and the regex approach would still need to advance past any leading whitespace. Additionally, the regex engine's performance benefits are not guaranteed in this use case due to the overhead of regex compilation and matching, especially for short whitespace runs. It also fails to consider that the regex approach could be less efficient for small inputs or when whitespace is rare.
+
+STEELMAN: A better approach would be to use a regex to skip a contiguous sequence of whitespace characters, but only when there is actual whitespace at the current position, and to avoid repeated regex calls by using a more targeted strategy—perhaps using `re.match` or `re.search` to find the first non-whitespace character, then advancing the position by the match length. This preserves the intent of leveraging regex for bulk skipping while being more precise and avoiding unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

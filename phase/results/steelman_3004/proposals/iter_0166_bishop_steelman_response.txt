@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use a precomputed `skip_table` with direct lookups is flawed because it would require building a table of size O(n) for every input string, leading to O(n²) space and time complexity in the worst case. It doesn't account for the fact that whitespace skipping is typically a small fraction of the total parsing work, and the overhead of table construction would likely outweigh any gains. Additionally, it breaks the streaming nature of the parser and would require significant refactoring of the core parsing logic.
+
+STEELMAN: A better approach would be to precompute a skip table only once per input string, using a more efficient algorithm that builds the table in O(n) time and space, and then uses it to skip whitespace in O(1) time for each lookup. The table should be built once at the start of parsing and reused, maintaining the existing parsing flow while avoiding the character-by-character iteration in `_skip_ws`.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Precompute skip table for this string once
+    if not hasattr(_skip_ws, 'skip_table'):
+        _skip_ws.skip_table = [0] * len(text)
+        i = len(text) - 1
+        while i >= 0:
+            if text[i] in _WS_CHARS:
+                _skip_ws.skip_table[i] = _skip_ws.skip_table[i + 1] if i + 1 < len(text) else i + 1
+            else:
+                _skip_ws.skip_table[i] = i + 1
+            i -= 1
+    return _skip_ws.skip_table[pos]
+>>>>>>> REPLACE
+```

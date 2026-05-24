@@ -1,0 +1,45 @@
+CRITIQUE: The suggestion to use `str.translate` is unworkable because it would skip all whitespace characters in one go, but the parser needs to advance the position pointer to the first non-whitespace character, not just skip over all of it. Additionally, `str.translate` is not suitable for this use case since it's designed for character-to-character substitution, not position-based skipping.
+STEELMAN: The steelman is to precompute a translation table that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.translate` to replace all whitespace with that sentinel, followed by a `str.find` or `str.index` call to locate the first non-sentinel character. This approach leverages C-level string operations while preserving the correct position tracking behavior.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+# Translation table to replace whitespace with null character for fast skipping
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\0\0\0\0")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to quickly skip all whitespace in C code
+    if pos >= len(text):
+        return pos
+    # Replace all whitespace with null character
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    # Find first non-null character
+    first_non_ws = translated.find('\0')
+    if first_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    # Return original position plus the offset
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

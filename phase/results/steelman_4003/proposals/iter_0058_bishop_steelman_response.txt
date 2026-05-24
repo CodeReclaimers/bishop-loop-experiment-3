@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to use `int()` and `float()` directly is problematic because it ignores the fact that the current implementation already uses regex matching to extract the full number string, then passes that to the built-in converters. The suggestion doesn't address the real performance bottleneck, which is the regex matching itself or inefficient parsing logic. Additionally, it fails to consider that the current approach already avoids string concatenation and uses direct conversion, so the suggested change would be redundant or even slightly less efficient due to regex overhead.
+
+STEELMAN: The steelman version of this suggestion focuses on optimizing the number parsing by leveraging the already matched regex group directly, ensuring that we avoid redundant parsing or string manipulation. It preserves the existing regex-based approach for validation and extraction but streamlines the conversion step by using the matched substring directly with `int()` or `float()` to achieve better performance without compromising correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to match the number
+    match = _NUMBER_PATTERN.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    s = match.group(0)
+    pos = match.end()
+    # Direct conversion with explicit handling to avoid float/int overhead
+    if "." in s or "e" in s.lower():
+        # Use float() directly since we already validated the pattern
+        return float(s), pos
+    # For integers, use int() directly but ensure no unnecessary parsing
+    return int(s), pos
+>>>>>>> REPLACE
+```

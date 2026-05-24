@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because `find()` only returns the index of the *first* occurrence of any whitespace character, not the index after *all* consecutive whitespace. This would leave trailing whitespace unskipped and break parsing. Additionally, `find()` is not necessarily faster than a tight loop for small amounts of whitespace, and the approach doesn't handle the case where no whitespace is found (i.e., when `find()` returns -1).
+
+STEELMAN: A better approach would be to use `re.search` with a compiled regex that matches one or more whitespace characters starting from `pos`, and then advance the position by the length of the match. This leverages the optimized regex engine, avoids per-character Python loops, and correctly handles skipping all consecutive whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip all consecutive whitespace using regex for efficiency
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

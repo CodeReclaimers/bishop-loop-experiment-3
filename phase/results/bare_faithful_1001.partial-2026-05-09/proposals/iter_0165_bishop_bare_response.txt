@@ -1,0 +1,300 @@
+```python
+"""Optimized JSON parser. Editable surface.
+
+This is an optimized version of the deliberately slow parser. The optimizations
+include:
+- Using regex for whitespace skipping
+- Using built-in int/float conversion
+- Avoiding repeated dict/list construction
+- Using efficient string building
+- Optimizing number parsing
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Precompiled regex for whitespace
+_WS_RE = re.compile(r'\s*')
+# Precomputed digit characters for fast lookup
+_DIGIT_CHARS = frozenset("0123456789")
+# Precomputed escape sequences
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precomputed bool and null values
+_TRUE = "true"
+_FALSE = "false"
+_NULL = "null"
+# Precompiled regex for number parsing
+_NUMBER_RE = re.compile(r'(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    
+    # Stack-based parsing
+    stack = []
+    current = None
+    key = None
+    expecting_value = False
+    
+    while pos < len(text):
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            break
+            
+        c = text[pos]
+        
+        if c == '{':
+            if current is not None:
+                stack.append(current)
+            current = {}
+            pos += 1
+            expecting_value = False
+            continue
+            
+        elif c == '}':
+            if not isinstance(current, dict):
+                raise JSONParseError(f"unexpected '}}' at {pos}")
+            if stack:
+                parent = stack.pop()
+                if isinstance(parent, dict):
+                    parent[key] = current
+                    current = parent
+                elif isinstance(parent, list):
+                    parent.append(current)
+                    current = parent
+            else:
+                # Root object
+                pass
+            pos += 1
+            expecting_value = False
+            continue
+            
+        elif c == '[':
+            if current is not None:
+                stack.append(current)
+            current = []
+            pos += 1
+            expecting_value = False
+            continue
+            
+        elif c == ']':
+            if not isinstance(current, list):
+                raise JSONParseError(f"unexpected ']' at {pos}")
+            if stack:
+                parent = stack.pop()
+                if isinstance(parent, dict):
+                    parent[key] = current
+                    current = parent
+                elif isinstance(parent, list):
+                    parent.append(current)
+                    current = parent
+            else:
+                # Root array
+                pass
+            pos += 1
+            expecting_value = False
+            continue
+            
+        elif c == '"':
+            string_value, pos = _parse_string(text, pos)
+            if expecting_value:
+                if isinstance(current, dict):
+                    current[key] = string_value
+                    expecting_value = False
+                elif isinstance(current, list):
+                    current.append(string_value)
+            else:
+                if current is None:
+                    current = string_value
+                elif isinstance(current, dict):
+                    key = string_value
+                    expecting_value = True
+                elif isinstance(current, list):
+                    current.append(string_value)
+            continue
+            
+        elif c == 't':
+            if text[pos:pos+4] == _TRUE:
+                if expecting_value:
+                    if isinstance(current, dict):
+                        current[key] = True
+                        expecting_value = False
+                    elif isinstance(current, list):
+                        current.append(True)
+                else:
+                    if current is None:
+                        current = True
+                pos += 4
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            continue
+            
+        elif c == 'f':
+            if text[pos:pos+5] == _FALSE:
+                if expecting_value:
+                    if isinstance(current, dict):
+                        current[key] = False
+                        expecting_value = False
+                    elif isinstance(current, list):
+                        current.append(False)
+                else:
+                    if current is None:
+                        current = False
+                pos += 5
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            continue
+            
+        elif c == 'n':
+            if text[pos:pos+4] == _NULL:
+                if expecting_value:
+                    if isinstance(current, dict):
+                        current[key] = None
+                        expecting_value = False
+                    elif isinstance(current, list):
+                        current.append(None)
+                else:
+                    if current is None:
+                        current = None
+                pos += 4
+            else:
+                raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+            continue
+            
+        elif c == '-' or c in _DIGIT_CHARS:
+            number_value, pos = _parse_number(text, pos)
+            if expecting_value:
+                if isinstance(current, dict):
+                    current[key] = number_value
+                    expecting_value = False
+                elif isinstance(current, list):
+                    current.append(number_value)
+            else:
+                if current is None:
+                    current = number_value
+            continue
+            
+        elif c == ':':
+            pos += 1
+            expecting_value = True
+            continue
+            
+        elif c == ',':
+            pos += 1
+            continue
+            
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return current
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() with a character list for whitespace skipping
+    whitespace_chars = ' \t\n\r'
+    while pos < len(text):
+        if text[pos] not in whitespace_chars:
+            break
+        pos += 1
+    return pos
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc in _ESCAPE_MAP:
+                out.append(_ESCAPE_MAP[esc])
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if ch not in _DIGIT_CHARS and not ("a" <= ch <= "f") and not ("A" <= ch <= "F"):
+            return False
+    return True
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use regex to find the complete number
+    m = _NUMBER_RE.match(text, pos)
+    if not m:
+        raise JSONParseError(f"bad number at {pos}")
+    s = m.group(1)
+    pos = m.end()
+    # Use built-in conversion to avoid string construction overhead
+    try:
+        if '.' in s or 'e' in s.lower():
+            return float(s), pos
+        else:
+            return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {pos}")
+```

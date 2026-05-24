@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to precompute a list of characters like "t", "f", "n" for faster lookup is unworkable because it doesn't address the actual bottleneck in parsing — the character-by-character scanning and state transitions. It would add complexity without performance gain, and the lookup overhead would likely exceed any benefit from avoiding repeated string comparisons in `_parse_value`. Additionally, it fails to consider that these characters are only checked once per value, so the optimization is not meaningful in the context of the existing efficient character set lookups.
+
+STEELMAN: A better approach would be to precompute a set of characters that can start a JSON value (like "{", "[", "\"", "t", "f", "n", "-", and digits), and use this to quickly determine which parsing function to call without resorting to repeated substring comparisons or inefficient branching logic in `_parse_value`. This preserves the intent of optimizing lookup while being more aligned with the existing performance strategy.
+
+```python
+<<<<<<< SEARCH
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+=======
+# Precompute character sets for O(1) lookup
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_VALUE_START_CHARS = frozenset("{[\"tnf0123456789-")
+
+
+# Use regex for whitespace skipping
+_WS_PATTERN = re.compile(r"[ \t\n\r]*")
+_NUMBER_PATTERN = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+>>>>>>> REPLACE
+```

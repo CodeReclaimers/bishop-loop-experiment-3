@@ -1,0 +1,38 @@
+CRITIQUE: The suggested implementation is fundamentally flawed because `next(c for c in text[pos:] if c not in ' \t\n\r')` will raise a `StopIteration` exception when the entire remaining string consists of whitespace, since `next()` without a default will not handle empty generators. Additionally, the approach is inefficient as it still scans all characters in the remaining string and doesn't leverage optimized string operations like `str.find()` directly. The logic of finding the first non-whitespace character and then using `index()` on the sliced string is unnecessarily complex.
+
+STEELMAN: A better approach would use `str.find()` with a set of whitespace characters to efficiently locate the first non-whitespace character, avoiding repeated character-by-character checks. The implementation should use a direct lookup of the first non-whitespace character in the remaining string using `str.find()` and handle the edge case where the entire string is whitespace by returning the length of the string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find() to efficiently skip whitespace
+    if pos >= len(text):
+        return pos
+    # Find the first non-whitespace character
+    non_ws_pos = text.find(' ', pos)
+    if non_ws_pos == -1:
+        non_ws_pos = text.find('\t', pos)
+        if non_ws_pos == -1:
+            non_ws_pos = text.find('\n', pos)
+            if non_ws_pos == -1:
+                non_ws_pos = text.find('\r', pos)
+                if non_ws_pos == -1:
+                    return len(text)
+    # If we found a whitespace character, check if it's the first one
+    if non_ws_pos == pos:
+        # Skip all consecutive whitespace
+        while pos < len(text) and text[pos] in ' \t\n\r':
+            pos += 1
+        return pos
+    # If we found a non-whitespace character, return its position
+    return non_ws_pos
+>>>>>>> REPLACE
+```

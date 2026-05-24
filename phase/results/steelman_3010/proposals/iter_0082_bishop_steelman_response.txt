@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual `_skip_ws` loop with a regex `sub` call would not work because `re.sub` is designed for replacement, not for advancing a position pointer through input. Using `sub` would either require an inefficient approach like counting matches or would fundamentally break the parser's ability to track position correctly. Additionally, the regex approach would not be faster than the current O(1) membership checks for whitespace, and could actually be slower due to regex overhead.
+
+STEELMAN: A better approach would be to use the precompiled `_WS_PATTERN` with `match()` or `search()` to skip whitespace in one go, advancing the position pointer by the matched whitespace length. This preserves the performance benefits of avoiding repeated character-by-character checks while maintaining correct position tracking.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using precompiled regex for efficiency
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

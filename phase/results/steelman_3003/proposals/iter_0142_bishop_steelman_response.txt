@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_RE.search` would be problematic because regex matching is generally slower than simple frozenset lookups for short sequences of whitespace, and the regex engine's overhead would likely negate any benefits. Additionally, it would complicate the logic flow by introducing a separate search step, potentially breaking the clean state management of the parser's position tracking.
+
+STEELMAN: A better approach would be to use the compiled regex `_WS_RE` to skip leading whitespace at the start of `parse`, but only after ensuring that we don't prematurely advance past the end of input or introduce unnecessary complexity. This preserves the performance benefit of regex while maintaining correctness and avoiding redundant checks.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _WS_RE.match(text, 0).end()
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

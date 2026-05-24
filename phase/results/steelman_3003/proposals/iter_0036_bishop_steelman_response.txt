@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with regex matching would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same error reporting capabilities as step-by-step character checking. It also fails to account for the fact that `_skip_ws` is used in contexts where partial whitespace consumption is expected, and regex matching would consume all consecutive whitespace, potentially skipping past important delimiters. Additionally, the performance benefit is not guaranteed, as regex engines still need to process the string and may not be faster than the optimized frozenset lookups in practice.
+
+STEELMAN: A better approach would be to use a hybrid method where we use the regex to skip large blocks of whitespace efficiently, but still perform precise checks for delimiters and structural elements. We can precompute the regex match and use it to advance the position, while maintaining the ability to fall back to character-by-character validation when needed for error reporting and structural parsing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

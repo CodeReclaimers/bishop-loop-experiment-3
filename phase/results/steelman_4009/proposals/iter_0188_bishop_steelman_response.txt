@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to use `str.isspace()` instead of the optimized loop is problematic because `isspace()` is not a drop-in replacement for the custom whitespace handling logic. It would incorrectly classify non-JSON whitespace characters (like form feed `\f` or vertical tab `\v`) as non-whitespace, breaking the parser's correctness. Additionally, `isspace()` is slower than the optimized set membership check for the specific JSON whitespace characters.
+
+STEELMAN: The core idea of optimizing whitespace skipping can be preserved by replacing the inline loop with a more efficient approach that still maintains correctness for JSON-specific whitespace. We can use a regex to skip whitespace, which will be both faster and more readable than the current loop while preserving the correct behavior for JSON whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+import re
+
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_WS_PATTERN = re.compile(r'^[ \t\n\r]*')
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace efficiently
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

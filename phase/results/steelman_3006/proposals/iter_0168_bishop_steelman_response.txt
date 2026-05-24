@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` fails because it doesn't handle the case where whitespace characters are not contiguous in the string, and it would incorrectly skip over non-whitespace characters that happen to appear in the whitespace set. Additionally, it assumes that all whitespace characters are single-byte, which is true in ASCII but not necessarily for all encodings.
+STEELMAN: A better approach would be to iterate through the string using `text.find()` to locate the first non-whitespace character, but ensure that the search properly accounts for the fact that we're looking for any character NOT in the whitespace set, not any character IN the whitespace set. This can be done by using a loop that keeps calling `find()` with increasing start positions until a non-whitespace character is found.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to locate the first non-whitespace character
+    while pos < len(text):
+        # Find the first character that is NOT a whitespace
+        next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+        if next_non_ws == -1:
+            # No more non-whitespace characters, return end of string
+            return len(text)
+        # If the character at next_non_ws is not whitespace, return its position
+        if text[next_non_ws] not in _WS_CHARS:
+            return next_non_ws
+        pos = next_non_ws + 1
+    return pos
+>>>>>>> REPLACE
+```

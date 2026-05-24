@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to replace the while-loop in `_skip_ws` with a single `text.find` call is flawed because `text.find` only returns the index of the first occurrence of a character, not the first non-matching character. This would not correctly skip over whitespace sequences, and would likely skip past the end of the input or fail to skip all whitespace. Additionally, it doesn't consider that whitespace characters are a set, and `find` would need to be called repeatedly or with a complex search string, negating the performance benefit.
+STEELMAN: A better approach is to use `str.find` to locate the first non-whitespace character starting from the current position, but we must handle the case where all remaining characters are whitespace by checking if `find` returns `len(text)`. This preserves the performance benefit of avoiding Python-level loops for long whitespace runs, while correctly handling all edge cases.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to jump over large runs of whitespace
+    next_non_ws = text.find(next(iter(_WS_CHARS)), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # If no whitespace at pos, return pos
+    if next_non_ws > pos:
+        # There's whitespace between pos and next_non_ws, so skip it
+        # We need to find the first non-whitespace character after pos
+        # But since find returns first occurrence of ANY whitespace char,
+        # we need to walk forward until we find a non-whitespace
+        # Actually, we can do better: check if pos is already non-whitespace
+        if text[pos] not in _WS_CHARS:
+            return pos
+        # Find first non-whitespace character
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        return pos
+    # next_non_ws == pos, so we're at a whitespace char
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

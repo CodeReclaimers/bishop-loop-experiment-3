@@ -1,0 +1,27 @@
+CRITIQUE: The suggested approach using `str.find` with a generator expression is flawed because `str.find` expects a single character, not a set of characters, and the proposed `next((c for c in text[pos:] if c not in _WS_CHARS), None)` will not work as intended. The `str.find` method would need to be used differently to achieve the desired behavior, and the generator expression would not efficiently identify the first non-whitespace character in a single pass.
+STEELMAN: A better approach would be to use `str.translate` and `str.maketrans` to efficiently skip whitespace by translating all whitespace characters to a unique sentinel, then using `str.find` to locate the first non-sentinel character, which is a more efficient single-pass C-level operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate and str.find for efficient whitespace skipping
+    if pos >= len(text):
+        return pos
+    # Create translation table to replace whitespace with a sentinel
+    trans_table = str.maketrans({c: '\x00' for c in _WS_CHARS})
+    # Translate the string from pos onwards
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-sentinel character
+    first_non_ws = translated.find('\x00')
+    if first_non_ws == -1:
+        # All remaining characters are whitespace
+        return len(text)
+    return pos + first_non_ws
+>>>>>>> REPLACE
+```

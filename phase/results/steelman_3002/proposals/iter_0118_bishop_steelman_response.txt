@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the manual loop with a single regex call is problematic because `_WS_RE.search(text, pos).end()` would only find the first sequence of whitespace characters, not necessarily the next non-whitespace character. Additionally, the regex would need to be recompiled or reset for each call, negating performance gains and potentially causing incorrect behavior when whitespace spans across multiple calls.
+
+STEELMAN: A better approach is to use a precompiled regex with `re.match()` or `re.search()` that matches zero or more whitespace characters starting from `pos`, and then advance the position to the end of that match. This avoids the loop overhead while maintaining correctness by using the regex engine to skip all whitespace in one go.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

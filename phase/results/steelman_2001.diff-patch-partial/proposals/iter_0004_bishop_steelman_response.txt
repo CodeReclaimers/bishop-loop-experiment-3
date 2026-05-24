@@ -1,0 +1,72 @@
+CRITIQUE: The suggestion to replace regex with a while-loop is sound in theory but fails to account for the fact that `str.isspace()` may not handle all JSON whitespace characters correctly, especially Unicode whitespace, and the manual string building in `_parse_number` is more complex than necessary. Additionally, the suggestion omits the fact that Python's built-in `int`/`float` conversion is already highly optimized and likely faster than manual digit accumulation in most cases.
+
+STEELMAN: Replace `_skip_ws` with a simple while-loop using `text[pos].isspace()` for performance, and refactor `_parse_number` to extract the numeric substring directly and delegate to `int`/`float` for conversion, which leverages Python's fast, optimized built-in parsers while maintaining correctness and readability.
+
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -14,10 +14,11 @@
+ 
+ # Pre-compiled regex for whitespace skipping
+ _WS_RE = re.compile(r'\s*')
+-_DIGIT_CHARS = frozenset("0123456789")
++_DIGIT_CHARS = frozenset("0123456789")
++_WS_CHARS = frozenset(" \t\n\r")
+ 
+ 
+ def parse(text: str) -> Any:
+@@ -30,10 +31,10 @@
+ def _skip_ws(text: str, pos: int) -> int:
+-    m = _WS_RE.match(text, pos)
+-    return m.end() if m else pos
++    while pos < len(text) and text[pos] in _WS_CHARS:
++        pos += 1
++    return pos
+ 
+ 
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+@@ -92,13 +95,14 @@
+ def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+     start = pos
+     if text[pos] == "-":
+-        pos = pos + 1
++        pos += 1
+     if pos >= len(text):
+         raise JSONParseError(f"bad number at {pos}")
+     if text[pos] == "0":
+-        pos = pos + 1
++        pos += 1
+     elif text[pos] in _DIGIT_CHARS:
+         while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++            pos += 1
+     else:
+         raise JSONParseError(f"bad number at {pos}")
+     is_float = False
+@@ -107,12 +111,12 @@
+     if pos < len(text) and text[pos] == ".":
+         is_float = True
+-        pos = pos + 1
++        pos += 1
+         if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+             raise JSONParseError(f"bad number fractional at {pos}")
+         while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++            pos += 1
+     if pos < len(text) and text[pos] in ("e", "E"):
+         is_float = True
+-        pos = pos + 1
++        pos += 1
+         if pos < len(text) and text[pos] in ("+", "-"):
+-            pos = pos + 1
++            pos += 1
+         if pos >= len(text) or text[pos] not in _DIGIT_CHARS:
+             raise JSONParseError(f"bad number exponent at {pos}")
+         while pos < len(text) and text[pos] in _DIGIT_CHARS:
+-            pos = pos + 1
++            pos += 1
+     s = text[start:pos]
+     if is_float:
+         return float(s), pos
+     return int(s), pos
+```

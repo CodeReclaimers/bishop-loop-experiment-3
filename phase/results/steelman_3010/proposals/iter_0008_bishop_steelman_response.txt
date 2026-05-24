@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to replace frozenset membership checks with a boolean lookup table would fail because ASCII characters beyond the 128-range (like extended ASCII or Unicode) would cause index out of bounds errors. Additionally, the lookup table approach doesn't account for the fact that many character checks are done on a per-character basis, which may not yield performance gains over frozensets due to memory overhead and cache locality issues.
+
+STEELMAN: The steelman version would use a precomputed boolean array for ASCII characters (0-127) to replace frozenset membership checks, ensuring bounds safety and maintaining the performance benefits of direct indexing while still allowing for proper handling of extended ASCII and Unicode characters by falling back to the frozenset for out-of-bounds indices.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+# Precomputed lookup tables for ASCII characters (0-127)
+_is_ws = [False] * 128
+for c in _WS_CHARS:
+    _is_ws[ord(c)] = True
+
+_is_digit = [False] * 128
+for c in _DIGIT_CHARS:
+    _is_digit[ord(c)] = True
+
+_is_hex = [False] * 128
+for c in _HEX_CHARS:
+    _is_hex[ord(c)] = True
+
+_is_control = [False] * 128
+for c in _CONTROL_CHARS:
+    _is_control[ord(c)] = True
+>>>>>>> REPLACE
+```

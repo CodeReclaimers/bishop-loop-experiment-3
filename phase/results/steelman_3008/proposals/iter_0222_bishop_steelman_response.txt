@@ -1,0 +1,122 @@
+CRITIQUE: The suggestion fails to account for the fact that Python's built-in `int()` and `float()` constructors don't handle JSON's specific number format correctly, particularly with respect to leading zeros (e.g., "0123" is invalid in JSON but valid in Python), exponent notation, and the precise handling of numeric types. Additionally, it doesn't consider that the current implementation already performs validation and error handling during parsing that would be lost by simply delegating to `int`/`float`.
+STEELMAN: The steelman version would use `int()` or `float()` conversion on the extracted substring, but only after ensuring the substring conforms to JSON's strict numeric format — for example, by validating that there are no leading zeros (except for "0"), that exponents are properly formatted, and that the number is valid before conversion. This preserves performance gains while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    # Validate numeric format before converting to avoid Python's lenient parsing
+    if is_float:
+        # Check for valid float format manually to ensure JSON compliance
+        if not _is_valid_float(s):
+            raise JSONParseError(f"bad number at {start}")
+        return float(s), pos
+    else:
+        # Check for valid integer format manually to ensure JSON compliance
+        if not _is_valid_int(s):
+            raise JSONParseError(f"bad number at {start}")
+        return int(s), pos
+
+
+def _is_valid_int(s: str) -> bool:
+    # Check for valid integer format (no leading zeros unless it's just "0")
+    if s == "0":
+        return True
+    if s.startswith("0"):
+        return False
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def _is_valid_float(s: str) -> bool:
+    # Check for valid float format
+    try:
+        float(s)
+        # Ensure no invalid leading zeros in the integer part
+        if "e" in s.lower():
+            parts = s.lower().split("e")
+            if not _is_valid_int(parts[0]) or not _is_valid_int(parts[1]):
+                return False
+        else:
+            if "." in s:
+                int_part, frac_part = s.split(".")
+                if int_part == "" or int_part == "-":
+                    return True
+                if int_part.startswith("0") and len(int_part) > 1:
+                    return False
+                if frac_part.startswith("0") and len(frac_part) > 1:
+                    return False
+        return True
+    except ValueError:
+        return False
+>>>>>>> REPLACE
+```

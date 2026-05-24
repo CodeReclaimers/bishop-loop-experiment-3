@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use a precompiled regex for skipping whitespace is problematic because it would require the regex to match "any character other than whitespace", which would be inefficient and potentially slower than the current direct character scanning approach. Additionally, using regex for such a simple operation introduces overhead from regex engine setup and state management that outweighs any gains. The suggestion also fails to account for the fact that whitespace skipping is a very frequent operation in parsing, and regex matching may not be faster than optimized Python loops.
+
+STEELMAN: A better approach is to use a precompiled regex that matches one or more consecutive whitespace characters, and then advance the position by the length of the match. This avoids the overhead of repeatedly calling `_skip_ws` and reduces the number of individual character checks, while still being efficient and correct.
+
+```python
+<<<<<<< SEARCH
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+=======
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]+')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one go
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

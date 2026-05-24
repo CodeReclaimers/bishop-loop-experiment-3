@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `text.find` with a generator checking `_WS_CHARS` is fundamentally flawed because `text.find` searches for a literal substring, not individual characters, and there's no straightforward way to make it work with a set of characters. Additionally, `text.find` will return the index of the first occurrence of any whitespace character, but the current loop-based approach correctly handles the case where the next non-whitespace character is not immediately adjacent. The proposed approach would also fail to properly handle edge cases like empty strings or strings with no whitespace.
+STEELMAN: A better approach is to use `text.find` with a set of whitespace characters by precomputing a string of all whitespace characters and using `str.find` to locate the first non-whitespace character, which will be much faster than the Python loop while still maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to locate the next non-whitespace character
+    # This leverages C-level string search for performance
+    if pos >= len(text):
+        return pos
+    # Create a string of all whitespace characters for use with find
+    ws_str = ''.join(_WS_CHARS)
+    # Find the first character that is NOT a whitespace
+    non_ws_pos = text.find(ws_str, pos)
+    if non_ws_pos == -1:
+        # No non-whitespace character found, return end of string
+        return len(text)
+    # If we found a non-whitespace character, return its position
+    return non_ws_pos
+>>>>>>> REPLACE
+```

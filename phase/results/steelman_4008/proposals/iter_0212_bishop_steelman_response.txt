@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `re.search(r'[^ \t\n\r]+', text)` is fundamentally flawed because it would require scanning the entire remaining text from the current position to find the first non-whitespace character, which defeats the purpose of efficient whitespace skipping. This approach would be slower than the current implementation for typical JSON inputs where whitespace is usually just a few characters. Additionally, the regex approach doesn't properly integrate with the existing parser's position tracking, which relies on incrementing a position counter.
+
+STEELMAN: The core idea of optimizing whitespace skipping can be preserved by replacing the character-by-character loop in `_skip_ws` with a more efficient approach that uses regex to find the next non-whitespace character, but this should be done carefully to maintain the existing position tracking semantics and avoid scanning the entire remaining string.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to find next non-whitespace character for better performance
+    match = re.search(r'[^ \t\n\r]*', text, pos)
+    if match:
+        return match.end()
+    return len(text)
+>>>>>>> REPLACE
+```

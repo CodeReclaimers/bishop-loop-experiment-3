@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the while loop in `_skip_ws` with `text.find` is flawed because `text.find` would need to search through all characters until a non-whitespace is found, which doesn't improve performance over the current approach and could be slower for small amounts of whitespace. Additionally, using `text.find` in `_parse_object` to locate braces or commas assumes that the text is valid JSON, but this approach would not handle escaped quotes or nested structures correctly without additional complexity.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using `str.lstrip` or `str.find` with a precomputed set of non-whitespace characters, but only when the whitespace is large or when performance is critical. For `_parse_object`, we can still use `text.find` to locate the next `}` or `,` but must ensure that we properly skip over quoted strings and escaped characters to avoid false matches.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find for performance when skipping large amounts of whitespace
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    return next_non_ws if next_non_ws != -1 else len(text)
+>>>>>>> REPLACE
+```

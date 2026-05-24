@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace the character-by-character loop in `_skip_ws` with a single `text.find` call is problematic because `text.find` scans linearly through the string and doesn't benefit from early termination when whitespace is encountered, making it slower than the current O(1) set-based lookup per character. Additionally, the proposal to collect key-value pairs in a list and build the dict at the end in `_parse_object` is flawed because it requires storing all key-value pairs in memory and doesn't handle duplicate keys properly — the original approach correctly raises an error for duplicate keys, while the proposed approach would silently overwrite them.
+STEELMAN: A better approach would be to optimize `_skip_ws` by using `str.lstrip` or a regex-based skip that efficiently finds the next non-whitespace character without looping character-by-character, while preserving the original logic for handling duplicates in object parsing. The dictionary construction should still be done incrementally to maintain correct error handling and avoid unnecessary memory overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.find to skip whitespace efficiently
+    next_non_ws = text.find(next((c for c in text[pos:] if c not in _WS_CHARS), None), pos)
+    return next_non_ws if next_non_ws != -1 else len(text)
+>>>>>>> REPLACE
+```

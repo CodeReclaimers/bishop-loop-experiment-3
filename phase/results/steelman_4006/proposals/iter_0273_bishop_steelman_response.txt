@@ -1,0 +1,58 @@
+CRITIQUE: The suggestion is flawed because it misstates the complexity analysis — membership testing in a frozenset is O(1) but the current implementation already uses direct character checks (`c in ' \t\n\r\f'`) which are also O(1). The suggestion doesn't address the actual performance bottleneck, which is the repeated string slicing and character-by-character parsing in `_skip_ws`. Additionally, it implies that the existing `_skip_ws` function is inefficient, but it's already optimized for the specific case of whitespace skipping.
+STEELMAN: The steelman recognizes that while the current `_skip_ws` function is already optimized with direct character checks, we can further improve performance by precomputing a frozenset of whitespace characters and using it in a tight loop to avoid repeated string operations. This approach maintains correctness while providing a more robust and potentially faster lookup mechanism.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using frozenset lookup
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

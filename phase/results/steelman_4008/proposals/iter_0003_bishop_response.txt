@@ -1,0 +1,34 @@
+To improve performance, one possible optimization is to use a more efficient way to scan for digit characters in the JSON parser. Currently, the function `_parse_number` checks each character individually using `ord(c) < 0x20`. This approach has a time complexity of O(n), where n is the length of the string being parsed.
+
+One potential improvement is to use a set or dictionary that contains all the digits from '0' to '9'. This would allow us to quickly check if a character is a digit by looking it up in the dictionary. This approach has a time complexity of O(1), making it much faster for scanning numbers.
+
+To implement this optimization, we can modify the `_parse_number` function as follows:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    digit_set = set("0123456789")
+    while pos < n and text[pos] in digit_set:
+        pos = pos + 1
+    s = text[start:pos]
+    if pos >= n or text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in digit_set:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in digit_set:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+```
+
+By using a set to store the digits, we can quickly check if each character is a digit. This reduces the time complexity of the `_parse_number` function from O(n) to O(1), making it much faster for parsing numbers in JSON.

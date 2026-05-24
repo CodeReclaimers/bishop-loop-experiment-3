@@ -1,0 +1,24 @@
+To speed up the JSON parser, we can eliminate redundant whitespace handling by caching the positions of the first non-whitespace character at each step. This way, we only need to recompute it when the position actually changes, reducing the number of unnecessary checks and improving parsing speed.
+
+Here's how you could modify the `_skip_ws` function to achieve this:
+
+```python
+def _skip_ws(text: str, pos: int) -> int:
+    # Cache the first non-whitespace character position if not already cached
+    if pos == 0 or text[pos - 1] in _WS_CHARS:
+        return _find_first_non_whitespace(text, pos)
+    return pos
+
+def _find_first_non_whitespace(text: str, start: int) -> int:
+    # Scan through the text starting from the current position for the first non-whitespace character
+    for i in range(start, len(text)):
+        if text[i] not in _WS_CHARS:
+            return i
+    raise JSONParseError("expected non-whitespace character")
+```
+
+In this modification:
+- The `_skip_ws` function checks if it's at the start of the string or if the previous character was a whitespace. If so, it calls `_find_first_non_whitespace` to find the first non-whitespace character.
+- `_find_first_non_whitespace` scans through the text starting from the given `start` position and returns the index of the first non-whitespace character.
+
+This change reduces the number of redundant checks for whitespace characters at each step, resulting in faster parsing time.

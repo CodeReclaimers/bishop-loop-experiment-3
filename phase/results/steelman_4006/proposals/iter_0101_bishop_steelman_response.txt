@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use a custom iterator is problematic because it doesn't address the core issue of performance bottlenecks in the current implementation, which are primarily due to repeated string slicing, frequent bounds checking, and inefficient control flow. Additionally, the suggestion lacks specifics on how the iterator would be implemented or how it would avoid the overhead of creating new objects or introducing complex state management that could slow things down.
+
+STEELMAN: A better approach would be to refactor the parsing functions to use a stateful character-by-character reader that avoids repeated string slicing and bounds checks by maintaining a single index and using direct character access, while also ensuring early termination on invalid input or end-of-string conditions to improve both performance and readability.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    reader = _JSONReader(text)
+    value = _parse_value_reader(reader)
+    reader.skip_ws()
+    if reader.has_more():
+        raise JSONParseError(f"trailing content at position {reader.pos}")
+    return value
+>>>>>>> REPLACE
+```

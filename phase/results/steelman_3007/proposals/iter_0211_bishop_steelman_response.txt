@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the iterative whitespace skipping with a regex `search().end()` call is problematic because `re.search(r'\s*', text, pos)` will match zero or more whitespace characters and return the position after the match, which could be the same as the input position if there are no whitespace characters. This would cause an infinite loop. Additionally, the regex engine's optimization doesn't necessarily translate to O(1) time in all cases, and it may not be faster than a simple set-based lookup in practice.
+
+STEELMAN: The steelman version would use `re.match(r'\s*', text, pos)` to find the longest prefix of whitespace starting at `pos`, then advance the position by the match length. This avoids the infinite loop issue and still leverages regex for fast skipping, but requires careful handling of the match result to ensure correct advancement.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for faster bulk skipping
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

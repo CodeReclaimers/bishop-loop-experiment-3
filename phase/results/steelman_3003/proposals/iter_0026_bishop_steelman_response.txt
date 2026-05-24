@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the character-by-character loop in `_skip_ws` with a single regex search would break the logic because `re.search()` finds the first match, not the longest contiguous span starting at `pos`. This could skip over some whitespace or fail to advance `pos` correctly if there's a non-whitespace character immediately after the whitespace. Additionally, it would not preserve the existing behavior of advancing exactly past the whitespace, which is essential for correct parsing.
+
+STEELMAN: The steelman version would use `re.match()` instead of `re.search()` to match whitespace starting exactly at `pos`, and advance `pos` by the length of the matched span. This preserves correctness while leveraging the optimized regex engine, but must be done carefully to ensure no off-by-one or misalignment issues occur.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

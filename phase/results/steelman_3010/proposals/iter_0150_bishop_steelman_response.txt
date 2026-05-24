@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with `_WS_PATTERN.finditer` is problematic because `finditer` would require scanning the entire input from the current position, which doesn't align with the current design that skips whitespace character-by-character. This approach would not actually achieve O(1) per whitespace block, as it would still need to process all whitespace characters in a single match, negating the benefit of the current optimized loop-based approach. Additionally, using regex for such a simple operation could introduce overhead that outweighs any theoretical gains.
+
+STEELMAN: A better approach is to use the compiled regex pattern to find the next non-whitespace character by matching the whitespace pattern from the current position, and then advance the position to the end of that match. This maintains the performance characteristics of the current loop-based approach but uses regex for the matching, which can be more efficient for large runs of whitespace.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in a single match
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

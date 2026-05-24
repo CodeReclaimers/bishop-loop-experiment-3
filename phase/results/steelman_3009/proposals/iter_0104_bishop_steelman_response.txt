@@ -1,0 +1,55 @@
+CRITIQUE: The suggestion to precompute a lookup table mapping each index to the next non-whitespace position would require O(n) space and O(n) time to build upfront, which is wasteful for small inputs and doesn't address the main performance bottleneck of repeated scanning. It also doesn't handle the case where whitespace is sparse or the input is mostly non-whitespace, leading to poor cache locality and memory overhead. Additionally, it doesn't account for the fact that `_skip_ws` is called frequently in tight loops, so even O(1) lookups may not be beneficial if they cause cache misses or if the table is too large.
+
+STEELMAN: A better approach is to build a precomputed lookup table that maps each index to the next non-whitespace character's index, but only for the first few characters or in chunks, and use a hybrid strategy: for short inputs or when whitespace is dense, use a fast scan; for longer inputs or sparse whitespace, use the lookup table. This preserves the core idea of avoiding per-character scanning while being more adaptive and memory-efficient.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute a lookup table for whitespace skipping
+    ws_table = [0] * len(text)
+    pos = 0
+    while pos < len(text):
+        if text[pos] in _WS_CHARS:
+            ws_table[pos] = ws_table[pos - 1] if pos > 0 else pos
+        else:
+            ws_table[pos] = pos
+        pos += 1
+    # Adjust the last entry to point to the end of the string
+    for i in range(len(text) - 1, -1, -1):
+        if ws_table[i] == i:
+            break
+        ws_table[i] = i
+    # Now update the last valid non-whitespace index
+    last_non_ws = len(text) - 1
+    while last_non_ws >= 0 and text[last_non_ws] in _WS_CHARS:
+        last_non_ws -= 1
+    if last_non_ws >= 0:
+        for i in range(last_non_ws + 1, len(text)):
+            ws_table[i] = last_non_ws + 1
+    else:
+        for i in range(len(text)):
+            ws_table[i] = len(text)
+    pos = _skip_ws(text, 0, ws_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, ws_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

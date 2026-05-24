@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the regex with a custom loop is problematic because it would still use the `in` operator on `_WS_CHARS` set repeatedly, which is exactly what the current implementation already does in `_skip_ws`. The suggestion fails to recognize that the main performance issue isn't the `in` check but rather the repeated bounds checking and function call overhead. Additionally, a naive loop would likely be slower than the current regex-based approach due to Python's optimized regex engine.
+
+STEELMAN: The steelman version would improve performance by using a more efficient whitespace skipping method that avoids repeated bounds checking and function call overhead, while still leveraging the precomputed `_WS_CHARS` set for O(1) membership checks. It should eliminate the try/except pattern in `_skip_ws` and instead use a single loop with proper bounds checking, or better yet, utilize the existing regex pattern more effectively.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

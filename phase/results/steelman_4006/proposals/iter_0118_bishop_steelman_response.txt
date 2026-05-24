@@ -1,0 +1,54 @@
+CRITIQUE: The suggestion to use an iterative approach for parsing JSON values instead of recursion is problematic because the current implementation already avoids deep recursion by using a stack-like approach in `_parse_object` and `_parse_array` through explicit loop control and state management. The primary recursion occurs in `_parse_value`, which is called recursively for nested structures, but the suggestion doesn't specify how to eliminate this recursion without changing the fundamental parsing strategy. Simply switching to iteration without addressing the core recursive structure would likely require significant refactoring and could introduce performance regressions or complexity.
+STEELMAN: The strongest version of this suggestion is to eliminate recursion in the main parsing loop by using an explicit stack-based approach for handling nested structures, while keeping the current logic intact. This would involve replacing the recursive calls to `_parse_value` with an iterative loop that processes values from a stack, preventing stack overflow for deeply nested inputs while maintaining performance and correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Stack-based approach to avoid recursion
+    stack = [(text, pos)]
+    while stack:
+        text, pos = stack.pop()
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        c = text[pos]
+        if c == "{":
+            # Return the result of _parse_object directly
+            return _parse_object(text, pos)
+        if c == "[":
+            # Return the result of _parse_array directly
+            return _parse_array(text, pos)
+        if c == '"':
+            # Return the result of _parse_string directly
+            return _parse_string(text, pos)
+        if c == "t" or c == "f":
+            # Return the result of _parse_bool directly
+            return _parse_bool(text, pos)
+        if c == "n":
+            # Return the result of _parse_null directly
+            return _parse_null(text, pos)
+        if c == "-" or c in _DIGIT_CHARS:
+            # Return the result of _parse_number directly
+            return _parse_number(text, pos)
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

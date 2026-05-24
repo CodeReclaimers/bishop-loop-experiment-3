@@ -1,0 +1,82 @@
+CRITIQUE: The suggestion to replace regex and frozenset lookups with `isdigit()` and `isspace()` is problematic because `isdigit()` and `isspace()` are not guaranteed to be faster than frozenset lookups, especially for single characters. Additionally, `isdigit()` only recognizes ASCII digits, while the current implementation handles Unicode digits via `int()` conversion, which would be lost if using `str.isdigit()`. The suggestion also ignores that `isspace()` includes more than just JSON whitespace characters, which could introduce subtle bugs.
+
+STEELMAN: A better approach is to use direct ASCII value comparisons for common character checks, such as checking if a character's ASCII value falls within ranges like `ord('0') <= ord(c) <= ord('9')` for digits, and manually define the JSON whitespace set using direct ASCII comparisons. This preserves performance benefits while maintaining correctness and avoiding reliance on regex or ambiguous built-in string methods.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+
+
+def _is_digit(c: str) -> bool:
+    """Check if a character is a digit using ASCII comparison."""
+    return '0' <= c <= '9'
+
+
+def _is_ws(c: str) -> bool:
+    """Check if a character is whitespace using ASCII comparison."""
+    return c in ' \t\n\r'
+
+
+def _is_hex_char(c: str) -> bool:
+    """Check if a character is a valid hex digit using ASCII comparison."""
+    return c in _HEX_CHARS
+>>>>>>> REPLACE
+```

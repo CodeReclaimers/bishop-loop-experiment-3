@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace the while loop with `text.find` is flawed because `text.find` would only find the first non-whitespace character, not skip all consecutive whitespace in one go. Additionally, it doesn't account for the fact that `_skip_ws` is called repeatedly from many parsing functions, and using `find` in a tight loop could be slower than the current O(1) set membership checks. The approach also ignores that the parser needs to handle malformed input gracefully and doesn't consider that `find` might not be optimized for small strings or frequent calls.
+
+STEELMAN: A better approach would be to use a regex-based skip function that finds the first non-whitespace character using `re.search` with a compiled pattern, or alternatively, to precompute the next non-whitespace position in a single pass by leveraging `str.lstrip` or `str.find` with a custom loop that skips all whitespace in one go, while still maintaining the ability to raise proper error messages for malformed input.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip all whitespace in one go using a loop with set lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

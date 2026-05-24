@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.sub('', text, pos)` would not work correctly because it would strip ALL whitespace from the entire string starting at `pos`, not just the leading whitespace. Additionally, it would not return the new position after skipping whitespace, which is required by the existing API. This approach also introduces unnecessary overhead from regex compilation and matching for a simple task that's already optimized with set lookups.
+
+STEELMAN: A better approach is to use `re.match(_WS_RE, text, pos)` to find the longest match of whitespace starting at `pos`, then advance the position by the match length. This preserves the original function's behavior while leveraging the regex engine's performance for whitespace detection, and avoids the overhead of rebuilding strings or using inefficient loops.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for performance
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

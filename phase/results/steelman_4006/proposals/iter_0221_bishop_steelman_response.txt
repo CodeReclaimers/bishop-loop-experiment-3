@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a generator expression for skipping whitespace is unworkable because it would fundamentally change the control flow and break the existing logic that relies on incrementing a position pointer. The current implementation uses a while loop with direct character access, and replacing it with a generator would require rearchitecting the entire parsing approach to work with iterators instead of positional indexing. Additionally, the performance benefit is questionable since generators add overhead from function call mechanics and don't necessarily improve the core bottleneck of character-by-character scanning.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by using a more efficient character lookup mechanism, such as checking against a precomputed frozenset of whitespace characters instead of repeatedly calling `in` with string literals. This preserves the existing loop structure while improving performance through faster membership testing, which is the actual bottleneck in the current implementation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a single regex call would break the logic because `_WS_RE` is compiled to match zero or more whitespace characters, not just the next non-whitespace position. Using it directly would consume all leading whitespace and return the position after the entire block, rather than stopping at the first non-whitespace character. This would cause incorrect parsing of subsequent tokens and potentially skip past important structural elements like commas or braces.
+
+STEELMAN: The steelman is to use the regex to find the next non-whitespace position by matching the leading whitespace pattern and advancing the position by the match length, but only when the regex can be safely applied in a way that preserves the exact same behavior as the character-by-character loop. This requires careful handling of the match object to correctly compute the new position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for efficiency
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

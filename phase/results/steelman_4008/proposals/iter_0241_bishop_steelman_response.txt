@@ -1,0 +1,40 @@
+CRITIQUE: The suggestion to use `str.find` for larger blocks is problematic because `str.find` still scans linearly through the string, offering no asymptotic improvement over the current per-character loop. It also doesn't handle the case where whitespace is interleaved with non-whitespace content efficiently, and would likely introduce overhead from function call and bounds checking. Additionally, it fails to consider that whitespace skipping is often a small operation and the cost of `str.find` may exceed the benefit.
+
+STEELMAN: A better approach is to optimize the existing `_skip_ws` function by using a hybrid strategy: for small skips (e.g., < 10 characters), continue with the current per-character scan for simplicity and low overhead; for larger skips, use a direct scan with `str.find` or a precomputed lookup table to avoid repeated character-by-character checks. This preserves the core idea of reducing per-character work while addressing the performance pitfalls of naive `str.find` usage.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: small skips use direct scan, large skips use str.find
+    # Threshold for switching to str.find
+    LARGE_SKIP_THRESHOLD = 10
+    
+    # For small skips, use direct scan
+    if pos + LARGE_SKIP_THRESHOLD < len(text):
+        # Check if we have a large block of whitespace
+        end_pos = pos
+        while end_pos < len(text) and text[end_pos] in ' \t\n\r':
+            end_pos += 1
+        if end_pos - pos >= LARGE_SKIP_THRESHOLD:
+            # Use str.find to skip large blocks of whitespace
+            # Find the first non-whitespace character
+            next_non_ws = text.find(' \t\n\r', pos)
+            if next_non_ws == -1:
+                return len(text)
+            return next_non_ws
+    # Fall back to direct character scanning for small or mixed blocks
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

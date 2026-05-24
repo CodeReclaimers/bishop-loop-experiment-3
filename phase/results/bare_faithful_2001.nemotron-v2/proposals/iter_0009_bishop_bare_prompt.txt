@@ -1,0 +1,332 @@
+You are implementing an optimization idea suggested by another developer.
+
+The current implementation is in `json_parser.py`. Here is its full source:
+
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos = pos + 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos = pos + 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment instead of rebuilding dict each iteration.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos = pos + 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use append instead of list concatenation
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos = pos + 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (("0" <= ch <= "9") or ("a" <= ch <= "f") or ("A" <= ch <= "F")):
+            return False
+    return True
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+
+```
+
+The suggestion to implement:
+
+"""
+We need to suggest a specific change: use compiled regex for whitespace skipping instead of loop in _skip_ws, and also precompile regex. Or use bytearray operations? But they said skip regex already tried and was rejected due to mean being higher. But maybe they used regex with start position? Could replace _skip_ws with a compiled regex but that's what was rejected. Maybe use a loop that uses list membership? Already using set. Maybe use .find of whitespace sequence? Or use built-in str.find for whitespace? Could use str.find to locate next non-whitespace: pos = text.find(next(c for c in _WS_CHARS if c not in text[pos:]), pos) but that's still loop.
+
+Better: replace the per-call whitespace loop with a compiled regex precomputed once globally: _WS_RE = re.compile(r'[\t\n\r\s]+', re.S) and then use _WS_RE.find(text, pos). That's what they did and was rejected. But maybe the issue is that regex includes \s (all whitespace) which might match control characters incorrectly. But they used set.
+
+But the rejection likely due to higher overhead. Perhaps use a compiled regex but with flags re.U? Hmm.
+
+Alternative: use a while loop that uses .find to locate next non-whitespace using a single call: nxt = _WS_RE.find(text, pos); return nxt if nxt != pos else pos. That's what they did.
+
+Maybe the problem is that they re-apply regex at each skip, causing overhead. Could precompile and use find. That's already done.
+
+But perhaps we can replace _skip_ws with a faster method: use string translation table to replace whitespace characters to null, then find first non-null. But that would require rebuilding string.
+
+Maybe replace whitespace skipping with a loop that uses .find of any whitespace? Not.
+
+The suggestion: replace the per-call whitespace skipping loop with a compiled regex precomputed globally, which is already done. That is a change: move regex creation outside function and use find.
+
+But they already did that. Hmm.
+
+Maybe the issue is that they use _skip_ws at many places, causing repeated regex calls. We can cache the regex and use find. That's the same.
+
+But they said "Use compiled regex to skip all whitespace at once" was rejected. So maybe we need a different mechanism: use built-in str.find with a pattern that is a set of whitespace characters? Not possible.
+
+Alternative: use a loop that uses .find to locate next non-whitespace using a single call: pos = text.find(next(c for c in _WS_CHARS if c not in text[pos:]), pos) but that's still loop.
+
+Maybe use a compiled regex compiled with flags re.U and use .find but that's what they did.
+
+Maybe the suggestion is: replace the set membership check with a lookup using a bytearray? Not.
+
+Probably the intended change: replace the while loop in _skip_ws with a call to str.find on the first non-whitespace: nxt = _WS_RE.find(text, pos); return nxt if nxt != pos else pos. That's already.
+
+But maybe they want to use .find of a precompiled pattern that matches any whitespace. That's fine.
+
+But the rejection likely due to performance: regex is slower than set loop. So we need to replace the loop with the regex? That's opposite.
+
+Maybe we should replace the loop with a compiled regex but using find is faster? Possibly.
+
+Thus suggestion: replace the while loop in _skip_ws with a call to _WS_RE.find(text, pos) and return the result if advanced. That's what they did.
+
+But they already did that and it was rejected. So maybe we need to remove the regex and use a simpler method: use .find of the first non-whitespace character using a list of whitespace characters and .find? Not.
+
+Better: replace the whitespace skipping with a built-in string translation to null: pos = text.find(None, pos). But find doesn't work with None.
+
+Alternatively, use a loop that uses .find of the first character not in _WS_CHARS: nxt = text.find((c for c in _WS_CHARS if c not in text[pos:]), pos). That's still loop.
+
+Actually, we could use a compiled regex compiled with re.U and use .find, which is already done.
+
+Maybe the issue is that they create _WS_REGEX each call? No, it's global.
+
+Maybe we need to use .find on a pattern that matches whitespace but with the 's' flag removed? Not important.
+
+Probably the answer: replace the per-call whitespace loop with a compiled regex find, which is already done, but we can move the regex creation outside function.
+
+Thus suggestion: precompile _WS_RE outside function and use _WS_RE.find(text, pos) instead of the while loop in _skip_ws. That's
+"""
+
+Your task: produce a complete file rewrite of `json_parser.py` that implements EXACTLY
+this suggestion. Do not improve, substitute, combine with other ideas, or 'fix' the
+suggestion. If the suggestion is unclear, make the most direct interpretation possible.
+The goal is to test whether this specific idea, faithfully implemented, makes the parser
+faster while keeping it correct.
+
+Constraints:
+- The function `parse(text: str) -> Any` must remain the public entry point.
+- A class `JSONParseError(ValueError)` must be defined and raised for malformed inputs.
+- Pure Python (standard library only). No third-party packages.
+- Do NOT import the `json` standard library module — it would defeat the optimization
+  landscape and is statically rejected by the harness.
+- Output a single ```python ... ``` fenced code block containing the COMPLETE file.
+  No prose outside the code block.

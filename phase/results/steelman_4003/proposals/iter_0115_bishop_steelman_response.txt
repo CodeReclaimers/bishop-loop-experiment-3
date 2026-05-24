@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to "use direct character lookup instead of repeatedly calling `ord`" is misleading because the current implementation already uses `text[pos] in _WS_CHARS` which is already O(1) lookup via the frozenset. The suggestion doesn't address the real bottleneck, which is the repeated function call overhead of `_skip_ws` or inefficient string traversal patterns. It also ignores that `ord()` isn't being called in the current code at all — the comparison is done directly with string characters.
+
+STEELMAN: A better optimization would be to inline the whitespace skipping logic directly into the parsing functions, avoiding repeated function calls and reducing the number of bounds checks. This approach preserves the O(1) lookup of characters via the frozenset while minimizing function call overhead and improving cache locality.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using direct character lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

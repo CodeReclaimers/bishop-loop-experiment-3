@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to replace the manual loop with `str.find` is flawed because `str.find` searches for a single substring, not a set of characters, so it cannot directly skip whitespace using `_WS_CHARS`. Additionally, `str.find` would need to be called repeatedly or in a loop to skip all consecutive whitespace, negating the benefit of avoiding per-character checks. The approach also fails to consider that `str.find` is not optimized for character-set lookups and would likely be slower than the current O(1) membership testing.
+
+STEELMAN: A better approach would be to use `str.translate` with a translation table to efficiently skip whitespace by mapping all whitespace characters to a single sentinel character, then use `str.find` to locate the next non-sentinel character. This preserves the core idea of avoiding per-character checks while leveraging fast string operations and maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to map whitespace chars to a sentinel, then find next non-sentinel
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to a sentinel character
+    trans_table = str.maketrans(''.join(_WS_CHARS), ' ' * len(_WS_CHARS))
+    # Translate the rest of the string and find the first non-sentinel character
+    translated = text[pos:].translate(trans_table)
+    # Find first non-space character (which was originally non-whitespace)
+    next_non_ws = translated.find(' ')
+    if next_non_ws == -1:
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

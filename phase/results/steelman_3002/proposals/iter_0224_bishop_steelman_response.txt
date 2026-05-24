@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion to precompute all whitespace indices and use binary search assumes that whitespace is uniformly distributed and that the number of whitespace characters is large enough to justify the overhead of building the index list and performing binary searches. In practice, JSON strings often have very little whitespace, making the precomputation expensive and the binary search slower than the current character-by-character approach. Additionally, the approach doesn't account for the fact that `_skip_ws` is called in many tight loops, and the cost of maintaining and searching the index list would likely outweigh the benefits.
+
+STEELMAN: A better approach would be to precompute a "skip table" that marks the next non-whitespace character index for each position in the string. This avoids the overhead of binary search and can be computed in a single pass. The skip table can be reused across all calls to `_skip_ws`, and it avoids the cost of repeated character checks by directly jumping to the next valid position.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Precompute skip table for whitespace
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws_with_table(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws_with_table(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table to quickly find the next non-whitespace character."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n
+    for i in range(n - 1, -1, -1):
+        if text[i] in ' \t\n\r':
+            skip_table[i] = pos
+        else:
+            skip_table[i] = i
+            pos = i
+    return skip_table
+>>>>>>> REPLACE
+```

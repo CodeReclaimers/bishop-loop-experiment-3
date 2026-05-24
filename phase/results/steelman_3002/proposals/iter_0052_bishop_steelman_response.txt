@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `re.finditer` or `re.sub` is problematic because `re.finditer` would require scanning the entire remaining string from the current position, which is inefficient; `re.sub` would be even worse for performance and not directly return the index needed. Additionally, the regex engine would still need to process each character in the whitespace match, negating the expected C-level performance benefit.
+STEELMAN: A better approach is to use `re.match` with the precompiled `_WS_RE` regex on a slice of the string starting from the current position, which will return a match object whose `end()` method gives the index of the first non-whitespace character, avoiding Python-level loops while preserving the exact behavior.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    m = _WS_RE.match(text, pos)
+    return m.end()
+>>>>>>> REPLACE
+```

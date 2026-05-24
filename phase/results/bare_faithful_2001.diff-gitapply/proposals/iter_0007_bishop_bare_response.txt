@@ -1,0 +1,93 @@
+```diff
+--- a/json_parser.py
++++ b/json_parser.py
+@@ -1,6 +1,7 @@
+ """Deliberately slow but correct JSON parser. Editable surface.
+
+ This is the starting point for the optimization loop. It is correct against
+ `json.loads` on the full corpus but is intentionally written in a way that
+ leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
++ Whitespace is skipped via a per-call Python loop instead of a regex.
+ - Numbers are scanned character-by-character with explicit predicates.
+ - Object/array building uses string concatenation and rebuilt-on-each-step
+   collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+@@ -12,6 +13,9 @@
+ from typing import Any
+
+
++import re
++
++
+ class JSONParseError(ValueError):
+     """Raised when the input is not valid JSON."""
+@@ -23,10 +27,10 @@
+ _DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+ _HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+               "A", "B", "C", "D", "E", "F"}
+
+
+-def _skip_ws(text: str, pos: int) -> int:
+-    n = len(text)
+-    while pos < n and text[pos] in _WS_CHARS:
+-        pos = pos + 1
+-    return pos
++def _skip_ws(text: str, pos: int) -> int:
++    m = re.match(r'^\s*', text[pos:])
++    return pos + len(m.group(0))
++
++
+ def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+     pos = _skip_ws(text, pos)
+     if pos >= len(text):
+@@ -61,7 +64,7 @@
+ def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+     if text[pos] != "{":
+         raise JSONParseError(f"expected '{{' at {pos}")
+-    pos = pos + 1
+-    out: dict = {}
++    pos = pos + 1
++    out: dict = {}
+     pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "}":
+         return out, pos + 1
+@@ -75,7 +78,7 @@
+         value, pos = _parse_value(text, pos)
+         # Use direct dict assignment instead of rebuilding
+         out[key] = value
+-        pos = _skip_ws(text, pos)
++        pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated object")
+         c = text[pos]
+@@ -89,7 +92,7 @@
+ def _parse_array(text: str, pos: int) -> tuple[list, int]:
+     if text[pos] != "[":
+         raise JSONParseError(f"expected '[' at {pos}")
+-    pos = pos + 1
+-    out: list = []
++    pos = pos + 1
++    out: list = []
+     pos = _skip_ws(text, pos)
+     if pos < len(text) and text[pos] == "]":
+         return out, pos + 1
+@@ -100,7 +103,7 @@
+         value, pos = _parse_value(text, pos)
+         # Use append instead of list concatenation
+         out.append(value)
+-        pos = _skip_ws(text, pos)
++        pos = _skip_ws(text, pos)
+         if pos >= len(text):
+             raise JSONParseError("unterminated array")
+         c = text[pos]
+@@ -134,7 +137,7 @@
+         if pos >= len(text):
+             raise JSONParseError("unterminated string")
+         if c == "\\":
+-            pos = pos + 1
++            pos = pos + 1
+             if pos >= n:
+                 raise JSONParseError("unterminated string escape")
+             esc = text[pos]
+```

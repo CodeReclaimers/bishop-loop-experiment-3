@@ -1,0 +1,15 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a simple loop would eliminate regex overhead but fails to account for the fact that the current implementation uses `re.compile(r'[ \t\n\r]*')` to match zero or more whitespace characters in one go, not just advance by one character at a time. This approach would be inefficient for large whitespace blocks and doesn't leverage the performance benefits of compiled regex for bulk skipping. Additionally, it doesn't address the fact that the current regex is used in a way that can match multiple characters at once, which a naive loop would not replicate.
+STEELMAN: A better approach would be to replace the regex with a fast, compiled regex that matches one or more whitespace characters in a single operation, but avoid the overhead of repeatedly creating match objects by reusing a compiled pattern or using a loop with a precomputed set for performance. This preserves the intent of avoiding repeated regex overhead while still efficiently skipping large whitespace blocks.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    m = _WS_PATTERN.match(text, pos)
+    return m.end() if m else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

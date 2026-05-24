@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use `str.find()` for large blocks of whitespace while keeping small loops is problematic because `str.find()` has overhead from function call and string scanning that can be slower than direct character iteration for small whitespace runs. It also doesn't address the core issue of redundant whitespace handling at every parsing level, which is a major performance bottleneck. Additionally, `str.find()` would require careful handling to avoid missing or miscounting whitespace, leading to potential correctness issues.
+
+STEELMAN: The steelman version improves upon the original suggestion by implementing a hybrid approach where `str.find()` is used to skip large contiguous blocks of whitespace, but only after a small initial loop to quickly handle common short whitespace sequences. This minimizes function call overhead while maintaining correctness and avoiding the need for complex boundary checks. The key is to combine the speed of `str.find()` for bulk skipping with the efficiency of direct character scanning for small sequences.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: use str.find for large blocks, direct scan for small ones
+    # First, quickly scan a few characters to avoid function call overhead
+    while pos < len(text) and text[pos] in ' \t\n\r':
+        pos += 1
+    if pos >= len(text):
+        return pos
+    # Use str.find to skip large blocks of whitespace
+    next_non_ws = text.find(' ', pos)
+    if next_non_ws == -1:
+        # No more spaces, check if there are other whitespace chars
+        next_non_ws = text.find('\t\n\r', pos)
+        if next_non_ws == -1:
+            return pos
+        return next_non_ws
+    # Skip to the first non-whitespace character
+    return next_non_ws
+>>>>>>> REPLACE
+```

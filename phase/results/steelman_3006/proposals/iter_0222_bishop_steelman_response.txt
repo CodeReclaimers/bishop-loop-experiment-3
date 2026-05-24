@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use a 128-byte boolean array assumes ASCII character encoding and will fail for Unicode characters outside the ASCII range, since `ord(c)` can exceed 127. It also doesn't account for the fact that the current implementation uses a set for membership testing, which is already highly optimized in Python. Additionally, the performance gain from such an optimization is likely negligible compared to the complexity and potential for bugs.
+
+STEELMAN: A robust version of the suggestion would precompute a 256-byte boolean array to handle full Latin-1 character set (0–255), ensuring compatibility with extended ASCII and common Unicode characters. This preserves the core idea of avoiding hash-based lookups while being safe for all valid JSON input, and can be implemented with a simple loop to initialize the array from `_WS_CHARS`.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precomputed 256-byte boolean array for whitespace characters (Latin-1)
+_WS_BYTE = bytearray(256)
+for i in range(256):
+    _WS_BYTE[i] = 1 if chr(i) in _WS_CHARS else 0
+>>>>>>> REPLACE
+```

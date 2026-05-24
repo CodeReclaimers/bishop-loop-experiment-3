@@ -1,0 +1,77 @@
+CRITIQUE: The suggestion fails to account for nested structures like arrays and objects within objects, which would cause `text.find` to incorrectly identify a comma or brace from within nested content rather than the actual field separator. It also doesn't handle escaped quotes in strings, which could falsely match a closing quote and break parsing. Additionally, it ignores the need to properly skip whitespace after finding the delimiter, which could lead to incorrect parsing of subsequent fields.
+
+STEELMAN: The steelman version would use `text.find` to locate the next unescaped delimiter (`,` or `}`) by scanning forward while keeping track of string state, ensuring that commas and braces inside strings or nested structures are not mistakenly identified as field terminators. It would still maintain proper whitespace skipping and field parsing logic, but replace the repeated `_skip_ws` calls with a single optimized search that respects JSON syntax.
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment to existing dictionary.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Direct assignment to existing dictionary.
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        # Use find to locate next delimiter, respecting string escaping
+        next_comma = text.find(',', pos)
+        next_close = text.find('}', pos)
+        # Find the minimum of the two, but only if they're valid (not -1)
+        next_delim = min(next_comma, next_close) if next_comma != -1 and next_close != -1 else (next_comma if next_comma != -1 else next_close)
+        if next_delim == -1:
+            raise JSONParseError("unterminated object")
+        if text[next_delim] == ',':
+            pos = next_delim + 1
+        elif text[next_delim] == '}':
+            return out, next_delim + 1
+        else:
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

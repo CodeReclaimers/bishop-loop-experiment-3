@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion fails to account for the fact that `str.translate` replaces characters with the translation table's replacement character, not skips them, so using `translate` with a table mapping whitespace to spaces won't produce the correct position advancement. Additionally, the approach doesn't handle the case where there's no whitespace to skip, as `find(" ")` will return 0 for an empty string or when the first character is a space, leading to incorrect parsing behavior.
+STEELMAN: The steelman approach should use `str.translate` to remove all whitespace characters from the substring, then compute the new position by subtracting the length difference from the original position, or better yet, use a regex-based approach that matches the leading whitespace and advances by its length, which is more reliable than trying to manipulate the translation table for position tracking.
+
+```python
+<<<<<<< SEARCH
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed lookup for whitespace characters for fast membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_TABLE = str.maketrans(_WS_CHARS, " " * len(_WS_CHARS))
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translate to efficiently skip whitespace by removing it and computing new position
+    stripped = text[pos:].translate(_WS_TABLE)
+    return pos + (len(text) - len(stripped))
+>>>>>>> REPLACE
+```

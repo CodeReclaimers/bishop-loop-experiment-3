@@ -1,0 +1,38 @@
+CRITIQUE: The suggestion to inline whitespace skipping would lead to code duplication and reduced maintainability, as the same while-loop logic would need to be repeated in multiple places. It fails to account for the fact that `_skip_ws` is used in several distinct contexts where the current design provides clear separation of concerns. Additionally, it doesn't consider that function call overhead is likely negligible compared to the actual parsing work, and inlining could hurt readability and introduce bugs due to duplicated logic.
+
+STEELMAN: A better approach is to refactor `_skip_ws` into a reusable helper that can be inlined at call sites where performance is critical, while preserving the existing function for clarity and reuse in less performance-sensitive code paths. This allows maintaining the current structure while enabling targeted optimization where needed.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+
+
+def _skip_ws_inline(text: str, pos: int) -> int:
+    # Inline version for performance-critical paths
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

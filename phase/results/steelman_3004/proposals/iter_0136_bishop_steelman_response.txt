@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion fails to acknowledge that `_build_skip_table` was specifically designed to optimize whitespace skipping in performance-critical parsing paths, and simply replacing it with a linear loop would reintroduce O(n) overhead for each whitespace skip operation. The proposed change doesn't address the actual performance bottleneck, which is the table construction and memory allocation, but rather suggests removing an optimization that was carefully implemented to avoid repeated linear scans. Additionally, the suggestion omits any consideration of how the existing `_skip_ws` function already uses an index-based loop, so the change would be redundant and not actually improve anything.
+
+STEELMAN: The core idea should be to streamline the whitespace skipping logic by consolidating the logic into a single efficient loop that avoids both table construction and redundant checks, while maintaining the existing performance characteristics of the parser. The change should focus on refining `_skip_ws` to be as efficient as possible, and eliminate any unnecessary abstraction or precomputation that doesn't contribute to overall performance.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

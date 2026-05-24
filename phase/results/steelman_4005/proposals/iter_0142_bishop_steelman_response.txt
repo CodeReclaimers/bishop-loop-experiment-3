@@ -1,0 +1,37 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is unworkable because `str.translate` is designed for character-to-character replacement, not for skipping or advancing through text. It cannot be used to efficiently skip whitespace while maintaining position tracking. Additionally, `str.translate` would require building a translation table that maps all whitespace characters to a single replacement character, which would not preserve the original text structure needed for parsing.
+
+STEELMAN: A better approach would be to use `str.translate` to efficiently identify non-whitespace characters, then use the resulting translated string to compute the new position by counting how many characters were skipped. This preserves the performance benefits of `str.translate` while maintaining correct position tracking for parsing.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Precompute translation table for whitespace skipping
+_WS_TRANSLATE_TABLE = str.maketrans('', '', ' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace
+    # Find the first non-whitespace character
+    remaining_text = text[pos:]
+    if not remaining_text:
+        return pos
+    # Translate whitespace characters to empty string and count the difference
+    non_ws_text = remaining_text.translate(_WS_TRANSLATE_TABLE)
+    # The difference in length tells us how many whitespace chars were skipped
+    skipped_count = len(remaining_text) - len(non_ws_text)
+    return pos + skipped_count
+>>>>>>> REPLACE
+```

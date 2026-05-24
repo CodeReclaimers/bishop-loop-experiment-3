@@ -1,0 +1,78 @@
+CRITIQUE: The suggestion to use `str.translate` on the entire input string would break the parser's ability to track accurate positions through the original text, since the translated string would have different lengths and character indices. It also fails to account for the fact that whitespace skipping is needed at multiple points in the parsing process, not just once at the start, and would require complex position mapping logic to maintain correctness. Additionally, the performance benefit of avoiding set membership checks is negligible compared to the overhead of translating the entire string and managing position tracking.
+
+STEELMAN: A better approach is to precompute a translation table that maps whitespace characters to a single sentinel character (like `'\x00'`), then use `str.translate` once at the beginning to compact the input. However, instead of trying to maintain original positions, we can track the number of whitespace characters removed and adjust our position accordingly, which allows us to keep the same parsing logic while achieving O(N) whitespace skipping with constant-time lookups per character.
+
+```python
+<<<<<<< SEARCH
+"""Fast JSON parser implementing the optimization target.
+
+This is a rewrite of the deliberately slow parser to improve performance
+while maintaining correctness against json.loads on the full corpus.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+"""Fast JSON parser implementing the optimization target.
+
+This is a rewrite of the deliberately slow parser to improve performance
+while maintaining correctness against json.loads on the full corpus.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+# Precompute translation table for whitespace removal
+_WS_TRANSLATE_TABLE = str.maketrans({ch: '\x00' for ch in _WS_CHARS})
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Preprocess to compact whitespace
+    compacted_text = text.translate(_WS_TRANSLATE_TABLE)
+    pos = _skip_ws(compacted_text, 0)
+    if pos >= len(compacted_text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(compacted_text, pos)
+    if pos != len(compacted_text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

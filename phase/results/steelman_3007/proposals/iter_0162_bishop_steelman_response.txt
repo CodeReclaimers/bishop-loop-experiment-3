@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace linear whitespace scanning with a single regex match is flawed because it misunderstands how regex engines work — a regex like `\s*` won't skip to the next non-whitespace character in constant time, but rather scans linearly through the input. Additionally, the proposed change would break the incremental parsing logic since `_skip_ws` is called repeatedly at various points in parsing, and a single regex match would not integrate cleanly with the existing stateful position tracking.
+STEELMAN: A better approach is to use the pre-compiled regex to efficiently skip whitespace by matching the pattern from the current position and advancing the position by the match length, while still maintaining the existing function interface and position-based parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using pre-compiled regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

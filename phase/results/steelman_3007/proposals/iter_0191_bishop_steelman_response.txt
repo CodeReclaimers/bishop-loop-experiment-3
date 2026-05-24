@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace manual whitespace skipping with a single regex match fails because it doesn't account for the fact that the regex `r'\s*'` will match zero or more whitespace characters, but the parser needs to advance past *all* leading whitespace to find the next meaningful token. Using `re.match` or `re.search` directly on the remaining string would not properly advance the position pointer in the way the current code does. Additionally, the regex approach would not integrate cleanly with the existing position-tracking logic and could break the parser's ability to report accurate error positions.
+
+STEELMAN: A better approach would be to use the compiled regex to find the next non-whitespace character by matching `r'\s*(.*)'` on the remaining text, extracting the substring after whitespace, and updating the position accordingly. This preserves the intent of using regex for efficient whitespace skipping while maintaining correct position tracking and error reporting.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex for O(1) lookup
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

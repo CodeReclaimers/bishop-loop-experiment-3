@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace regex with direct character checking is flawed because it ignores the fact that `_skip_ws` currently uses `_WS_PATTERN.match(text, pos)` which is not in the provided code — the actual implementation uses a while loop with `text[pos].isspace()`. Additionally, the suggestion doesn't account for the performance cost of repeated `isspace()` calls on large whitespace sequences, and assumes that the simple loop is always faster, which may not hold for very long whitespace runs.
+
+STEELMAN: A better approach would be to use a hybrid strategy: for short whitespace runs, use the simple loop; for longer runs, switch to a more optimized method like `str.lstrip()` or a compiled regex with `re.match` only when needed, or even a lookup table for common whitespace characters to avoid repeated `isspace()` calls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    # Use a fast path for short runs, fallback to optimized scanning for long runs
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,25 @@
+To make the JSON parser faster, we can optimize the string concatenation by using a list to store intermediate results rather than appending to the same string at each step. This reduces the overhead of reallocation and improves performance. We can achieve this by modifying the `_parse_string_gen` function as follows:
+
+```python
+# ... 63-80 lines omitted ...
+def _parse_string_gen(gen, pos):
+    # Use a list to store intermediate results instead of appending directly to the string
+    out = []
+    while True:
+        try:
+            c = next(gen)
+        except StopIteration:
+            raise JSONParseError("unexpected end of input")
+        if c == '"':
+            break
+        elif c in _WS_CHARS or not _is_hex4(c):
+            # Handle escape sequences and non-ASCII characters separately
+            out.append("\\")
+            out.append(c)
+        else:
+            # Append regular characters directly
+            out.append(c)
+    return "".join(out), pos + 1
+```
+
+By using a list, we can efficiently store the concatenated result without repeatedly reallocating memory. This change reduces the time complexity of parsing strings from O(n) to O(n log n), where n is the length of the string.

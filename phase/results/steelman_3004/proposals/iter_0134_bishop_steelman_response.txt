@@ -1,0 +1,17 @@
+CRITIQUE: The suggestion to replace the manual while-loop in `_skip_ws` with `_WS_PATTERN.match` is flawed because regex matching has overhead that makes it slower than direct character checks for small amounts of whitespace, and the pattern `r'[ \t\n\r]*'` will match zero characters, which doesn't advance the position. Additionally, using `_NUMBER_PATTERN.search` to find the end of a number is incorrect because the regex is designed to match complete numbers, not to locate the end of a number in a stream, and it doesn't handle all edge cases like malformed exponents or invalid sequences.
+STEELMAN: A better approach is to use `re.match` with the whitespace pattern to skip all leading whitespace at once, and to use a regex-based number parsing strategy that leverages the existing `_NUMBER_PATTERN` to extract the full number in one step, rather than manually parsing digit by digit. This maintains the intent of offloading work to the regex engine while avoiding incorrect usage patterns.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

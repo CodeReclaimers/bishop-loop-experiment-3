@@ -1,0 +1,68 @@
+CRITIQUE: The suggestion to use a state machine is overly simplistic because it doesn't address the core performance bottlenecks like character-by-character parsing, repeated string concatenation, or redundant whitespace checks. A naive state machine would still require the same expensive operations at each transition and wouldn't eliminate the fundamental inefficiencies in the parsing logic.
+
+STEELMAN: A better approach would be to refactor the parser to use a single-pass, look-ahead based parsing strategy with precomputed character class tables and efficient state transitions, which would reduce redundant checks while maintaining correctness and leveraging the existing optimizations like set-based membership tests.
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "A", "B", "C", "D", "E", "F"}
+_ESCAPE_CHARS = {"\"", "\\", "/", "b", "f", "n", "r", "t", "u"}
+_UNICODE_ESC_CHARS = {"u"}
+_CTRL_CHARS = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x0b", "\x0c", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x1b", "\x1c", "\x1d", "\x1e", "\x1f"}
+
+# Precomputed lookup for digit values
+_DIGIT_VALUES = {str(i): i for i in range(10)}
+
+# Precompute common strings for fast lookup
+_TRUE_STR = "true"
+_FALSE_STR = "false"
+_NULL_STR = "null"
+
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Use sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = frozenset('\"\\/\b\f\n\r\tu')
+_UNICODE_ESC_CHARS = frozenset('u')
+_CTRL_CHARS = frozenset('\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0b\x0c\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f')
+
+# Precomputed lookup for digit values
+_DIGIT_VALUES = {str(i): i for i in range(10)}
+
+# Precompute common strings for fast lookup
+_TRUE_STR = "true"
+_FALSE_STR = "false"
+_NULL_STR = "null"
+
+# Optimized whitespace skipping using a single loop
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with direct character access
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+# Fast character class lookup
+def _char_class(c: str) -> str:
+    if c in _WS_CHARS:
+        return "WS"
+    elif c in _DIGIT_CHARS:
+        return "DIGIT"
+    elif c in _HEX_CHARS:
+        return "HEX"
+    elif c in _CTRL_CHARS:
+        return "CTRL"
+    elif c in _ESCAPE_CHARS:
+        return "ESCAPE"
+    else:
+        return "OTHER"
+>>>>>>> REPLACE
+```

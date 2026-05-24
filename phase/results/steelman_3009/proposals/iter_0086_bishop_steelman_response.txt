@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to use `text.find(max(_WS_CHARS), pos)` is fundamentally flawed because `find()` searches for a single character, not a set of characters. Even if we could pass the entire whitespace set, `find()` would only return the position of the first occurrence of any whitespace character, not the position after all consecutive whitespace. This would break parsing for strings with multiple consecutive whitespace characters.
+STEELMAN: The steelman approach would use `str.translate()` and `str.maketrans()` to efficiently remove all whitespace characters from the string starting at `pos`, then calculate the new position as the difference in length. This leverages C-level optimizations while correctly handling sequences of whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to efficiently skip whitespace characters
+    # Create translation table to map whitespace chars to None (remove them)
+    trans_table = str.maketrans('', '', ''.join(_WS_CHARS))
+    # Translate the substring starting at pos
+    stripped = text[pos:].translate(trans_table)
+    # Return the new position after skipping all whitespace
+    return pos + len(text[pos:]) - len(stripped)
+>>>>>>> REPLACE
+```

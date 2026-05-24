@@ -1,0 +1,59 @@
+CRITIQUE: The suggestion to replace `if c in ' \t\n\r\f': pos += 1` with direct character type checks like `ord(c) < 0x20` is flawed because it would incorrectly treat all control characters (U+0000 through U+001F) as whitespace, which violates JSON specification. Additionally, it fails to account for the fact that the current implementation already uses a fast lookup in a string of known whitespace characters, and replacing it with `ord()` calls would likely introduce more overhead due to function call costs and less efficient branching.
+
+STEELMAN: A better approach would be to precompute a set of valid whitespace characters and check membership using a fast frozenset lookup, similar to how `_DIGIT_CHARS` and `_HEX_CHARS` are used. This preserves the performance benefits of direct lookup while maintaining correctness by only treating actual JSON whitespace characters as valid.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,64 @@
+CRITIQUE: The suggestion to move translation-table construction to module level and reuse it in `_skip_ws` is unworkable because `str.translate()` with a translation table cannot be used to skip whitespace characters efficiently in this context. The approach would require constructing a translation table that maps whitespace to `None` or some sentinel, but then finding the next non-whitespace character would still require a linear scan or additional logic. Furthermore, the use of `find` after translation doesn't directly solve the problem of skipping a variable-length sequence of whitespace.
+STEELMAN: A better approach is to precompute a translation table at module level that maps all whitespace characters to a single sentinel character (like `'\0'`), then use `str.translate()` to replace all whitespace with that sentinel, followed by `str.find()` to locate the next non-sentinel character. This avoids repeated construction of translation tables and allows fast skipping of sequences of whitespace.
+
+```python
+<<<<<<< SEARCH
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Compiled regex for whitespace skipping
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Precomputed character sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_CONTROL_CHARS = frozenset(chr(i) for i in range(32))  # ASCII 0-31
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+
+
+# Precomputed translation table for skipping whitespace
+# Maps all whitespace characters to '\0' (null byte)
+_WS_TRANSLATE_TABLE = str.maketrans(" \t\n\r", "\0\0\0\0")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use translation table to replace all whitespace with null bytes,
+    # then find the next non-null character using find
+    translated = text[pos:].translate(_WS_TRANSLATE_TABLE)
+    next_non_ws = translated.find('\0')
+    if next_non_ws == -1:
+        return len(text)
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

@@ -1,0 +1,19 @@
+CRITIQUE: The suggestion to replace character-by-character whitespace skipping with a regex or `str.find` has several flaws: it doesn't account for the fact that `_skip_ws` is called repeatedly in tight loops, and regex matching would still need to scan forward character-by-character for the first non-whitespace, negating performance gains. Additionally, the regex approach would introduce overhead from regex compilation and backtracking, especially if the input has many leading whitespace characters. The suggestion also ignores that `str.find` with a set of characters isn't directly supported, so the implementation would likely be awkward or inefficient.
+
+STEELMAN: A better approach would be to use `str.lstrip()` or `str.find()` with a precomputed set of whitespace characters to find the next non-whitespace position, avoiding the Python loop while leveraging fast C-level operations. This can be done by scanning the string with `str.find()` using a loop to find the first non-whitespace character, or by using a regex that matches a sequence of whitespace and captures the position after it, but in a way that avoids repeated Python-level iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast skip using str.find for non-whitespace characters
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,39 @@
+CRITIQUE: The suggestion to replace the regex with a frozenset lookup is flawed because it doesn't account for the fact that the current `_skip_ws` function uses a loop to advance through whitespace characters one by one, while a direct frozenset check would require a separate loop to advance the index. This approach would likely be slower than the existing implementation due to redundant character checks and loop overhead. Additionally, the suggestion fails to consider that the regex is used in a context where it's only called once per whitespace block, not per character, making the regex overhead minimal.
+STEELMAN: The steelman version would implement a fast loop that checks each character against a pre-computed frozenset of whitespace bytes, but it must maintain the same semantics as the original function by advancing the index directly through consecutive whitespace characters without unnecessary overhead. The key is to avoid regex calls while keeping the loop efficient and the logic unchanged.
+
+```python
+<<<<<<< SEARCH
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+# Precompile regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_WS_CHARS = frozenset(' \t\n\r')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

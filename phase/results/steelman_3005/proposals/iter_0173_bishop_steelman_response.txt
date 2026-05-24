@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace regex-based whitespace skipping with a tight loop is problematic because it ignores the performance benefits of compiled regex patterns for repeated operations. The proposed change would require the parser to repeatedly scan whitespace characters one-by-one, which could be significantly slower than a single regex match, especially in large inputs with long whitespace sequences. Additionally, the suggestion fails to account for the fact that `str.isspace()` is already optimized in CPython and may outperform naive loops in many cases.
+
+STEELMAN: A better approach would be to optimize the existing `_skip_ws` function by using a compiled regex pattern with `re.match` or `re.search` for better performance, while still maintaining correctness and leveraging the efficiency of pre-compiled patterns for repeated whitespace skipping.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using direct scanning
+    while pos < len(text) and text[pos].isspace():
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Efficiently skip all whitespace characters using regex
+    global _WS_PATTERN
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

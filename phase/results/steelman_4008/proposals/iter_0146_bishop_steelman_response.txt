@@ -1,0 +1,35 @@
+CRITIQUE: The suggestion to use `str.find` for bulk whitespace skipping is problematic because `str.find` only finds the first occurrence of whitespace characters, not contiguous blocks, and would require multiple calls or complex logic to skip entire whitespace sections. It also doesn't handle the case where the next non-whitespace character is at a large offset, leading to inefficient scanning. Additionally, it fails to consider that Python's built-in `str.find` is not necessarily faster than a simple loop for small skips, and could introduce overhead from function call and string slicing.
+
+STEELMAN: A better approach is to implement a hybrid whitespace skip that uses a fast bulk skip for large contiguous whitespace regions (e.g., by using `str.find` to locate the next non-whitespace character, then advancing by that amount), but falls back to a character-by-character scan for small regions or when the bulk skip is not beneficial. This preserves the performance benefits of bulk skipping while maintaining correctness and avoiding unnecessary overhead.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Hybrid approach: bulk skip with str.find for large regions,
+    # fallback to character-by-character for small skips.
+    while pos < len(text):
+        # Fast bulk skip for large whitespace regions
+        next_non_ws = text.find(' \t\n\r', pos)
+        if next_non_ws == -1:
+            # No more whitespace, return end of string
+            return len(text)
+        if next_non_ws > pos:
+            # Skip the whitespace
+            pos = next_non_ws
+        else:
+            # Found a non-whitespace character at pos
+            return pos
+        # Now scan character-by-character for any remaining whitespace
+        while pos < len(text) and text[pos] in ' \t\n\r':
+            pos += 1
+    return pos
+>>>>>>> REPLACE
+```

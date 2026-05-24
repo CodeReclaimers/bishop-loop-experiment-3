@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use a regex for skipping whitespace is unworkable because regex engines have significant overhead and the performance benefit of skipping large chunks of whitespace would be negated by regex compilation and matching costs. Additionally, this approach would break the current design's simplicity and make the parser less maintainable.
+
+STEELMAN: A better approach would be to use a compiled regex pattern to skip whitespace in larger chunks, but only when there's sufficient whitespace to justify the regex overhead. The key is to detect when a regex-based skip would be more efficient than the current character-by-character loop, and use that heuristic to decide whether to apply the regex or continue with the loop.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Optimized inline loop for small skips, regex for large skips
+    # Check if we have a lot of whitespace to skip
+    if pos + 10 < len(text) and all(text[i] in _WS_CHARS for i in range(pos, pos + 10)):
+        # Use regex for large whitespace blocks
+        import re
+        # This regex matches one or more whitespace characters
+        match = re.match(r'\s*', text[pos:])
+        if match:
+            return pos + match.end()
+    # Fall back to the original loop for small skips or when regex doesn't help
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

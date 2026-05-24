@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion fails to account for the fact that JSON whitespace includes characters beyond those with ordinals below 0x20, specifically U+0009 (tab), U+000A (line feed), U+000D (carriage return), and U+0020 (space). Using `ord(text[pos]) < 0x20` would incorrectly skip non-whitespace characters like 'A' or 'z' and fail to skip valid whitespace like tab or space. Additionally, it ignores that the current regex approach handles Unicode whitespace correctly by using `\s*` which matches all Unicode whitespace, not just ASCII control characters.
+
+STEELMAN: The steelman version should replace the regex with a manual loop that checks for the specific whitespace characters defined in the JSON standard (space, tab, line feed, carriage return) rather than relying on ord < 0x20. This maintains correctness while avoiding regex overhead, and can be implemented efficiently by checking against a set of valid whitespace characters.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    m = _WS_RE.match(text, pos)
+    return m.end() if m else pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to replace `_skip_ws` with a tight loop using `text[pos] in ' \t\n\r'` is problematic because it doesn't address the actual performance bottleneck — the regex compilation and reuse of `_WS_RE` is the real issue, not the character checking. Additionally, this approach would still require a bounds check on every iteration, which could be slower than the optimized regex for sparse whitespace. The suggestion also ignores that the current implementation uses `str.find()` and `str.rfind()` internally in the regex, which may already be optimized.
+STEELMAN: A better approach is to replace the regex-based `_skip_ws` with a tight loop that directly checks characters using `text[pos] in ' \t\n\r'` but also adds a bounds check to avoid repeated `pos < len(text)` checks inside the loop. This avoids regex overhead while ensuring efficient iteration.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

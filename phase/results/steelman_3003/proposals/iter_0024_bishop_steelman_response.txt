@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to use `re.search(r"[^ \t\n\r]", text, pos)` would not work correctly because it would skip past the first non-whitespace character but not account for the fact that the regex engine might not be optimized for this specific use case in the context of a parser. Additionally, it would introduce a performance regression due to regex compilation overhead on each call, and it doesn't preserve the existing behavior of handling malformed input gracefully.
+STEELMAN: A better approach would be to precompile the regex once and reuse it, or even better, to use a more efficient method like `re.match(_WS_RE, text[pos:])` which skips whitespace efficiently without recompilation and still allows for proper termination logic.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_RE = re.compile(r"[ \t\n\r]*")
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex match
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

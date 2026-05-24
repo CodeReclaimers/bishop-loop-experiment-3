@@ -1,0 +1,95 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex would fail because JSON numbers have complex syntax rules that a simple regex cannot handle correctly, especially around edge cases like leading zeros, invalid exponents, and proper Unicode handling. It also doesn't account for the fact that the current implementation already handles all the necessary validation and conversion logic in a way that's more explicit and easier to debug than a black-box regex match. Additionally, regex-based parsing may not be faster due to the overhead of regex compilation and backtracking in Python's implementation.
+STEELMAN: A better approach would be to use a single compiled regex to match the entire number token, then validate and convert it using existing logic. This preserves correctness while leveraging regex performance for the initial tokenization, and avoids the complexity of manually parsing the number structure.
+
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+=======
+from __future__ import annotations
+
+import re
+from typing import Any
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+def parse(text: str) -> Any:
+=======
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+_NUMBER_RE = re.compile(r"""
+    # Match a complete JSON number
+    -?                          # optional minus sign
+    (?:0|[1-9]\d*)              # integer part: zero or digits (no leading zeros)
+    (?:\.\d+)?                  # optional fractional part
+    (?:[eE][+-]?\d+)?           # optional exponent part
+    """, re.VERBOSE)
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    match = _NUMBER_RE.match(text, pos)
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    end = match.end()
+    s = text[pos:end]
+    # Validate that number doesn't have leading zeros in integer part (except for "0")
+    if not (s == "0" or not (s.startswith("0") and s[1].isdigit())):
+        raise JSONParseError(f"bad number at {pos}")
+    # Check for valid float conversion
+    if "." in s or "e" in s.lower():
+        try:
+            num = float(s)
+        except ValueError:
+            raise JSONParseError(f"bad number at {pos}")
+        return num, end
+    else:
+        try:
+            num = int(s)
+        except ValueError:
+            raise JSONParseError(f"bad number at {pos}")
+        return num, end
+>>>>>>> REPLACE
+```

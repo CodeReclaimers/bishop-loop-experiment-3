@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use `text.find(''.join(_WS_CHARS), pos)` is flawed because it doesn't handle the case where there are no whitespace characters after `pos`, which would return -1 and cause incorrect behavior. Additionally, it doesn't properly handle the case where the string is exhausted, as `find` returns the index of the next non-whitespace character, not a boolean indicating end-of-string. This approach also assumes that all whitespace characters are contiguous, which is not true for a general parser.
+
+STEELMAN: A better approach is to use `text.find` to find the next non-whitespace character, but handle the edge case where no such character exists (i.e., when `find` returns -1 or the result is beyond the string length). The implementation should still return the correct position, but avoid the per-character loop by leveraging the optimized C-level string search.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use text.find to skip whitespace efficiently
+    next_non_ws = text.find(''.join(_WS_CHARS), pos)
+    if next_non_ws == -1:
+        return len(text)
+    # Find the first non-whitespace character
+    while pos < next_non_ws:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

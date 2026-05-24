@@ -1,0 +1,101 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop to skip whitespace
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop to skip whitespace
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+
+
+def _parse_value_generator(text: str, pos: int):
+    """Generator that yields parsed values one by one."""
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        yield from _parse_object_generator(text, pos)
+    elif c == "[":
+        yield from _parse_array_generator(text, pos)
+    elif c == '"':
+        yield _parse_string(text, pos)
+    elif c == "t" or c == "f":
+        yield _parse_bool(text, pos)
+    elif c == "n":
+        yield _parse_null(text, pos)
+    elif c == "-" or c in _DIGIT_CHARS:
+        yield _parse_number(text, pos)
+    else:
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object_generator(text: str, pos: int):
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        yield {}, pos + 1
+        return
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        yield key, value, pos
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            yield {}, pos + 1
+            return
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array_generator(text: str, pos: int):
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        yield [], pos + 1
+        return
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        yield value, pos
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            yield [], pos + 1
+            return
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the manual loop with a regex search fails because `_WS_PATTERN.search(text, pos).end()` only finds the first sequence of whitespace, not all consecutive whitespace characters. Additionally, the regex engine's performance gains are negated by the overhead of regex compilation and state management for such a simple operation. The approach also doesn't handle the case where the entire remaining string is whitespace, which would cause an IndexError or incorrect behavior.
+
+STEELMAN: A better approach is to use the regex to find the end of the whitespace sequence by leveraging `re.match` or `re.search` with a pattern that matches one or more whitespace characters, and then use `match.end()` to get the index of the first non-whitespace character. This preserves the intent of leveraging regex for performance while avoiding the pitfalls of partial matching and ensuring correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all whitespace in one operation
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

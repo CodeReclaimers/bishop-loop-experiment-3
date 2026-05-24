@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace per-character whitespace skipping with a global regex substitution would break the parser's ability to track position accurately during parsing, since the regex would remove all whitespace at once without preserving the original position tracking needed for subsequent parsing steps. It also ignores that whitespace skipping is context-sensitive — the parser needs to skip whitespace only at specific points, not globally. Additionally, using a global regex would likely be slower than the current optimized O(1) lookup approach for individual characters.
+
+STEELMAN: A better approach would be to use a single regex to skip whitespace at key parsing points, but still maintain position tracking by using the regex's match object to advance the position, rather than removing all whitespace globally. This preserves the performance benefit of regex-based skipping while maintaining correctness by advancing the parser position accurately at each skip point.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

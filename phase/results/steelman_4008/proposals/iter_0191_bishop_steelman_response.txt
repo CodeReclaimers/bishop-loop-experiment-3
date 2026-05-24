@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the regex with a custom loop is sound, but the proposed use of `frozenset` for whitespace checking in `_parse_value` is misguided because `_parse_value` is called repeatedly and the whitespace check is already handled by `_skip_ws` at the beginning of the function. The `frozenset` approach would be redundant and potentially slower due to the extra function call overhead. Additionally, the suggestion doesn't address the actual performance bottleneck which is the repeated regex usage in `_skip_ws`.
+
+STEELMAN: The core idea should be to optimize `_skip_ws` by replacing the regex with a fast character-by-character loop using a precomputed frozenset for whitespace characters, and to ensure that this optimized version is used consistently throughout the parser. This approach will eliminate the regex overhead while maintaining correctness and improving performance.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    _WHITESPACE_CHARS = frozenset(' \t\n\r')
+    while pos < len(text):
+        if text[pos] not in _WHITESPACE_CHARS:
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

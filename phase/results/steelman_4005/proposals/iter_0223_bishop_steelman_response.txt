@@ -1,0 +1,31 @@
+CRITIQUE: The suggestion to use `re.compile(r'\s+').sub('', text)` would completely rewrite the input string, which is not only wasteful but also breaks the parser's stateful incremental parsing approach. It would require reprocessing the entire string instead of just advancing a position pointer, and would not work with the existing `_skip_ws` function's interface that returns a new position. Additionally, it would not preserve the original string structure needed for parsing subsequent tokens.
+STEELMAN: A better approach would be to use a compiled regex for skipping whitespace that operates on a substring from the current position, matching one or more whitespace characters and advancing the position by the match length, preserving the incremental parsing model while using efficient regex matching.
+
+```python
+<<<<<<< SEARCH
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]+')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one go, advancing position by match length
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

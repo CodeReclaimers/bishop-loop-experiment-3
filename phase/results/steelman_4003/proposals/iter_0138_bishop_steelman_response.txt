@@ -1,0 +1,29 @@
+CRITIQUE: The suggestion to use an "in-place iterator" is vague and likely refers to using a mutable index or pointer into the string, which would not reduce memory allocations since strings are immutable in Python. It also fails to address the core performance bottlenecks like regex overhead, repeated character lookups, and string building. The approach could introduce bugs due to lack of bounds checking and make the code harder to reason about.
+
+STEELMAN: The steelman is to replace the current position-based string indexing with a more efficient iterator-like mechanism that precomputes and caches character lookups, minimizes redundant whitespace skipping, and reduces repeated string slicing. This preserves the core idea of reducing allocations while maintaining correctness and performance.
+
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    parser = _JSONParser(text)
+    value = parser.parse_value()
+    parser.skip_ws()
+    if parser.pos != len(parser.text):
+        raise JSONParseError(f"trailing content at position {parser.pos}")
+    return value
+>>>>>>> REPLACE
+```

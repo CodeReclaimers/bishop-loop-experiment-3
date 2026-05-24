@@ -1,0 +1,255 @@
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Use frozenset for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    # Convert string to bytearray for more efficient processing
+    byte_data = bytearray(text)
+    pos = _skip_ws(byte_data, 0)
+    if pos >= len(byte_data):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(byte_data, pos)
+    pos = _skip_ws(byte_data, pos)
+    if pos != len(byte_data):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(byte_data: bytearray, pos: int) -> int:
+    # Fast path: skip whitespace using a compiled regex
+    while pos < len(byte_data) and byte_data[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(byte_data: bytearray, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(byte_data, pos)
+    if pos >= len(byte_data):
+        raise JSONParseError("unexpected end of input")
+    c = byte_data[pos]
+    if c == ord("{"):
+        return _parse_object(byte_data, pos)
+    if c == ord("["):
+        return _parse_array(byte_data, pos)
+    if c == ord('"'):
+        return _parse_string(byte_data, pos)
+    if c == ord("t") or c == ord("f"):
+        return _parse_bool(byte_data, pos)
+    if c == ord("n"):
+        return _parse_null(byte_data, pos)
+    if c == ord("-") or c in _DIGIT_CHARS:
+        return _parse_number(byte_data, pos)
+    raise JSONParseError(f"unexpected character {chr(c)!r} at position {pos}")
+
+
+def _parse_object(byte_data: bytearray, pos: int) -> tuple[dict, int]:
+    if byte_data[pos] != ord("{"):
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(byte_data, pos)
+    if pos < len(byte_data) and byte_data[pos] == ord("}"):
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(byte_data, pos)
+        if pos >= len(byte_data) or byte_data[pos] != ord('"'):
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(byte_data, pos)
+        pos = _skip_ws(byte_data, pos)
+        if pos >= len(byte_data) or byte_data[pos] != ord(":"):
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(byte_data, pos)
+        value, pos = _parse_value(byte_data, pos)
+        out[key] = value  # Direct assignment avoids rebuilding
+        pos = _skip_ws(byte_data, pos)
+        if pos >= len(byte_data):
+            raise JSONParseError("unterminated object")
+        c = byte_data[pos]
+        if c == ord(","):
+            pos += 1
+            continue
+        if c == ord("}"):
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+
+
+def _parse_array(byte_data: bytearray, pos: int) -> tuple[list, int]:
+    if byte_data[pos] != ord("["):
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(byte_data, pos)
+    if pos < len(byte_data) and byte_data[pos] == ord("]"):
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(byte_data, pos)
+        value, pos = _parse_value(byte_data, pos)
+        out.append(value)  # Direct append avoids rebuilding
+        pos = _skip_ws(byte_data, pos)
+        if pos >= len(byte_data):
+            raise JSONParseError("unterminated array")
+        c = byte_data[pos]
+        if c == ord(","):
+            pos += 1
+            continue
+        if c == ord("]"):
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+
+
+def _parse_string(byte_data: bytearray, pos: int) -> tuple[str, int]:
+    if byte_data[pos] != ord('"'):
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos += 1
+    n = len(byte_data)
+    out = []
+    while pos < n:
+        c = byte_data[pos]
+        if c == ord('"'):
+            return "".join(out), pos + 1
+        if c == ord("\\"):
+            pos += 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = byte_data[pos]
+            if esc == ord('"'):
+                out.append('"')
+            elif esc == ord("\\"):
+                out.append("\\")
+            elif esc == ord("/"):
+                out.append("/")
+            elif esc == ord("b"):
+                out.append("\b")
+            elif esc == ord("f"):
+                out.append("\f")
+            elif esc == ord("n"):
+                out.append("\n")
+            elif esc == ord("r"):
+                out.append("\r")
+            elif esc == ord("t"):
+                out.append("\t")
+            elif esc == ord("u"):
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = byte_data[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4.decode('ascii'), 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or byte_data[pos + 5] != ord("\\") or pos + 6 >= n or byte_data[pos + 6] != ord("u"):
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = byte_data[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b.decode('ascii'), 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos += 11
+                    continue
+                out.append(chr(cp))
+                pos += 4
+            else:
+                raise JSONParseError(f"bad escape \\{chr(esc)} at {pos}")
+            pos += 1
+            continue
+        if c < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(chr(c))
+        pos += 1
+    raise JSONParseError("unterminated string")
+
+
+def _is_hex4(hex_bytes: bytes) -> bool:
+    if len(hex_bytes) != 4:
+        return False
+    for ch in hex_bytes:
+        if ch not in _HEX_CHARS:
+            return False
+    return True
+
+
+def _parse_bool(byte_data: bytearray, pos: int) -> tuple[bool, int]:
+    if byte_data[pos : pos + 4] == b"true":
+        return True, pos + 4
+    if byte_data[pos : pos + 5] == b"false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+
+def _parse_null(byte_data: bytearray, pos: int) -> tuple[None, int]:
+    if byte_data[pos : pos + 4] == b"null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+
+
+def _parse_number(byte_data: bytearray, pos: int) -> tuple[float | int, int]:
+    n = len(byte_data)
+    start = pos
+    if pos < n and byte_data[pos] == ord("-"):
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if byte_data[pos] == ord("0"):
+        pos += 1
+    elif byte_data[pos] in _DIGIT_CHARS:
+        while pos < n and byte_data[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and byte_data[pos] == ord("."):
+        is_float = True
+        pos += 1
+        if pos >= n or byte_data[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and byte_data[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and byte_data[pos] in (ord("e"), ord("E")):
+        is_float = True
+        pos += 1
+        if pos < n and byte_data[pos] in (ord("+"), ord("-")):
+            pos += 1
+        if pos >= n or byte_data[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and byte_data[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = byte_data[start:pos].decode('ascii')
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+```

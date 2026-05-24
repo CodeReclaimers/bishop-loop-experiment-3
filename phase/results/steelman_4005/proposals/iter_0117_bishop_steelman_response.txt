@@ -1,0 +1,25 @@
+CRITIQUE: The suggestion to rely on IndexError for bounds checking in string skipping is problematic because it violates the principle of explicit error handling and makes the code less readable. It also introduces a performance pitfall: IndexError is expensive compared to a simple bounds check, and the approach doesn't actually eliminate redundant checks—it just shifts the cost. Additionally, it assumes that IndexError is the only exception that can occur, which is not robust.
+
+STEELMAN: The steelman version of the suggestion is to optimize the loop by reducing redundant bounds checking and avoiding repeated calls to `len(text)` and `pos < len(text)` checks, while still using explicit bounds checking for clarity and performance. This can be achieved by precomputing a local variable for the length and using a more efficient loop structure that minimizes repeated comparisons.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by leveraging the fact that text[pos] will raise IndexError when pos >= len(text)
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a more efficient loop that avoids repeated bounds checking
+    # by precomputing the length and using explicit bounds checking
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

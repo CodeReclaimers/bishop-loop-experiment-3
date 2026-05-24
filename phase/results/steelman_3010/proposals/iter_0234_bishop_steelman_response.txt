@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to replace the manual loop with a regex match fails because `re.search()` and `re.match()` don't behave the same way as the manual loop — `re.match()` only matches at the start of the string, while `re.search()` searches the entire string but doesn't guarantee it will find the first contiguous sequence of whitespace from the given position. Additionally, the regex approach introduces overhead from regex compilation and matching that may not be faster than the current O(1) membership checks.
+STEELMAN: The steelman is to use `re.match()` with the precompiled pattern, but only when it's known that the position is at the start of a whitespace sequence; however, to maintain correctness and performance, we should still use the current approach for small amounts of whitespace, and only resort to regex for very long sequences where the linear scan becomes a bottleneck.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # For large amounts of whitespace, use regex to skip quickly
+    # For small amounts, stick with the fast O(1) lookup
+    if pos + 10 < len(text) and text[pos:pos+10].isspace():
+        match = _WS_PATTERN.match(text, pos)
+        if match:
+            return match.end()
+    # Fall back to manual loop for small or non-matching cases
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

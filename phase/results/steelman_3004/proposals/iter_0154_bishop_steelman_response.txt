@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with `re.search` is problematic because `_WS_PATTERN` only matches zero or more whitespace characters, not the *next* sequence of whitespace, so it would return the wrong position. Additionally, the regex engine would still need to scan the string incrementally, negating any performance gains from C-level optimization, and the regex overhead might actually slow things down for small inputs.
+
+STEELMAN: A better approach would be to use `re.match` or `re.search` with a pattern that finds the *first non-whitespace character* after the current position, then return the index of that character. This allows leveraging the optimized regex engine to skip over large chunks of whitespace in one operation while correctly identifying the next meaningful position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

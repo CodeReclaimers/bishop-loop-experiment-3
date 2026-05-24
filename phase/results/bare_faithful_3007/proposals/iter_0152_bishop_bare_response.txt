@@ -1,0 +1,89 @@
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using pre-computed set for O(1) lookups
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Pre-computed list of whitespace positions for binary search
+_WS_POSITIONS = []
+
+
+def _build_ws_positions(text: str) -> None:
+    global _WS_POSITIONS
+    _WS_POSITIONS = []
+    for i, char in enumerate(text):
+        if char in _WS_CHARS:
+            _WS_POSITIONS.append(i)
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    _build_ws_positions(text)
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using binary search on pre-computed positions
+    if not _WS_POSITIONS:
+        return pos
+    left, right = 0, len(_WS_POSITIONS) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if _WS_POSITIONS[mid] < pos:
+            left = mid + 1
+        else:
+            right = mid - 1
+    # Advance to the next non-whitespace character
+    if left < len(_WS_POSITIONS) and _WS_POSITIONS[left] == pos:
+        pos = _WS_POSITIONS[left] + 1
+        while left < len(_WS_POSITIONS) and _WS_POSITIONS[left] == pos:
+            pos = _WS_POSITIONS[left] + 1
+            left += 1
+    return pos
+>>>>>>> REPLACE
+```

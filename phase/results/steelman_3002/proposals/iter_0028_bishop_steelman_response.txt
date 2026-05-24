@@ -1,0 +1,43 @@
+CRITIQUE: The suggestion to use `memoryview` and byte comparisons is problematic because it assumes the input string is ASCII or Latin-1 encoded, which is not guaranteed for JSON strings. Additionally, it ignores that JSON whitespace includes Unicode characters like U+2000 through U+200A, which would not be handled correctly by simple byte-level comparisons. The approach also doesn't consider that Python strings are Unicode and that the performance benefit of byte-level operations may be negated by the overhead of converting to bytes and back.
+
+STEELMAN: A better approach would be to create a specialized whitespace skip function that uses direct byte comparisons on ASCII whitespace characters (space, tab, newline, carriage return) while still working with the full Unicode string. This can be achieved by checking if the string is ASCII first, and if so, using a memoryview-based fast path for ASCII whitespace, falling back to the current logic for non-ASCII content. This preserves performance gains for typical cases while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use fast path for ASCII strings
+    if pos < len(text):
+        try:
+            # Check if we can use memoryview for fast ASCII whitespace skipping
+            text_bytes = text[pos:].encode('ascii')
+            i = 0
+            while i < len(text_bytes):
+                b = text_bytes[i]
+                if b in (0x20, 0x09, 0x0A, 0x0D):  # space, tab, newline, carriage return
+                    i += 1
+                else:
+                    break
+            return pos + i
+        except UnicodeEncodeError:
+            # Fall back to original logic for non-ASCII content
+            while pos < len(text):
+                c = text[pos]
+                if c in ' \t\n\r':
+                    pos += 1
+                else:
+                    break
+            return pos
+    return pos
+>>>>>>> REPLACE
+```

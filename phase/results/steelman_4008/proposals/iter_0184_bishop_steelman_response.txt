@@ -1,0 +1,64 @@
+CRITIQUE: The suggestion to use a `frozenset` for whitespace checking is sound in principle but fails to address the actual performance bottleneck in `_skip_ws` — which is the repeated character-by-character loop that could be replaced with a single regex match or efficient string scanning. Simply switching to a frozenset doesn't eliminate the need for a loop to skip consecutive whitespace; it only speeds up the individual character check, which is a minor optimization. The core issue is that the current implementation still scans one character at a time instead of using a more efficient bulk skip mechanism.
+
+STEELMAN: The strongest version of the suggestion would involve replacing the character-by-character loop in `_skip_ws` with a more efficient approach that skips all consecutive whitespace characters at once, such as using a regex or a fast forward scan using `str.find` or `str.rstrip`. The frozenset is a good idea for the character check, but it must be combined with a bulk skip strategy to achieve meaningful performance gains.
+
+```python
+<<<<<<< SEARCH
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precomputed for performance
+_DIGIT_CHARS_LIST = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+
+def parse(text: str) -> Any:
+=======
+# Precompiled regex for whitespace skipping
+_WS_RE = re.compile(r'[ \t\n\r]*')
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_MAP = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precomputed for performance
+_DIGIT_CHARS_LIST = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+# Frozenset for fast whitespace character lookup
+_WHITESPACE_CHARS = frozenset(" \t\n\r")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use frozenset for fast whitespace character lookup
+    while pos < len(text) and text[pos] in _WHITESPACE_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to replace the incremental loop with a single regex call would break the parser's ability to handle malformed input correctly, since regex matching doesn't provide the same precise error reporting as character-by-character scanning. It also introduces unnecessary overhead from regex engine calls when the current approach is already efficient for typical whitespace sequences. Additionally, the regex would not integrate cleanly with the existing position-tracking logic that relies on incremental advances.
+
+STEELMAN: A better approach is to use the regex to skip whitespace but still return the precise position where non-whitespace begins, allowing the rest of the parser to continue working exactly as before. This preserves correctness and performance while leveraging the regex for the skip operation.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

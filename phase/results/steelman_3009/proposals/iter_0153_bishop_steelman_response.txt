@@ -1,0 +1,30 @@
+CRITIQUE: The suggestion to use `str.translate` with null bytes won't work because it would require modifying the input string in-place, which is impossible since strings are immutable in Python. Additionally, the approach doesn't account for the fact that `_skip_ws` is called repeatedly at different positions in the string, and `str.find('\0')` would only find the first occurrence of a null byte, not the next non-whitespace character after a given position. This would break the parser's ability to correctly skip whitespace and advance through the input.
+
+STEELMAN: The steelman version would use `str.translate` to create a transformed string where all whitespace characters are replaced with a single sentinel character (like `'\0'`), then use `str.find()` to locate the next non-whitespace character starting from the current position. However, since strings are immutable, we'd need to recompute the translation for each call, or better yet, precompute a translation table once and reuse it, while ensuring that the parser correctly handles the transformed string by using the returned offset as the new start position.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a set-based lookup for whitespace characters for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a translation table to replace all whitespace with null bytes
+    # Then find the first non-null byte to get the next non-whitespace position
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to null bytes
+    trans_table = str.maketrans(" \t\n\r", "\0\0\0\0")
+    # Translate the substring starting from pos
+    translated = text[pos:].translate(trans_table)
+    # Find the first non-null byte
+    next_non_ws = translated.find('\0')
+    if next_non_ws == -1:
+        # All remaining characters are non-whitespace
+        return len(text)
+    # Return the original position plus the offset
+    return pos + next_non_ws
+>>>>>>> REPLACE
+```

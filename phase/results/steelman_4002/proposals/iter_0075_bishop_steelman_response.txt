@@ -1,0 +1,22 @@
+CRITIQUE: The suggestion to use a "fast loop for whitespace skipping instead of a compiled regex" is naive because the current implementation already uses a fast loop in `_skip_ws`—it's already using `ord()`-like logic via `text[pos] in _WS_CHARS` with a set lookup. The suggestion fails to recognize that the performance bottleneck isn't the whitespace skipping itself, but rather the repeated string concatenation, redundant parsing, and inefficient recursive descent structure. Additionally, the suggestion doesn't address the actual inefficiencies like repeated `pos` adjustments or unnecessary intermediate string building.
+
+STEELMAN: The strongest version of the suggestion would be to optimize the existing whitespace skipping loop by reducing the number of bounds checks and leveraging more efficient iteration patterns, while also ensuring that the loop is as tight as possible. This can be achieved by minimizing the number of `pos` updates and avoiding redundant checks, especially in hot paths like `_skip_ws`, which is called frequently.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    try:
+        while text[pos] in _WS_CHARS:
+            pos += 1
+    except IndexError:
+        pass
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a fast loop for whitespace skipping
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

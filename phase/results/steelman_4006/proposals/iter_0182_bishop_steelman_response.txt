@@ -1,0 +1,28 @@
+CRITIQUE: The suggestion to use `ord()` instead of string comparisons like `' \t\n\r\f'` is unworkable because it fails to account for the fact that `ord()` would need to be called on every character, which introduces overhead from function calls and doesn't simplify the logic. Additionally, the proposed approach doesn't address the actual performance bottleneck — the repeated string comparisons in `_skip_ws` are already quite fast with direct character checks, and replacing them with `ord()` would likely slow things down due to the function call overhead.
+
+STEELMAN: The strongest version of the suggestion would be to optimize the whitespace skipping by using a set-based lookup for whitespace characters instead of a loop of string comparisons, which avoids the overhead of repeated character checks while maintaining clarity and performance. This approach preserves the intent of avoiding expensive string operations while leveraging efficient set membership testing.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using set-based lookup
+    _WHITESPACE_CHARS = frozenset(' \t\n\r\f')
+    while pos < len(text):
+        c = text[pos]
+        if c in _WHITESPACE_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

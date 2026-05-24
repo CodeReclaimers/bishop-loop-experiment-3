@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to "iterate through the string directly rather than using a set lookup" is problematic because it fails to address the actual performance bottleneck in `_skip_ws`. The current implementation already uses a while loop with set membership testing, which is already quite efficient. The suggestion doesn't clarify how direct iteration would be faster, and could lead to overcomplicated code or worse performance due to lack of optimization. Additionally, the idea of "direct iteration" is ambiguous and could easily introduce bugs or regressions.
+
+STEELMAN: A better approach would be to use a compiled regex for skipping whitespace, which can efficiently match multiple whitespace characters in one go instead of processing them one-by-one. This avoids repeated set lookups and leverages optimized regex engines, while still maintaining correctness and readability.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a compiled regex to skip whitespace efficiently
+    global _WS_RE
+    try:
+        _WS_RE
+    except NameError:
+        import re
+        _WS_RE = re.compile(r'[ \t\n\r]*')
+    match = _WS_RE.match(text, pos)
+    return match.end()
+>>>>>>> REPLACE
+```

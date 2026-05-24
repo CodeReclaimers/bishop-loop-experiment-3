@@ -1,0 +1,21 @@
+CRITIQUE: The suggestion to replace the character-by-character loop with a regex search would break the expected behavior because `_WS_RE.search` finds the next non-whitespace character starting from the given position, but it doesn't advance the position correctly in the context of a parser that needs to consume whitespace and return the new position. It also doesn't handle the case where the input is entirely whitespace, which should raise an error, and would be slower due to regex overhead for simple whitespace skipping.
+
+STEELMAN: The steelman version would use `_WS_RE.search` to find the next non-whitespace character, but correctly compute the new position by using the match's start index, and ensure that if no match is found (i.e., the rest of the string is all whitespace), it still raises an appropriate error. This preserves the performance benefits of regex while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using frozenset lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using regex search for performance
+    match = _WS_RE.search(text, pos)
+    if match:
+        return match.end()
+    # If no match, all remaining characters are non-whitespace
+    return len(text)
+>>>>>>> REPLACE
+```

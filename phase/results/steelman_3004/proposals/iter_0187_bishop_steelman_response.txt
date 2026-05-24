@@ -1,0 +1,18 @@
+CRITIQUE: The suggestion to replace the linear scan with a regex match fails because `_WS_PATTERN.match(text, pos)` only matches at the beginning of the string, not from an arbitrary position. Additionally, it doesn't handle the case where there's no whitespace at all, which would cause `match()` to return `None` and raise an AttributeError. The regex approach also introduces overhead from regex engine setup and matching that may not be faster than the simple loop for small whitespace blocks.
+
+STEELMAN: The steelman version uses `re.match` with a pattern that matches zero or more whitespace characters starting from the given position, and handles the case where no match is found by falling back to the original linear scan. This preserves the performance benefits of regex for large whitespace blocks while maintaining correctness and avoiding the AttributeError.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

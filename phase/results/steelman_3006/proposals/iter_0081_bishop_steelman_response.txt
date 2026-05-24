@@ -1,0 +1,87 @@
+CRITIQUE: The suggested approach using `text.find(next(c for c in text[start:] if c not in _DIGIT_CHARS), start)` is fundamentally flawed because the generator expression `next(c for c in text[start:] if c not in _DIGIT_CHARS)` will iterate through all characters from `start` until finding a non-digit, which is O(n) in worst case. This defeats the purpose of optimization and introduces unnecessary overhead. Additionally, it doesn't handle edge cases like empty strings or invalid inputs gracefully.
+STEELMAN: A better approach would be to use `str.find` with a custom predicate or precompute a set of valid digit characters and use `str.translate` or `str.find` with a set-based lookup to skip over runs of digits efficiently, maintaining O(k) performance where k is the length of the digit sequence.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        # Optimized digit parsing using str.find for performance
+        end = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end == -1:
+            end = n
+        pos = end
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        # Optimized fractional part parsing
+        end = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end == -1:
+            end = n
+        pos = end
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        # Optimized exponent parsing
+        end = text.find(next((c for c in text[pos:] if c not in _DIGIT_CHARS), None), pos)
+        if end == -1:
+            end = n
+        pos = end
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

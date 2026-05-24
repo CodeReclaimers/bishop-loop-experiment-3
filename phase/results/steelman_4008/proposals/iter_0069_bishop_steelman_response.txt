@@ -1,0 +1,23 @@
+CRITIQUE: The suggestion to use a generator function for `_parse_value_iter` is unworkable because the parser is fundamentally recursive and requires looking ahead at characters to determine parsing state, which cannot be efficiently done with a simple character-by-character iterator. Additionally, the suggestion doesn't address the actual performance bottlenecks like redundant whitespace handling, string concatenation, or the use of Python loops instead of compiled regexes. It also implies a change to the public API that isn't mentioned, which would break compatibility.
+STEELMAN: A better approach would be to refactor the parsing logic to use a more efficient character scanning method that avoids repeated string slicing and uses a single pass through the input, while still maintaining the recursive descent structure. This could involve precomputing character sets and using direct index-based access instead of repeated substring operations, without changing the API or introducing generators that don't fit the recursive parsing model.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        if text[pos] not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use direct character scanning instead of regex for performance
+    while pos < len(text):
+        c = text[pos]
+        if c not in ' \t\n\r':
+            return pos
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

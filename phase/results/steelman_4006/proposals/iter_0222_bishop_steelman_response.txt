@@ -1,0 +1,27 @@
+CRITIQUE: The suggestion to optimize `_skip_ws` by "directly accessing the character at the current position without performing multiple checks" is problematic because it doesn't actually address the core inefficiency: the current implementation already uses direct character access (`text[pos]`) and only checks for whitespace characters in a loop. The suggestion fails to recognize that the real issue isn't the loop structure but rather the overhead of repeated function calls and the use of `frozenset` membership checks, which are slower than direct character comparisons for this specific use case. It also implies replacing a working and readable function with an unclear optimization.
+
+STEELMAN: A better approach would be to optimize `_skip_ws` by using a direct character-by-character loop with early termination and avoiding function call overhead, while still maintaining correctness. The optimized version should inline the whitespace check using direct character comparisons for common cases and only fall back to a more complex check when necessary, reducing the number of conditional branches and function calls.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r\f':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Fast whitespace skipping using direct character checks
+    while pos < len(text):
+        c = text[pos]
+        if c == ' ' or c == '\t' or c == '\n' or c == '\r' or c == '\f':
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,86 @@
+CRITIQUE: The suggestion to use a pre-computed skip table assumes that the entire input can be preprocessed, which would require building a table of size O(n) for every possible input. This is infeasible for large inputs and contradicts the streaming nature of the parser. Additionally, it doesn't address the fact that whitespace skipping is not a one-time operation but happens repeatedly during parsing, so a static table won't help with dynamic parsing paths.
+
+STEELMAN: A better approach is to precompute a "skip table" that maps each starting index to the next non-whitespace character's index, but only for the specific input being parsed. This table can be built once and reused for the current parse, avoiding repeated character-by-character checks while maintaining the streaming behavior.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _build_skip_table(text: str) -> list[int]:
+    """Build a skip table mapping each index to the next non-whitespace index."""
+    n = len(text)
+    skip_table = [0] * n
+    pos = n - 1
+    skip_table[pos] = pos
+    while pos > 0:
+        pos -= 1
+        if text[pos] in _WS_CHARS:
+            skip_table[pos] = skip_table[pos + 1]
+        else:
+            skip_table[pos] = pos
+    return skip_table
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    skip_table = _build_skip_table(text)
+    pos = _skip_ws(text, 0, skip_table)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos, skip_table)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int, skip_table: list[int] | None = None) -> int:
+    # Skip whitespace using precomputed skip table
+    if skip_table is not None:
+        return skip_table[pos]
+    # Fallback to iterative method
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```

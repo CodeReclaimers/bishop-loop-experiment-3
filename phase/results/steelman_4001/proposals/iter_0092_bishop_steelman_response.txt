@@ -1,0 +1,36 @@
+CRITIQUE: The suggestion to use a state machine for whitespace skipping is problematic because it doesn't address the core performance issue: the current `_skip_ws` function already uses a simple loop with O(1) set membership testing, which is already quite efficient. A state machine would add complexity without clear benefit for this specific case. Additionally, the suggestion doesn't account for the fact that whitespace skipping is only a small part of the parsing process, and optimizing it in isolation won't yield significant speedup.
+
+STEELMAN: A better approach would be to replace the character-by-character loop in `_skip_ws` with a regex-based skip that finds the first non-whitespace character in one pass, leveraging the fact that the regex engine is highly optimized for such tasks. This would maintain the existing API and correctness while improving performance for whitespace-heavy inputs.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip whitespace in one pass
+    match = _WS_RE.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+=======
+# Use sets for O(1) membership testing
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+# Precompile regex for skipping whitespace
+_WS_RE = re.compile(r'[ \t\n\r]*')
+>>>>>>> REPLACE
+```

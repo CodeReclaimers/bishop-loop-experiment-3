@@ -1,0 +1,20 @@
+CRITIQUE: The suggestion to use `re.match(text[pos:])` would be inefficient because it creates a new regex match object and reprocesses the entire remaining string from `pos`, rather than advancing the position incrementally. This approach doesn't leverage the fact that we already have a known starting position and could benefit from a more direct skip mechanism. Additionally, the regex engine isn't optimized for this kind of incremental whitespace skipping and would likely be slower than the current O(1) character-by-character check.
+
+STEELMAN: A better approach is to use the compiled regex to find the next non-whitespace character by matching the pattern starting at `pos` and using `match.end()` to determine how many characters to skip, which avoids the repeated character-by-character loop while still being efficient.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Manually skip whitespace using precomputed set for O(1) membership
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex to skip all consecutive whitespace at once
+    match = _WS_PATTERN.match(text, pos)
+    if match:
+        return match.end()
+    return pos
+>>>>>>> REPLACE
+```

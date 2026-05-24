@@ -1,0 +1,24 @@
+CRITIQUE: The suggestion to use `r"\s+"` regex for whitespace skipping is problematic because it would require recompiling the regex on every call, negating any performance gains. Additionally, it's not clear how this would integrate cleanly with the existing position-tracking logic, since regex matching returns a match object rather than just a length. Finally, using a regex for such a simple operation may actually be slower than the current character-by-character approach due to regex overhead.
+
+STEELMAN: A better approach would be to precompile the whitespace regex once and reuse it, then use `re.match()` to find the longest sequence of whitespace characters starting at the current position, and advance the position by the match length. This preserves the intent of using regex for bulk skipping while avoiding recompilation and maintaining clean integration with the existing parsing logic.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos = pos + 1
+    return pos
+=======
+# Precompile the whitespace regex to avoid repeated compilation cost
+_WS_RE = re.compile(r"\s+")
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    # Use regex to skip multiple whitespace characters at once
+    match = _WS_RE.match(text, pos)
+    if match:
+        return pos + len(match.group(0))
+    return pos
+>>>>>>> REPLACE
+```

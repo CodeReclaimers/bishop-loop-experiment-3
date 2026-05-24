@@ -1,0 +1,48 @@
+CRITIQUE: The suggestion to use `text.translate()` would remove all whitespace characters from the string, which would break the parser's ability to correctly identify token boundaries. Additionally, `translate()` would modify the input string in-place if not handled carefully, and it doesn't preserve the position tracking needed for the parser's logic.
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (like a space), then use `str.translate()` to collapse all whitespace into a single space, followed by a single `str.strip()` call to skip leading whitespace. This preserves position tracking and maintains correctness while leveraging optimized C-level string operations.
+
+```python
+<<<<<<< SEARCH
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Compiled regex for whitespace skipping
+_WS_RE = re.compile(r'\s*')
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace using set membership for O(1) lookup
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+# Pre-computed sets for O(1) membership checks
+_WS_CHARS = {" ", "\t", "\n", "\r"}
+_DIGIT_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+_HEX_CHARS = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f",
+              "A", "B", "C", "D", "E", "F"}
+
+
+# Pre-computed translation table for whitespace collapsing
+_WS_TRANSLATE_TABLE = str.maketrans({char: " " for char in _WS_CHARS})
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Skip whitespace by collapsing all whitespace to single spaces and stripping
+    # This uses the optimized C-level str.translate and str.strip operations
+    if pos >= len(text):
+        return pos
+    # Translate all whitespace to single spaces
+    text_at_pos = text[pos:]
+    collapsed = text_at_pos.translate(_WS_TRANSLATE_TABLE)
+    # Strip leading spaces to get new position
+    stripped = collapsed.lstrip()
+    # Calculate new position based on difference in length
+    new_pos = pos + (len(collapsed) - len(stripped))
+    return new_pos
+>>>>>>> REPLACE
+```

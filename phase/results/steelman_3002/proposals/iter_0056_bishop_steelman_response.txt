@@ -1,0 +1,33 @@
+CRITIQUE: The suggestion to use memoryview with pre-computed ASCII codes is problematic because it introduces unnecessary complexity and potential performance overhead from memoryview construction. It also fails to address the fact that the current implementation already uses a simple character-by-character loop with direct comparisons against a frozenset, which is already quite efficient. Additionally, the approach doesn't consider that string iteration in Python is already highly optimized, and the overhead of memoryview conversion may outweigh any gains.
+
+STEELMAN: The steelman version would involve optimizing `_skip_ws` by using a direct byte-level loop with precomputed ASCII values for whitespace characters, avoiding the overhead of Python's string indexing and membership checks, while still maintaining the simplicity and correctness of the existing approach. This could be implemented by converting the string to bytes and iterating over byte values directly, using a frozenset of ASCII whitespace codes for fast lookup.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    while pos < len(text):
+        c = text[pos]
+        if c in ' \t\n\r':
+            pos += 1
+        else:
+            break
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # JSON whitespace includes space, tab, line feed, and carriage return
+    # Use byte-level iteration for performance
+    whitespace_bytes = frozenset(b' \t\n\r')
+    text_bytes = text.encode('utf-8')
+    while pos < len(text):
+        try:
+            byte_val = text_bytes[pos]
+            if byte_val in whitespace_bytes:
+                pos += 1
+            else:
+                break
+        except IndexError:
+            break
+    return pos
+>>>>>>> REPLACE
+```

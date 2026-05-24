@@ -1,0 +1,53 @@
+To optimize the `parse` function in `json_parser.py`, we can use a more efficient approach for parsing numbers by leveraging Python's built-in string methods and avoiding explicit character checks, which are slower than using regular expressions or built-in functions. Here's how you might do it:
+
+### Suggestion: Use Built-In Methods for Parsing Numbers
+
+Instead of manually checking each character to determine if it forms part of a number, we can use Python's built-in `isdigit`, `isalpha`, and `float` methods. These methods are highly optimized for these tasks.
+
+Here’s how you might modify the `_parse_number` function:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    
+    # Skip leading whitespace and check for sign
+    if text[pos] == "-":
+        pos += 1
+    
+    # Parse digits
+    while pos < n and text[pos].isdigit():
+        pos += 1
+    
+    # Check for fractional part
+    if pos < n and text[pos] == ".":
+        pos += 1
+        while pos < n and text[pos].isdigit():
+            pos += 1
+    
+    # Check for exponent
+    if pos < n and (text[pos] in ("e", "E")):
+        pos += 1
+        if pos < n and (text[pos] in ("+", "-")):
+            pos += 1
+        while pos < n and text[pos].isdigit():
+            pos += 1
+    
+    # Handle decimal numbers
+    if start != pos:
+        value = float(text[start:pos])
+    else:
+        value = int(text[start:pos])
+    
+    return value, pos
+```
+
+### Explanation of the Changes:
+
+1. **Skipping Whitespace**: We skip any leading whitespace before parsing the number to ensure we start from a clean position.
+2. **Sign Handling**: We handle the sign immediately after the first character by adding 1 to `pos`.
+3. **Digit Parsing**: We use a loop to parse digits until we encounter a non-digit character or the end of the string.
+4. **Fractional Part**: If a decimal point is found, we skip it and continue parsing digits for the fractional part.
+5. **Exponent Handling**: If an exponent is found, we handle it by checking if there's a sign before the exponent and then parsing the digits for the exponent value.
+
+By using these built-in methods, we can

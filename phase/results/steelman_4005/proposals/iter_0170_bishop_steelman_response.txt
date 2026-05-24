@@ -1,0 +1,56 @@
+CRITIQUE: The suggestion to use `str.translate` to remove all whitespace before parsing is unworkable because it would destroy the positional information needed to parse JSON correctly — the parser relies on knowing where each token begins and ends. Additionally, `str.translate` is not suitable for skipping whitespace in the middle of a string, as it would require reconstructing the entire string with whitespace removed, which contradicts the incremental parsing approach used in this implementation.
+
+STEELMAN: A better approach would be to precompute a translation table that maps whitespace characters to a single sentinel character (e.g., a space), then use `str.translate` to efficiently skip over whitespace by repeatedly advancing past the sentinel, while preserving the original string for accurate parsing and error reporting.
+
+```python
+<<<<<<< SEARCH
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Regex for skipping whitespace
+_WS_PATTERN = re.compile(r'[ \t\n\r]*')
+
+
+def parse(text: str) -> Any:
+=======
+# Precomputed sets for O(1) membership checks
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+_ESCAPE_CHARS = {
+    '"': '"',
+    '\\': '\\',
+    '/': '/',
+    'b': '\b',
+    'f': '\f',
+    'n': '\n',
+    'r': '\r',
+    't': '\t',
+}
+# Precompute escape character lookup for performance
+_ESCAPE_LOOKUP = _ESCAPE_CHARS
+
+
+# Precompute translation table for efficient whitespace skipping
+# Maps all whitespace characters to a single sentinel character (space)
+_WS_TRANSLATE_TABLE = str.maketrans({c: " " for c in _WS_CHARS})
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```

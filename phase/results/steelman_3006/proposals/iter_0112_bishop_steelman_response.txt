@@ -1,0 +1,26 @@
+CRITIQUE: The suggestion to use `str.translate` for whitespace skipping is problematic because it would require mapping all whitespace characters to a sentinel value, which would break the parsing logic that needs to know the actual position after skipping. Additionally, `translate` is not suitable for skipping characters in-place without modifying the string, and would require complex post-processing to determine the final position. The idea of using `translate` in this context is fundamentally flawed as it doesn't align with how whitespace skipping is used in the parser.
+
+STEELMAN: A better approach would be to precompute a translation table that maps all whitespace characters to a single sentinel character (like null), then use `str.translate` to quickly identify whitespace regions, followed by a fast scan to compute the final position. This avoids Python-level loops while still maintaining correctness. The key is to use `translate` for fast identification, then compute the actual offset using `str.find` or similar efficient methods.
+
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    # Use a while loop with set membership for performance
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # Use str.translate to quickly identify whitespace characters
+    # Map all whitespace to a sentinel (null byte) for fast scanning
+    if pos >= len(text):
+        return pos
+    # Create translation table to map whitespace to null byte
+    whitespace_table = str.maketrans(''.join(_WS_CHARS), '\x00' * len(_WS_CHARS))
+    # Translate the substring starting at pos
+    translated = text[pos:].translate(whitespace_table)
+    # Find the first non-null character to determine new position
+    new_pos = pos + len(translated) - len(translated.lstrip('\x00'))
+    return new_pos
+>>>>>>> REPLACE
+```
