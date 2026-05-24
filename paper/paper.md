@@ -174,11 +174,16 @@ The sweep ran 10 seeds per condition.  The headline numbers are in Table 1.
 
 **Table 2.** Per-condition aggregate statistics, seeds 3001--3010 (n = 10 per condition).  "Bishop arm wins" reports the count of iterations in which the Bishop-derived arm produced the better PROMOTE outcome, out of the total promoted iterations (n/a for `skippy_only`, which has no Bishop arm).  Mann-Whitney U p-values are computed on the per-run final best metric.
 
-| Condition       | n  | Mean best (s) ± std    | Speedup vs. initial | Promotions (mean) | Bishop arm wins   | MWU p vs. `skippy_only` |
-| --------------- | -- | ---------------------- | ------------------- | ----------------- | ----------------- | ----------------------- |
-| `skippy_only`   | 10 | 0.0131 ± 0.0022        | 1.40$\times$        | 2.7               | n/a               | —                       |
-| `bare_faithful` | 10 | 0.0101 ± 0.0006        | 1.72$\times$        | 4.2               | 25/42 (60%)       | 0.001                   |
-| `steelman`      | 10 | 0.0105 ± 0.0003        | 1.64$\times$        | 3.4               | 12/34 (35%)       | 0.003                   |
++-----------------+----+-------------------+------------------+-------------+-----------------+--------------+
+| Condition       | n  | Mean best (s)     | Speedup          | Promotions  | Bishop arm wins | MWU p vs.    |
+|                 |    | ± std             | vs. initial      | (mean)      |                 | `skippy_only`|
++=================+====+===================+==================+=============+=================+==============+
+| `skippy_only`   | 10 | 0.0131 ± 0.0022   | 1.40$\times$     | 2.7         | n/a             | —            |
++-----------------+----+-------------------+------------------+-------------+-----------------+--------------+
+| `bare_faithful` | 10 | 0.0101 ± 0.0006   | 1.72$\times$     | 4.2         | 25/42 (60%)     | 0.001        |
++-----------------+----+-------------------+------------------+-------------+-----------------+--------------+
+| `steelman`      | 10 | 0.0105 ± 0.0003   | 1.64$\times$     | 3.4         | 12/34 (35%)     | 0.003        |
++-----------------+----+-------------------+------------------+-------------+-----------------+--------------+
 
 The `bare_faithful` vs. `steelman` comparison gives MWU $p = 0.121$ (not significant).  See §5.3 for the search-budget and edit-format confounds that prevent clean attribution of the architecture comparison.
 
@@ -214,10 +219,15 @@ The original pilot conflated two simultaneous changes: Bishop was swapped from `
 
 **Table 3.** Control sweep at n = 10 per cell, both Bishop models under SEARCH/REPLACE.  Mann-Whitney U p-values compare the per-run final metric (qwen vs. nemotron); Fisher exact p-values compare the bishop-arm-wins proportion.  All four pairwise tests give $p \geq 0.385$ -- the two Bishop models are statistically indistinguishable across both conditions and both metrics.
 
-| Condition       | nemotron-4B best (s) ± std | nemotron-4B bishop wins | qwen-1.5B best (s) ± std | qwen-1.5B bishop wins | MWU p (qwen vs. nemo) | Fisher exact p (bishop wins) |
-| --------------- | -------------------------- | ----------------------- | ------------------------- | --------------------- | --------------------- | ---------------------------- |
-| `bare_faithful` | 0.0101 ± 0.0006            | 25/42 (60%)             | 0.0101 ± 0.0006           | 26/51 (51%)           | 0.791                 | 0.530                        |
-| `steelman`      | 0.0105 ± 0.0003            | 12/34 (35%)             | 0.0103 ± 0.0003           | 17/42 (41%)           | 0.385                 | 0.813                        |
++-----------------+-------------------+--------------+-------------------+--------------+----------+------------+
+| Condition       | nemotron-4B       | nemotron-4B  | qwen-1.5B         | qwen-1.5B    | MWU p    | Fisher p   |
+|                 | best (s) ± std    | bishop wins  | best (s) ± std    | bishop wins  | (qwen vs.| (bishop    |
+|                 |                   |              |                   |              | nemo)    | wins)      |
++=================+===================+==============+===================+==============+==========+============+
+| `bare_faithful` | 0.0101 ± 0.0006   | 25/42 (60%)  | 0.0101 ± 0.0006   | 26/51 (51%)  | 0.791    | 0.530      |
++-----------------+-------------------+--------------+-------------------+--------------+----------+------------+
+| `steelman`      | 0.0105 ± 0.0003   | 12/34 (35%)  | 0.0103 ± 0.0003   | 17/42 (41%)  | 0.385    | 0.813      |
++-----------------+-------------------+--------------+-------------------+--------------+----------+------------+
 
 The two Bishop models are statistically indistinguishable on every relevant comparison.  Mann-Whitney U on the final metric gives $p = 0.791$ for `bare_faithful` (both Bishops at $0.0101 \pm 0.0006$ s) and $p = 0.385$ for `steelman` (qwen $0.0103 \pm 0.0003$ s vs. nemotron $0.0105 \pm 0.0003$ s).  Fisher exact on the bishop-arm-win proportion gives $p = 0.530$ for `bare_faithful` (qwen 51% [26/51] vs. nemotron 60% [25/42]) and $p = 0.813$ for `steelman` (qwen 41% [17/42] vs. nemotron 35% [12/34]).  All four pairwise tests give $p \geq 0.385$.
 
@@ -287,12 +297,30 @@ The closest prior work divides into three clusters that each share a design dime
 
 **Table 4.** Design-space comparison.  Dimensions chosen to surface where Bishop-loop overlaps with and differs from the closest published systems.
 
-| System                       | Models                                                  | Loop topology                       | Edit format                                   | Engagement step                              | Evaluation granularity                |
-| ---------------------------- | ------------------------------------------------------- | ----------------------------------- | --------------------------------------------- | -------------------------------------------- | ------------------------------------- |
-| FunSearch [14]               | 1 LLM                                                   | Population (evolutionary)           | full-program                                  | none                                         | score per generation                  |
-| AlphaEvolve [12]             | 2 LLMs (Gemini Flash + Gemini Pro, both proposing)      | Population (evolutionary)           | mixed (full-file and diff)                    | none                                         | score per generation                  |
-| Aider Architect/Editor [3]   | 2 LLMs (strong planner + cheaper editor)                | Per-turn, human-in-the-loop         | SEARCH/REPLACE                                | plan-then-implement (*large $\to$ small*)    | apply success + human acceptance      |
-| Bishop-loop (this work)      | 2 LLMs (small Bishop + large Skippy)                    | Per-iteration two-arm parallel      | mixed (skippy: full-file; bishop: SEARCH/REPLACE) | optional 1-round critique + steelman (*small $\to$ large*; inverse of Aider) | benchmark wall-time per iteration     |
++------------------+--------------------+------------------+-----------------+------------------+------------------+
+| System           | Models             | Loop topology    | Edit format     | Engagement step  | Evaluation       |
+|                  |                    |                  |                 |                  | granularity      |
++==================+====================+==================+=================+==================+==================+
+| FunSearch [14]   | 1 LLM              | Population       | full-program    | none             | score per        |
+|                  |                    | (evolutionary)   |                 |                  | generation       |
++------------------+--------------------+------------------+-----------------+------------------+------------------+
+| AlphaEvolve [12] | 2 LLMs (Gemini     | Population       | mixed (full-    | none             | score per        |
+|                  | Flash + Gemini     | (evolutionary)   | file and diff)  |                  | generation       |
+|                  | Pro, both          |                  |                 |                  |                  |
+|                  | proposing)         |                  |                 |                  |                  |
++------------------+--------------------+------------------+-----------------+------------------+------------------+
+| Aider            | 2 LLMs (strong     | Per-turn,        | SEARCH/REPLACE  | plan-then-       | apply success +  |
+| Architect/       | planner + cheaper  | human-in-the-    |                 | implement        | human acceptance |
+| Editor [3]       | editor)            | loop             |                 | (*large $\to$    |                  |
+|                  |                    |                  |                 | small*)          |                  |
++------------------+--------------------+------------------+-----------------+------------------+------------------+
+| Bishop-loop      | 2 LLMs (small      | Per-iteration    | mixed (skippy:  | optional         | benchmark        |
+| (this work)      | Bishop + large     | two-arm parallel | full-file;      | 1-round critique | wall-time per    |
+|                  | Skippy)            |                  | bishop:         | + steelman       | iteration        |
+|                  |                    |                  | SEARCH/REPLACE) | (*small $\to$    |                  |
+|                  |                    |                  |                 | large*; inverse  |                  |
+|                  |                    |                  |                 | of Aider)        |                  |
++------------------+--------------------+------------------+-----------------+------------------+------------------+
 
 ## 9. Conclusion
 
