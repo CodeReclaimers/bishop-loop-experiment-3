@@ -14,7 +14,7 @@ We describe Bishop-loop, a two-model code-optimization autoloop pairing a capabl
 
 ## 1. Introduction
 
-Code optimization loops have become a practical tool for squeezing performance out of real software.  The basic pattern -- propose an edit, run a benchmark, keep the improvement, discard the regression, repeat -- turns out to be surprisingly effective when the proposer is a capable language model [8].  Most deployed variants of this loop use a single model in the proposer role.  The question this paper addresses is whether a second, smaller model can contribute anything non-redundant on top of a strong primary proposer, and -- if so -- whether the manner of engagement with that smaller model's ideas matters.
+Code optimization loops have become a practical tool for squeezing performance out of real software.  The basic pattern -- propose an edit, run a benchmark, keep the improvement, discard the regression, repeat -- is one Karpathy [8] has articulated as a general way LLMs are now used as active agents in software development; the evidence we cite for its effectiveness as a code-optimization strategy comes from the systems work surveyed in §2 and §8, not from the talk itself.  Most deployed variants of this loop use a single model in the proposer role.  The question this paper addresses is whether a second, smaller model can contribute anything non-redundant on top of a strong primary proposer, and -- if so -- whether the manner of engagement with that smaller model's ideas matters.
 
 The system we built, Bishop-loop, optimizes a Python JSON parser against a microbenchmark.  Each iteration, two arms run in parallel: a primary arm (Skippy, a capable coding model) that proposes edits autonomously, and a Bishop arm that receives an idea from a smaller model and attempts to implement it.  A single PROMOTE gate advances whichever arm produces the best verified improvement.  We call this the PARALLEL_PROPOSER pattern.  The smaller model -- Bishop -- is a 1.5B-parameter model that cannot reliably produce correct code on its own, but can, in principle, suggest directions that the stronger model would not generate from its own distribution.
 
@@ -144,7 +144,7 @@ With the apply-failure problem resolved by §4.1's format change, we ran a pilot
 
 The pilot sweep (n=10 per condition) produced means consistent with a parallel-proposer effect (§5.1), but the surface reading -- that the parallel-proposer architecture helped and the engagement step did not add much over bare-faithful implementation -- turned out to be premature on both counts.
 
-Post-hoc analysis using `phase/arm_similarity.py` computed `difflib.SequenceMatcher.ratio()` between the Skippy arm's code and the Bishop-derived arm's code for each iteration.  In the early full-rewrite sweep, pooled median similarity was 0.991 (`bare_faithful`) and 0.993 (`steelman`), with $\geq 95\%$ of iterations exceeding 0.8 similarity.  After the SEARCH/REPLACE format change, those medians collapsed to 0.066 (`bare_faithful`) and 0.223 (`steelman`) in the pilot, settling at 0.097 and 0.072 respectively in the 10-seed sweep.  The arms had been producing nearly identical code.
+Post-hoc analysis using `phase/arm_similarity.py` computed `difflib.SequenceMatcher.ratio()` between the Skippy arm's code and the Bishop-derived arm's code for each iteration.  In the early full-rewrite sweep, pooled median similarity was 0.991 (`bare_faithful`) and 0.993 (`steelman`), with $\approx 95\%$ of iterations exceeding 0.8 similarity.  After the SEARCH/REPLACE format change, those medians collapsed to 0.066 (`bare_faithful`) and 0.223 (`steelman`) in the pilot, settling at 0.097 and 0.072 respectively in the 10-seed sweep.  The arms had been producing nearly identical code.
 
 What was happening: Skippy, when asked to implement Bishop's idea "exactly, no improvements," was largely regenerating his own approach with the current file as context.  The bishop-derived arm was effectively a second Skippy sample.  The "PARALLEL\_PROPOSER beats skippy\_only" finding was almost entirely a best-of-2-Skippy-samples ensemble effect -- which is a real effect, but not the one we were trying to measure.
 
@@ -183,17 +183,17 @@ The `bare_faithful` vs. `steelman` comparison gives MWU $p = 0.121$ (not signifi
 
 Note also that the per-condition standard deviations shrink substantially from `skippy_only` (0.0022 s, relative ~17%) to `bare_faithful` and `steelman` (0.0006 s and 0.0003 s, relative ~6% and ~3%), consistent with the variance-reduction expected from best-of-2 selection over best-of-1.
 
-Arm-to-arm similarity confirmed at scale the pattern first observed in the pilot.  The per-seed median SEARCH/REPLACE similarity ratios cluster in the 0.07--0.10 range across conditions (0.097 for `bare_faithful`, 0.072 for `steelman`).  Zero percent of iterations had similarity $\geq$ 0.8 in either condition -- the arms are genuinely distinct.
+Arm-to-arm similarity confirmed at scale the pattern first observed in the pilot.  The pooled median SEARCH/REPLACE similarity ratio across iterations was 0.097 for `bare_faithful` and 0.072 for `steelman`.  Under 0.5% of iterations had similarity $\geq$ 0.8 in either condition -- the arms are genuinely distinct.
 
 Two patterns emerge.  First, both PARALLEL\_PROPOSER conditions reach lower final metrics than `skippy_only` (`bare_faithful` $p = 0.001$, `steelman` $p = 0.003$).  We are explicit in §5.3 about why this comparison is *underdetermined* with respect to the Bishop-direction hypothesis: the experimental conditions evaluate two candidates per iteration while the control evaluates one (search-budget gap), and the conditions are not edit-format matched (§3.1).  The observed gap is therefore consistent with a Bishop contribution and also consistent with a best-of-2 ensemble effect on a more reliable edit format -- the experiment as designed cannot separate these.  Second, the engagement step does not measurably improve the final metric.  The `bare_faithful` vs. `steelman` comparison is not significant ($p = 0.121$), and the bishop arm win rate is actually higher under `bare_faithful` (60% vs. 35%) -- the opposite of what the engagement-step hypothesis predicts.  This second pattern is *not* subject to the search-budget confound, because both PARALLEL\_PROPOSER conditions evaluate the same number of candidates per iteration and use the same edit-format mix; only the critique-and-steelman step differs.  The engagement-step null is therefore a clean within-design result, while the architecture comparison is not.
 
 ![](../trajectory.png)
 
-**Figure 1.** Per-seed best metric over iterations for each condition.  Shows convergence trajectories and the spread across seeds.  `bare_faithful` and `steelman` both improve faster and reach lower final values than `skippy_only`; the two PARALLEL\_PROPOSER conditions are largely overlapping.  Note that this figure does not separate the search-budget effect from any Bishop-specific contribution (§5.3).
+**Figure 1.** Per-seed best metric over iterations for each condition.  The visible separation -- `bare_faithful` and `steelman` improving faster and reaching lower final values than `skippy_only`, with the two PARALLEL\_PROPOSER conditions largely overlapping -- conflates the search-budget asymmetry (best-of-2 vs. best-of-1) and the edit-format asymmetry with any Bishop-specific contribution and cannot be read as evidence for the PARALLEL\_PROPOSER architecture (§5.3).
 
 ![](../final_per_condition.png)
 
-**Figure 2.** Boxplots of final best metric by condition.  Visualizes the separation between `skippy_only` and the two PARALLEL\_PROPOSER conditions and the near-overlap between `bare_faithful` and `steelman`.
+**Figure 2.** Boxplots of final best metric by condition.  The visible `skippy_only`-vs-PARALLEL\_PROPOSER separation reflects the search-budget asymmetry (best-of-2 vs. best-of-1) and the edit-format asymmetry between conditions, not a demonstrated architecture effect (§5.3).  The near-overlap between `bare_faithful` and `steelman` -- which *is* search-budget and edit-format matched -- is the clean within-design comparison.
 
 ![](../arm_wins.png)
 
@@ -205,7 +205,7 @@ Two patterns emerge.  First, both PARALLEL\_PROPOSER conditions reach lower fina
 
 The original pilot conflated two simultaneous changes: Bishop was swapped from `qwen2.5-coder:1.5b` to `nemotron-3-nano:4b`, and the application format was changed from full-rewrite to SEARCH/REPLACE.  We ran a control sweep to isolate the Bishop model variable -- `qwen2.5-coder:1.5b` vs. `nemotron-3-nano:4b`, both under SEARCH/REPLACE -- at n=10 per condition (seeds 4001--4010).
 
-**Table 3.** Control sweep, both Bishop models under SEARCH/REPLACE.  The qwen-1.5B cells are from a freshly run n=10 sweep on seeds 4001--4010; the nemotron-4B cells are re-quoted from §5.1 (seeds 3001--3010) for direct side-by-side comparison.  Mann-Whitney U p-values compare the per-run final metric (qwen vs. nemotron); Fisher exact p-values compare the bishop-arm-wins proportion.  All four pairwise tests give $p \geq 0.385$ -- the two Bishop models are statistically indistinguishable across both conditions and both metrics.
+**Table 3.** Control sweep, both Bishop models under SEARCH/REPLACE.  The qwen-1.5B cells are from a freshly run n=10 sweep on seeds 4001--4010; the nemotron-4B cells are re-quoted from §5.1 (seeds 3001--3010) for direct side-by-side comparison.  Mann-Whitney U p-values compare the per-run final metric (qwen vs. nemotron); Fisher exact p-values compare the bishop-arm-wins proportion.  All four pairwise tests give $p \geq 0.385$ -- we could not distinguish the two Bishop models at n=10 on either metric; a moderate effect could remain undetected at this sample size.
 
 +-----------------+-------------------+--------------+-------------------+--------------+----------+------------+
 | Condition       | nemotron-4B       | nemotron-4B  | qwen-1.5B         | qwen-1.5B    | MWU p    | Fisher p   |
@@ -217,9 +217,9 @@ The original pilot conflated two simultaneous changes: Bishop was swapped from `
 | `steelman`      | 0.0105 ± 0.0003   | 12/34 (35%)  | 0.0103 ± 0.0003   | 17/42 (40%)  | 0.385    | 0.813      |
 +-----------------+-------------------+--------------+-------------------+--------------+----------+------------+
 
-The two Bishop models are statistically indistinguishable on every relevant comparison.  Mann-Whitney U on the final metric gives $p = 0.791$ for `bare_faithful` (both Bishops at $0.0101 \pm 0.0006$ s) and $p = 0.385$ for `steelman` (qwen $0.0103 \pm 0.0003$ s vs. nemotron $0.0105 \pm 0.0003$ s).  Fisher exact on the bishop-arm-win proportion gives $p = 0.530$ for `bare_faithful` (qwen 51% [26/51] vs. nemotron 60% [25/42]) and $p = 0.813$ for `steelman` (qwen 40% [17/42] vs. nemotron 35% [12/34]).  All four pairwise tests give $p \geq 0.385$.
+At n=10, none of the pairwise comparisons reach significance.  Mann-Whitney U on the final metric gives $p = 0.791$ for `bare_faithful` (both Bishops at $0.0101 \pm 0.0006$ s) and $p = 0.385$ for `steelman` (qwen $0.0103 \pm 0.0003$ s vs. nemotron $0.0105 \pm 0.0003$ s).  Fisher exact on the bishop-arm-win proportion gives $p = 0.530$ for `bare_faithful` (qwen 51% [26/51] vs. nemotron 60% [25/42]) and $p = 0.813$ for `steelman` (qwen 40% [17/42] vs. nemotron 35% [12/34]).  All four pairwise tests give $p \geq 0.385$.  This is a non-detection rather than evidence of equivalence: a moderate effect could remain undetected at this sample size.
 
-The control answers the disentanglement question cleanly: the **SEARCH/REPLACE format change was the load-bearing fix**, and the Bishop model swap from 1.5B to 4B was incidental -- it did not measurably affect either the final metric or the bishop-arm win rate.  The original pilot's low bishop-arm win rate under qwen-1.5B + full-rewrite (raw counts in the artifact tree at `phase/results/`) reflected the same-arms-degeneracy confound (§4.2), not a Bishop-capability ceiling at 1.5B.
+What the control *does* establish cleanly is the **SEARCH/REPLACE format change as the load-bearing fix for the same-arms degeneracy**: under SEARCH/REPLACE, the original pilot's low bishop-arm win rate under qwen-1.5B + full-rewrite (raw counts in the artifact tree at `phase/results/`) does not reappear, so that low win rate reflected the degeneracy confound (§4.2) rather than a 1.5B-specific capability ceiling.  What the control *cannot* establish is that the two Bishop models are equivalent on this task; the within-1.5B--4B comparison is closed as far as n=10 can close it (§6, §9), but a true equivalence claim would require either a larger sample or a pre-specified equivalence margin, neither of which we have.
 
 ### 5.3  What this experiment cannot attribute: the search-budget and format confounds
 
@@ -330,6 +330,12 @@ The primary follow-on experiment is the three-condition matched-format sweep int
 
 The repository is available at https://github.com/CodeReclaimers/bishop-loop-experiment-3; all per-run artifacts are logged under `phase/results/<condition>_<seed>/` in JSONL format, capturing proposal text, critiques, arm winners, and apply outcomes.  The artifact tree is the fact-checker's primary resource -- the aggregate statistics in this paper are derived directly from those logs.  The code and results referenced in this paper correspond to commit `d502cd9682aa66d7287f63bde54f3b4a225544db` (2026-05-24) on the `main` branch.
 
+## Acknowledgements
+
+This work made substantial use of large language models from Anthropic, Google, and OpenAI in planning and running the experiments and in drafting this manuscript.  The models contributed as tools, not as authors; the author is responsible for all claims, decisions, and remaining errors.
+
+The names "Bishop" and "Skippy" are borrowed from two recurring characters in Craig Alanson's *Expeditionary Force* novel series.  Alanson's writing is also the proximate source of the methodological habit this project leans on most heavily: stepping back and seriously considering the dumbest thing that could possibly work.
+
 ## References
 
 [1] Christiano, P., Shlegeris, B., and Amodei, D. (2018). Supervising strong learners by amplifying weak experts. arXiv:1810.08575. https://arxiv.org/abs/1810.08575
@@ -352,7 +358,7 @@ The repository is available at https://github.com/CodeReclaimers/bishop-loop-exp
 
 [10] Lehman, J., Gordon, J., Jain, S., Ndousse, K., Yeh, C., and Stanley, K. O. (2023). Evolution through large models. In *Handbook of Evolutionary Machine Learning*, pp. 331--366. Springer. (Originally arXiv:2206.08896, 2022.) https://arxiv.org/abs/2206.08896
 
-[11] Li, W., et al. (2025). Rethinking Mixture-of-Agents: Is Mixing Different Large Language Models Beneficial? arXiv:2502.00674. https://arxiv.org/abs/2502.00674
+[11] Li, W., Lin, Y., Xia, M., and Jin, C. (2025). Rethinking Mixture-of-Agents: Is Mixing Different Large Language Models Beneficial? arXiv:2502.00674. https://arxiv.org/abs/2502.00674
 
 [12] Madaan, A., Tandon, N., Gupta, P., Hallinan, S., Gao, L., Wiegreffe, S., Alon, U., Dziri, N., Prabhumoye, S., Yang, Y., Gupta, S., Majumder, B. P., Hermann, K., Welleck, S., Yazdanbakhsh, A., and Clark, P. (2023). Self-Refine: Iterative Refinement with Self-Feedback. In *Advances in Neural Information Processing Systems (NeurIPS)*. arXiv:2303.17651. https://arxiv.org/abs/2303.17651
 
