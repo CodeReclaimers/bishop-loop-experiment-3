@@ -1,0 +1,113 @@
+To speed up the JSON parser, we can reduce the overhead of repeated whitespace skipping by using a generator to lazily produce the parsed values as they are encountered. This will allow us to stop parsing prematurely if we encounter unexpected characters or incomplete structures.
+
+Here's how you can implement this change:
+
+1. **Modify `_parse_value` to use a generator**:
+   Instead of returning the value directly from `_parse_value`, yield it and keep track of the current position. This way, we can return as soon as an error occurs or when we reach the end of the input.
+
+2. **Use `itertools.islice` for lazy parsing**:
+   When skipping whitespace using `_skip_ws`, instead of scanning through the entire string from the start to each position, use `itertools.islice` to only check a portion of the string up to the next non-whitespace character. This reduces the number of iterations and improves performance.
+
+Here's how you can implement these changes:
+
+```python
+from __future__ import annotations
+
+from typing import Any, Generator
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    value_generator = yield from _parse_value_inner(text, pos)
+    value, pos = next(value_generator), pos
+    return value, pos
+
+
+def _parse_value_inner(text: str, pos: int) -> Generator[tuple[Any, int], None, None]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        yield from _parse_string(text, pos)
+    if c == "t" or c == "f":
+        yield from _parse_bool(text, pos)
+    if c == "n":
+        yield from _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        yield from _parse_number(text, pos)
+    else:
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    for key, value in _parse_value_inner(text, pos):
+        out[key] = value
+        pos = _skip_ws(text, pos)
+    return out, pos + 1
+
+
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    for item in _parse_value_inner(text, pos):
+        out.append(item)
+        pos = _skip_ws(text, pos)
+    return out, pos + 1
+
+
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    pos += 1
+    end_pos = pos
+    while end_pos < len(text) and text[end_pos] != '"':
+        end_pos += 1
+    if end_pos == len(text):
+        raise JSONParseError("unterminated string")
+    value = text[pos:end_pos]
+    pos = end_pos + 1
+    return value, pos
+
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4

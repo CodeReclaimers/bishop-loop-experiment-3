@@ -1,0 +1,36 @@
+To speed up the JSON parser without losing correctness, we can use a more efficient string concatenation strategy. Instead of appending each value to a list and then converting it to a dictionary at the end, we can directly add values to the dictionary as they are parsed. This reduces the overhead of creating intermediate lists.
+
+Here's how you could modify the `_parse_object` function:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+```
+
+In this modification, when a key-value pair is parsed, we directly add the value to `out[key]`, which avoids the need to rebuild the dictionary on each step. This reduces the overhead of appending and updating dictionaries, resulting in faster parsing speed while maintaining correctness.

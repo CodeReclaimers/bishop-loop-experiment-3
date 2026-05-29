@@ -1,0 +1,186 @@
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    
+    # Iterative approach using a stack
+    stack = []
+    current_dict = out
+    key = None
+    
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        
+        if text[pos] == '"':
+            key, pos = _parse_string(text, pos)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos += 1
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            current_dict[key] = value
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos += 1
+                continue
+            if c == "}":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or '}}' at {pos}")
+        elif text[pos] == "{":
+            # Start a new nested object
+            nested_dict = {}
+            if key is not None:
+                current_dict[key] = nested_dict
+            else:
+                # This is the root object
+                pass
+            stack.append((current_dict, key))
+            current_dict = nested_dict
+            key = None
+            pos += 1
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == "}":
+                pos += 1
+                # Pop from stack
+                if stack:
+                    current_dict, key = stack.pop()
+                continue
+            continue
+        elif text[pos] == "}":
+            # End current object
+            pos += 1
+            if stack:
+                current_dict, key = stack.pop()
+            else:
+                return out, pos
+            continue
+        else:
+            raise JSONParseError(f"unexpected character {text[pos]!r} at position {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    
+    # Iterative approach using a stack
+    stack = []
+    current_list = out
+    
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        
+        if text[pos] == "[":
+            # Start a new nested array
+            nested_list = []
+            current_list.append(nested_list)
+            stack.append(current_list)
+            current_list = nested_list
+            pos += 1
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == "]":
+                pos += 1
+                # Pop from stack
+                if stack:
+                    current_list = stack.pop()
+                continue
+            continue
+        elif text[pos] == "]":
+            # End current array
+            pos += 1
+            if stack:
+                current_list = stack.pop()
+            else:
+                return out, pos
+            continue
+        else:
+            # Parse a value
+            value, pos = _parse_value(text, pos)
+            current_list.append(value)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated array")
+            c = text[pos]
+            if c == ",":
+                pos += 1
+                continue
+            if c == "]":
+                return out, pos + 1
+            raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```

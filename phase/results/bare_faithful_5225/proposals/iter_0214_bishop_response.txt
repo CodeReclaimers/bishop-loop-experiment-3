@@ -1,0 +1,39 @@
+To optimize the `json_parser.py`, you can improve the efficiency of the string concatenation used in building the output dictionary. Instead of using `out = out + [v]` and `out = dict(out); out[k] = v`, which are each O(k) operations, you can directly append elements to the list without creating a new dictionary. This reduces the time complexity from O(n * k) to O(n). Additionally, avoid rebuilding the dictionary on each step by using a list instead of a dictionary. The revised code should look like this:
+
+```python
+# ...
+# (function at lines 44-61)
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    
+    # Replace list concatenation with direct appends
+    out: list = []
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        
+        # Replace dictionary insertion with direct appends
+        value, pos = _parse_value(text, pos)
+        out.append((key, value))
+        
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+```

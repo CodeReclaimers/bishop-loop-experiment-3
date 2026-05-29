@@ -1,0 +1,50 @@
+To optimize the JSON parser, a significant improvement is to use an efficient string concatenation technique that avoids unnecessary rebuilds of the dictionary in each iteration. This can be achieved by using a list of strings and appending them instead of directly modifying the existing dictionary. This reduces the overhead of rebuilding the dictionary on each assignment, thereby improving performance.
+
+Here's how the change can be implemented:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return dict(out), pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Avoid rebuilding dict each iteration.
+        out.append((key, value))
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return dict(out), pos + 1
+```
+
+In this implementation, the `out` list is used to store key-value pairs of the object. After processing each value, it is appended to the list using the `append()` method instead of directly modifying the dictionary. This approach avoids the overhead of building a new dictionary each time a new key-value pair is added, reducing the time complexity from O(k) for membership checks in sets to O(1).

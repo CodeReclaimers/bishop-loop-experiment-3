@@ -1,0 +1,24 @@
+To speed up the JSON parser, we can optimize the whitespace skipping by using a generator expression to skip multiple spaces at once. This reduces the overhead of repeatedly calling `str.lstrip(' \t\n\r')` for each character.
+
+```python
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def _skip_ws(text: str, pos: int) -> int:
+    whitespace = iter(' \t\n\r')
+    return sum(1 for _ in range(pos + len(text[pos:].lstrip(whitespace))))
+```
+
+This approach uses a generator expression to iterate over each space character found after the current position. The `sum` function then counts the number of spaces, which is faster than repeatedly calling `str.lstrip(' \t\n\r')`.

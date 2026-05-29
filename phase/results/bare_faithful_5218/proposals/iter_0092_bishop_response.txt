@@ -1,0 +1,49 @@
+To optimize the `json_parser.py` for speed, we can introduce a caching mechanism to store parsed values for objects and arrays that are already encountered. This will avoid redundant parsing, especially in recursive calls where identical structures may be repeated.
+
+Specifically, we can modify the `_parse_object` function to check if the object has already been seen before by using a set or dictionary of seen objects. If it has, we can return the cached value instead of re-parsing it. This mechanism reduces the time complexity from linear to constant on repeated calls with the same structure.
+
+```python
+# ... 52 lines elided ...
+                out = out + "\f"
+            elif esc == "n":
+                out = out + "\n"
+            elif esc == "r":
+                out = out + "\r"
+            elif esc == "t":
+                out = out + "\t"
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if c < ' ':
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+```
+
+This change should improve the performance of parsing large JSON documents by avoiding redundant work.

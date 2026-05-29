@@ -1,0 +1,166 @@
+Looking at this JSON parser, I need to identify the most promising optimization opportunities. Let me analyze the current implementation:
+
+1. **Whitespace handling**: The `_skip_ws` function uses a loop with character-by-character checks
+2. **String building**: Uses string concatenation (`out = out + c`) which is inefficient
+3. **Number parsing**: Character-by-character scanning with explicit checks
+4. **Object/array building**: Uses direct updates instead of rebuilding (this is already good)
+
+The most promising optimization is to replace the character-by-character string building with more efficient approaches, particularly for the `_parse_string` function which does extensive string concatenation.
+
+However, looking at the recent history, I see that approaches involving `str.join()` or pre-allocating buffers have been tried and rejected. Let me think of a different angle.
+
+Actually, let me reconsider the whitespace skipping - that's a hot path. The current approach does character-by-character checking, but there's a better way using `str.lstrip()` or regex for whitespace skipping.
+
+But wait, the history shows that the baseline was already at 0.0105, and we're trying to improve from there. Looking more carefully at the code, I notice that the `_parse_string` function is doing a lot of string concatenation, and also the `_parse_number` function could be optimized by using more efficient number parsing.
+
+Let me focus on a different approach: pre-allocating string buffers or using more efficient string building techniques.
+
+Actually, looking more carefully at the code, I think the key insight is to optimize the string building in `_parse_string` and also consider using `str.translate` or similar techniques for escape handling.
+
+But let me look at the specific rejected attempts again - they were likely trying to use `str.join()` or similar, which may have been too aggressive.
+
+A better approach would be to use a list for building strings and then join once at the end, which is more efficient than repeated concatenation. However, this approach was likely rejected as well.
+
+Wait, let me re-read the code more carefully. I notice that `_parse_string` uses `out = out + c` in several places. A more efficient approach would be to collect characters in a list and join once.
+
+But that's likely been tried. Let me look at `_parse_number` - it's doing character-by-character scanning. 
+
+Let me try a different approach: optimizing the whitespace skipping. The current `_skip_ws` function is called frequently. Instead of checking `text[pos] in _WS_CHARS` repeatedly, I can use a regex or more efficient approach.
+
+But the history shows these approaches were rejected. 
+
+Let me try to optimize the string building in `_parse_string` using a list approach, which should be more efficient than repeated concatenation.
+
+```python
+<<<<<<< SEARCH
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = ""
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return out, pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out = out + '"'
+            elif esc == "\\":
+                out = out + "\\"
+            elif esc == "/":
+                out = out + "/"
+            elif esc == "b":
+                out = out + "\b"
+            elif esc == "f":
+                out = out + "\f"
+            elif esc == "n":
+                out = out + "\n"
+            elif esc == "r":
+                out = out + "\r"
+            elif esc == "t":
+                out = out + "\t"
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+=======
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return ''.join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+>>>>>>> REPLACE
+```

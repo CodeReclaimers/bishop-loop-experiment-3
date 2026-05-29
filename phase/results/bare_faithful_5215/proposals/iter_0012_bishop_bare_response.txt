@@ -1,0 +1,203 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # DFA-based whitespace skipping
+    n = len(text)
+    # State 0: initial state
+    # State 1: in whitespace
+    state = 0
+    while pos < n:
+        c = text[pos]
+        if state == 0:
+            if c in _WS_CHARS:
+                state = 1
+            else:
+                break
+        elif state == 1:
+            if c in _WS_CHARS:
+                pass  # Stay in state 1
+            else:
+                break
+        pos += 1
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # DFA-based value parsing
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    # State machine for value type recognition
+    state = 0  # Initial state
+    # State 0: start of value
+    # State 1: object start '{'
+    # State 2: array start '['
+    # State 3: string start '"'
+    # State 4: boolean start 't' or 'f'
+    # State 5: null start 'n'
+    # State 6: number start '-' or digit
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # DFA-based number parsing
+    n = len(text)
+    start = pos
+    # State 0: start of number
+    # State 1: after minus sign
+    # State 2: integer part
+    # State 3: decimal point
+    # State 4: fractional part
+    # State 5: exponent start
+    # State 6: exponent sign
+    # State 7: exponent part
+    state = 0
+    while pos < n:
+        c = text[pos]
+        if state == 0:
+            if c == "-":
+                state = 1
+            elif c == "0":
+                state = 2
+            elif c in _DIGIT_CHARS:
+                state = 2
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+        elif state == 1:
+            if c == "0":
+                state = 2
+            elif c in _DIGIT_CHARS:
+                state = 2
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+        elif state == 2:
+            if c in _DIGIT_CHARS:
+                pass  # Stay in state 2
+            elif c == ".":
+                state = 3
+            elif c in ("e", "E"):
+                state = 5
+            else:
+                break
+        elif state == 3:
+            if c in _DIGIT_CHARS:
+                state = 4
+            else:
+                raise JSONParseError(f"bad number fractional at {pos}")
+        elif state == 4:
+            if c in _DIGIT_CHARS:
+                pass  # Stay in state 4
+            elif c in ("e", "E"):
+                state = 5
+            else:
+                break
+        elif state == 5:
+            if c in ("+", "-"):
+                state = 6
+            elif c in _DIGIT_CHARS:
+                state = 7
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == 6:
+            if c in _DIGIT_CHARS:
+                state = 7
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == 7:
+            if c in _DIGIT_CHARS:
+                pass  # Stay in state 7
+            else:
+                break
+        pos += 1
+    s = text[start:pos]
+    # Determine if it's a float
+    is_float = False
+    for i in range(start, pos):
+        if text[i] in (".", "e", "E"):
+            is_float = True
+            break
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

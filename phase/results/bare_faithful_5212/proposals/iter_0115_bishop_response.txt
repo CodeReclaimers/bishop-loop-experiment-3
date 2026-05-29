@@ -1,0 +1,47 @@
+To improve the performance of the JSON parser, we can use a more efficient method to determine if an escape sequence is valid. The current implementation uses `ord(c) < 0x20` to check for control characters. However, this approach is not always accurate because it may incorrectly identify certain non-control characters as control characters due to character encoding issues.
+
+A faster approach would be to use a regular expression to match the escape sequence and then decode it if necessary. This can be achieved by replacing the `ord(c) < 0x20` check with `re.match(r'\\[uU][0-9a-fA-F]{4}', text[pos:])`. Additionally, we can use the `int()` function to convert the hexadecimal number directly instead of using a loop. This will reduce the time complexity of parsing numbers from the string.
+
+Here's the suggested change:
+
+```python
+import re
+
+# ...
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+
+# ...
+
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (("0" <= ch <= "9") or ("a" <= ch <= "f") or ("A" <= ch <= "F")):
+            return False
+    return True
+
+def _parse_bool(text: str, pos: int) -> tuple[bool, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    raise JSONParseError(f"bad bool at {pos}")
+
+def _parse_null(text: str, pos: int) -> tuple[None, int]:
+    if text[pos : pos + 4] == "null":
+        return None, pos + 4
+    raise JSONParseError(f"bad null at {pos}")
+```
+
+This change makes the parser faster by avoiding unnecessary string concatenations and using a regular expression to validate escape sequences.

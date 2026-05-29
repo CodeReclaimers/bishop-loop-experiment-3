@@ -1,0 +1,79 @@
+Looking at this JSON parser, I need to identify the most promising optimization opportunities. Let me analyze the code:
+
+1. **Whitespace handling**: `_skip_ws` uses a Python loop with `in` operator on a frozenset - this could be optimized
+2. **String building**: String concatenation with `+` in loops - this is inefficient 
+3. **Number parsing**: Character-by-character parsing with explicit checks - could be optimized
+4. **Membership checks**: Using frozenset for character checks is good, but could be improved
+
+The most promising optimization is to replace the character-by-character number parsing with a direct `float()` or `int()` conversion, since Python's built-in parsers are highly optimized. I also notice that string building is done via repeated concatenation which is slow.
+
+Let me look more carefully at the rejected attempts - they seem to have tried various approaches including using regex for whitespace, but the most promising approach is to optimize the number parsing and string building.
+
+Actually, looking at the recent history, I see that the most promising approach was already tried and accepted - using `re` for whitespace skipping, but it was done differently. The key insight is to use `re` for the main whitespace skipping and number parsing.
+
+However, I notice a key opportunity: the `_parse_number` function does character-by-character parsing which is inefficient. The most promising approach is to use Python's built-in conversion functions.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # Skip leading minus
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Find end of number
+    while pos < n:
+        c = text[pos]
+        if c in _DIGIT_CHARS or c == "." or c in "eE" or c in "+-":
+            pos = pos + 1
+        else:
+            break
+    
+    s = text[start:pos]
+    try:
+        if "." in s or "e" in s.lower():
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

@@ -1,0 +1,113 @@
+To improve the performance of the JSON parser, we can use a streaming approach to parse the input text as it is read. This approach involves reading characters one by one without loading the entire file into memory, which can significantly reduce the parsing time for large inputs. We can use Python's `io` module to efficiently handle this. Here’s how we can implement this change:
+
+1. **Convert the `text` parameter to an iterator**:
+   - Instead of passing the entire text string to the parser function, pass it as an iterator (`iter(text)`).
+
+2. **Use a generator to yield characters one by one**:
+   - Define a generator function that yields each character from the input stream.
+
+3. **Replace the `while pos < len(text) and text[pos] in _WS_CHARS` loop with a `for` loop**:
+   - Iterate over each character from the iterator instead of checking for whitespace manually.
+
+4. **Use a conditional expression for parsing values**:
+   - Use a single condition expression to handle different types of values (e.g., numbers, strings, objects, arrays) based on the current character.
+
+5. **Cache intermediate results**:
+   - Cache some variables and intermediate results to avoid redundant calculations.
+
+Here's the modified code:
+
+```python
+import io
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    for c in iter(text):  # Convert text to an iterator
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        value, pos = _parse_value(c)
+        pos = _skip_ws(text, pos)
+    return value
+
+
+def _skip_ws(c: str, pos: int) -> int:
+    while pos < len(c) and c[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(c: str) -> tuple[Any, int]:
+    if c == "{":
+        return _parse_object(c)
+    if c == "[":
+        return _parse_array(c)
+    if c == '"':
+        return _parse_string(c)
+    if c == "t" or c == "f":
+        return _parse_bool(c)
+    if c == "n":
+        return _parse_null(c)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(c)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    while True:
+        while c := next(iter(text)) in _WS_CHARS:
+            pass
+        if c == "}":
+            return out, pos + 1
+        while c := next(iter(text)) in _WS_CHARS:
+            pass
+        key, pos = _parse_string(c)
+        while c := next(iter(text)) in _WS_CHARS:
+            pass
+        if c != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        while c := next(iter(text)) in _WS_CHARS:
+            pass
+        value, pos = _parse_value(c)
+        # Use direct dict update to avoid rebuilding
+        out[key] = value
+        while c := next(iter(text)) in _WS_CHARS:
+            pass
+
+
+def _is_hex4(s: str)

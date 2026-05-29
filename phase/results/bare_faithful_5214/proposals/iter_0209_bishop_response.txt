@@ -1,0 +1,32 @@
+To optimize the JSON parser, we can use a more efficient way to parse numbers by avoiding the need for explicit predicates in `_parse_number`. Instead of scanning each character and checking if it is a digit or a decimal point, we can maintain a state that tracks whether we are scanning a number. This state allows us to skip over non-digit characters without explicitly checking them.
+
+Here's how you can implement this change:
+
+```python
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    is_negative = False
+    if pos < n and text[pos] == "-":
+        is_negative = True
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Continue scanning digits until we reach the end of the string or a non-digit character
+    while pos < n and text[pos].isdigit():
+        pos += 1
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or not text[pos].isdigit():
+            raise JSONParseError(f"bad number fractional at {pos}")
+        # Continue scanning digits until we reach the end of the string or a non-digit character
+        while pos < n and text[pos].isdigit():
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s) if not is_negative else -int(s)
+```
+
+This change makes the parser more efficient because it avoids unnecessary checks for digits, which can significantly speed up parsing times.

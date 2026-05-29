@@ -1,0 +1,35 @@
+To optimize the `json_parser.py` file for faster performance while maintaining correctness, one potential change is to use a generator expression instead of list concatenation in the `_parse_object` function. This will avoid building up the entire dictionary at once and reduce memory usage. Here's the updated approach:
+
+1. In `_parse_object`, replace:
+   ```python
+   out: dict = {}
+   pos = _skip_ws(text, pos)
+   if pos < len(text) and text[pos] == "}":
+       return out, pos + 1
+   while True:
+       pos = _skip_ws(text, pos)
+       if pos >= len(text) or text[pos] != '"':
+           raise JSONParseError(f"expected string key at {pos}")
+       key, pos = _parse_string(text, pos)
+       pos = _skip_ws(text, pos)
+       if pos >= len(text) or text[pos] != ":":
+           raise JSONParseError(f"expected ':' at {pos}")
+       pos += 1
+       pos = _skip_ws(text, pos)
+       value, pos = _parse_value(text, pos)
+       # Use direct dict update to avoid rebuilding
+       out[key] = value
+       pos = _skip_ws(text, pos)
+       if pos >= len(text):
+           raise JSONParseError("unterminated object")
+       c = text[pos]
+       if c == ",":
+           pos += 1
+           continue
+       if c == "}":
+           return out, pos + 1
+   ```
+
+2. With a generator expression, the parsing process will yield the key-value pairs one at a time, thus avoiding the need for a full dictionary buildup. This approach reduces memory usage and potentially speeds up the parsing process by preventing unnecessary memory allocations.
+
+This change leverages Python's generator expressions for efficient iteration over the input text, which are generally faster than list comprehensions or concatenation operations.

@@ -1,0 +1,95 @@
+Looking at the code, I can identify several performance bottlenecks that were likely already tried and rejected. Let me analyze the most promising optimization approaches:
+
+1. **String building optimizations**: The current code uses string concatenation (`out = out + c`) which is inefficient. Using `io.StringIO` or pre-allocating lists would help.
+
+2. **Whitespace skipping**: The `_skip_ws` function uses a loop with membership testing. A regex-based approach or pre-built character maps could be faster.
+
+3. **Number parsing**: The current number parser is character-by-character. Using `float()` and `int()` directly with proper bounds checking might be faster.
+
+However, looking at the rejection history, it seems approaches like regex-based whitespace skipping and string concatenation improvements have already been tried and rejected. The key insight is that the current code is already quite optimized in many areas.
+
+Let me focus on a more subtle but potentially impactful optimization: **avoiding repeated substring operations** in the boolean and null parsing functions. Instead of checking `text[pos : pos + 4]` and `text[pos : pos + 5]`, we can do a single check for the first character and then check the rest more efficiently.
+
+Actually, let me reconsider. The most promising approach that hasn't been tried yet might be to **optimize the number parsing function** by using more efficient parsing strategies or reducing the number of bounds checks.
+
+But looking more carefully at the rejection history, I notice they're using z-scores and the baseline is ~0.0103 seconds, so we're looking for substantial improvements.
+
+The key insight is that we can make the number parsing more efficient by avoiding redundant checks and using more direct parsing. However, I notice that the most promising approach that hasn't been tried yet might be to optimize the string building in `_parse_string` by using a list and joining once instead of repeated concatenation.
+
+But let me think of something more subtle that hasn't been attempted...
+
+Actually, let me look at the `_parse_number` function more carefully. The current approach has multiple bounds checks. We can optimize this by reducing redundant checks.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

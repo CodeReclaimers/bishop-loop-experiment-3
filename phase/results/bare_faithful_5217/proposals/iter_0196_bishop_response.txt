@@ -1,0 +1,107 @@
+To optimize this JSON parser, we can use a more efficient regex for skipping whitespace, which should result in faster parsing times without losing correctness. We can also simplify the number parsing logic by using built-in Python functions like `float()` and `int()`. The modified code would look something like this:
+
+```python
+import re
+
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    # Use regex for whitespace skipping
+    match = re.match(r"\s+", text[pos:])
+    if not match:
+        return pos
+    return match.start() + pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c in ("-", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"):
+        # Simplify number parsing by using built-in Python functions
+        return float(text[pos:]), pos + len(str(float(text[pos:])))
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+```
+
+This change replaces the custom `str.isalpha()` and `str.isdigit()` checks with built-in Python functions. The regex for skipping whitespace is simpler

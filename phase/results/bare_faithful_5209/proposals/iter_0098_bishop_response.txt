@@ -1,0 +1,24 @@
+To improve speed in the JSON parser, we can optimize the whitespace skipping by using a generator expression instead of a loop. This allows us to skip over multiple whitespace characters at once, reducing the overhead of Python's string slicing and concatenation operations.
+
+```python
+WS_CHARS = frozenset(" \t\n\r")
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str) -> int:
+    return next((i for i in range(len(text)) if text[i] not in WS_CHARS), len(text))
+
+# ... 50 lines elided ...
+```
+
+In the optimized version, we use a generator expression to find the first position where a non-whitespace character is found. This is more efficient than using an explicit loop and manually advancing the index. The generator expression returns as soon as it finds a non-whitespace character, which allows us to stop skipping characters once we reach the start of the value part of the JSON object or array.

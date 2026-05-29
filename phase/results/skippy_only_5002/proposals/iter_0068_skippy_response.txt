@@ -1,0 +1,576 @@
+Looking at the code, I can identify several optimization opportunities. Based on the recent history showing that previous attempts focused on whitespace handling and parsing loops, I'll target the string building and number parsing which are likely the most performance-critical areas.
+
+Let me analyze the key bottlenecks:
+1. String building uses repeated concatenation (`out = out + c`) which is O(n²)
+2. Number parsing uses character-by-character scanning with repeated checks
+3. The `_is_hex4` function does repeated character validation
+
+The most promising optimization is to use `io.StringIO` for string building and optimize number parsing with a more efficient approach.
+
+```python
+<<<<<<< SEARCH
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+=======
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+import io
+from typing import Any
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = ""
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return out, pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out = out + '"'
+            elif esc == "\\":
+                out = out + "\\"
+            elif esc == "/":
+                out = out + "/"
+            elif esc == "b":
+                out = out + "\b"
+            elif esc == "f":
+                out = out + "\f"
+            elif esc == "n":
+                out = out + "\n"
+            elif esc == "r":
+                out = out + "\r"
+            elif esc == "t":
+                out = out + "\t"
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+=======
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = io.StringIO()
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return out.getvalue(), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.write('"')
+            elif esc == "\\":
+                out.write("\\")
+            elif esc == "/":
+                out.write("/")
+            elif esc == "b":
+                out.write("\b")
+            elif esc == "f":
+                out.write("\f")
+            elif esc == "n":
+                out.write("\n")
+            elif esc == "r":
+                out.write("\r")
+            elif esc == "t":
+                out.write("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.write(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.write(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.write(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```
+
+Wait, let me reconsider. The number parsing is actually already quite efficient. Let me look more carefully at what could be improved. Looking at the recent history, I see that whitespace handling was targeted. Let me improve the whitespace skipping and the digit character checking.
+
+```python
+<<<<<<< SEARCH
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+=======
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+>>>>>>> REPLACE
+```
+
+Actually, let me look more carefully at the _is_hex4 function - that's another potential bottleneck:
+
+```python
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (("0" <= ch <= "9") or ("a" <= ch <= "f") or ("A" <= ch <= "F")):
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (ch.isdigit() or ch.lower() in 'abcdef'):
+            return False
+    return True
+>>>>>>> REPLACE
+```
+
+But wait, let me also improve the array and object building by using pre-allocation where possible:
+
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+=======
+def _parse_array(text: str, pos: int) -> tuple[list, int]:
+    if text[pos] != "[":
+        raise JSONParseError(f"expected '[' at {pos}")
+    pos += 1
+    out: list = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "]":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out.append(value)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated array")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "]":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or ']' at {pos}")
+>>>>>>> REPLACE
+```
+
+Actually, I'm not making the right changes. Looking at the recent history more carefully, it seems that the approach should be different. Let me look at the most promising optimization - using a more efficient whitespace skipping and avoiding repeated string operations.
+
+The main issue is the string concatenation in `_parse_string`. Let me focus on that:
+
+```python
+<<<<<<< SEARCH
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = ""
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return out, pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out = out + '"'
+            elif esc == "\\":
+                out = out + "\\"
+            elif esc == "/":
+                out = out + "/"
+            elif esc == "b":
+                out = out + "\b"
+            elif esc == "f":
+                out = out + "\f"
+            elif esc == "n":
+                out = out + "\n"
+            elif esc == "r":
+                out = out + "\r"
+            elif esc == "t":
+                out = out + "\t"
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+=======
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos = pos + 1
+    n = len(text)
+    out = []
+    while pos < n:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\":
+            pos = pos + 1
+            if pos >= n:
+                raise JSONParseError("unterminated string escape")
+            esc = text[pos]
+            if esc == '"':
+                out.append('"')
+            elif esc == "\\":
+                out.append("\\")
+            elif esc == "/":
+                out.append("/")
+            elif esc == "b":
+                out.append("\b")
+            elif esc == "f":
+                out.append("\f")
+            elif esc == "n":
+                out.append("\n")
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos = pos + 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    for ch in s:
+        if not (("0" <= ch <= "9") or ("a" <= ch <= "f") or ("A" <= ch <= "F")):
+            return False
+    return True
+=======
+def _is_hex4(s: str) -> bool:
+    if len(s) != 4:
+        return False
+    try:
+        int(s, 16)
+        return True
+    except ValueError:
+        return False
+>>>>>>> REPLACE
+```

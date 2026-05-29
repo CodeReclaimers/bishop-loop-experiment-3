@@ -1,0 +1,37 @@
+To optimize the JSON parser, we can preallocate a list to build the parsed object or array. This will reduce the overhead of string concatenation and improve performance by reducing the number of reassignment operations.
+
+Here's how you can modify the `_parse_object` function:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+    return out, pos + 1
+```
+
+In this modification, we initialize an empty dictionary `out` at the beginning of the function. As we parse each key-value pair, we append them to this dictionary using `out[key] = value`. This eliminates the need for concatenating strings with each assignment operation, reducing overhead and improving performance.
+
+By preallocating `out`, we avoid the overhead of frequent string concatenation and reassignment, which are common in iterative parsing algorithms.

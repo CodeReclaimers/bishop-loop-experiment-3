@@ -1,0 +1,102 @@
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # State machine for number parsing
+    # 0: start, 1: integer part, 2: decimal point, 3: fractional part, 4: exponent, 5: exponent sign, 6: exponent part
+    state = 0
+    is_float = False
+    while pos < n:
+        c = text[pos]
+        if state == 0:  # start
+            if c == "-":
+                pos += 1
+            state = 1
+        elif state == 1:  # integer part
+            if c == "0":
+                pos += 1
+            elif c in _DIGIT_CHARS:
+                while pos < n and text[pos] in _DIGIT_CHARS:
+                    pos += 1
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+            state = 2
+        elif state == 2:  # decimal point
+            if c == ".":
+                is_float = True
+                pos += 1
+                state = 3
+            elif c in ("e", "E"):
+                is_float = True
+                pos += 1
+                state = 5
+            else:
+                break
+        elif state == 3:  # fractional part
+            if c in _DIGIT_CHARS:
+                while pos < n and text[pos] in _DIGIT_CHARS:
+                    pos += 1
+                state = 4
+            else:
+                raise JSONParseError(f"bad number fractional at {pos}")
+        elif state == 4:  # exponent
+            if c in ("e", "E"):
+                is_float = True
+                pos += 1
+                state = 5
+            else:
+                break
+        elif state == 5:  # exponent sign
+            if c in ("+", "-"):
+                pos += 1
+            state = 6
+        elif state == 6:  # exponent part
+            if c in _DIGIT_CHARS:
+                while pos < n and text[pos] in _DIGIT_CHARS:
+                    pos += 1
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+            break
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

@@ -1,0 +1,33 @@
+To optimize the `json_parser.py` for faster performance while maintaining correctness, we can focus on reducing the number of redundant whitespace handling steps at each level of recursion by using a more direct approach to string concatenation and list building.
+
+One specific change to consider is:
+
+- **Use Direct List Concatenation**: Instead of constructing intermediate lists, directly append values to a main output list. This reduces the overhead of list construction and avoids the need for multiple `out = out + ...` statements, which can lead to significant performance improvements.
+
+By modifying the `_parse_object` function, we can replace the current loop that appends keys and values with a direct assignment:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    while True:
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value  # Direct assignment to the main output list
+        if pos >= len(text):
+            break
+    return out, pos + 1
+```
+
+This approach eliminates the overhead of building intermediate lists and directly appends values to the `out` dictionary. This reduces the complexity and improves the performance of the parser, especially for larger JSON documents.

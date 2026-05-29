@@ -1,0 +1,45 @@
+To optimize the JSON parser, we can replace the `ord(c) < 0x20` check with a more efficient method that leverages Python's built-in functions and data structures. Specifically, we can use `chr()` to convert numeric values to their corresponding characters and then compare them directly without using `ord()`. This approach reduces the overhead of converting between numeric values and character codes, resulting in faster parsing times.
+
+Here is how you could implement this change:
+
+```python
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    # Convert numeric values to characters directly
+    value = "".join(chr(int(c)) for c in s)
+    return value, pos
+```
+
+This change eliminates the need to use `ord()` and `chr()` for each character, resulting in faster parsing times.

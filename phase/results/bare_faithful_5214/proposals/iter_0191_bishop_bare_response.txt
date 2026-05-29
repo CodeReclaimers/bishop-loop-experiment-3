@@ -1,0 +1,110 @@
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # DFA-based number parser
+    n = len(text)
+    start = pos
+    state = 0  # 0: start, 1: int, 2: frac, 3: exp, 4: exp_sign, 5: exp_digits
+    is_float = False
+    
+    # State transition table: (current_state, char) -> next_state
+    # For simplicity, we'll use a basic DFA approach
+    while pos < n:
+        c = text[pos]
+        if state == 0:  # start
+            if c == "-":
+                pos += 1
+                continue
+            elif c == "0":
+                state = 1
+                pos += 1
+            elif c in _DIGIT_CHARS:
+                state = 1
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+        elif state == 1:  # int part
+            if c == ".":
+                is_float = True
+                state = 2
+                pos += 1
+            elif c in ("e", "E"):
+                is_float = True
+                state = 3
+                pos += 1
+            elif c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                break
+        elif state == 2:  # frac part
+            if c in _DIGIT_CHARS:
+                pos += 1
+            elif c in ("e", "E"):
+                is_float = True
+                state = 3
+                pos += 1
+            else:
+                break
+        elif state == 3:  # exp part
+            if c in ("+", "-"):
+                state = 4
+                pos += 1
+            elif c in _DIGIT_CHARS:
+                state = 5
+                pos += 1
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == 4:  # exp_sign
+            if c in _DIGIT_CHARS:
+                state = 5
+                pos += 1
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == 5:  # exp_digits
+            if c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                break
+    if pos == start:
+        raise JSONParseError(f"bad number at {pos}")
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

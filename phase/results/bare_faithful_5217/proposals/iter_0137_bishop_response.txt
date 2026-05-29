@@ -1,0 +1,59 @@
+To optimize the `parse` function for handling large JSON inputs, we can consider implementing a more efficient algorithm that avoids unnecessary string concatenation and uses built-in Python functions where possible. Specifically, instead of manually constructing strings using `out = out + "\b"`, we could use Python's string formatting or f-strings to build the output directly.
+
+Here's how this optimization might look:
+
+```python
+# Replace manual string concatenation with formatted strings
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ... 48 lines elided ...
+        out = f"{out} \b"
+    elif esc == "f":
+        out = f"{out}\f"
+    elif esc == "n":
+        out = f"{out}\n"
+    elif esc == "r":
+        out = f"{out}\r"
+    elif esc == "t":
+        out = f"{out}\t"
+    elif esc == "u":
+        if pos + 4 >= n:
+            raise JSONParseError(f"bad unicode escape at {pos}")
+        hex4 = text[pos + 1 : pos + 5]
+        if not _is_hex4(hex4):
+            raise JSONParseError(f"bad unicode escape at {pos}")
+        cp = int(hex4, 16)
+        if 0xD800 <= cp <= 0xDBFF:
+            if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                raise JSONParseError(f"unpaired high surrogate at {pos}")
+            if pos + 10 >= n:
+                raise JSONParseError(f"bad low surrogate at {pos}")
+            hex4b = text[pos + 7 : pos + 11]
+            if not _is_hex4(hex4b):
+                raise JSONParseError(f"bad low surrogate at {pos + 7}")
+            cp2 = int(hex4b, 16)
+            if not (0xDC00 <= cp2 <= 0xDFFF):
+                raise JSONParseError(f"bad low surrogate at {pos + 7}")
+            cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+            out = f"{out}{chr(cp)}"
+            pos = pos + 11
+        else:
+            out = f"{out}{chr(cp)}"
+            pos = pos + 4
+    else:
+        raise JSONParseError(f"bad escape \\{esc} at {pos}")
+    pos = pos + 1
+    continue
+```
+
+This change avoids manual string concatenation, which is expensive in terms of both time and space. Instead, it uses Python's `f-string` formatting to build the output directly, which is significantly faster for large strings compared to repeated string concatenations.

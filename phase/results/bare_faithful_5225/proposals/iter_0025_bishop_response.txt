@@ -1,0 +1,43 @@
+To speed up the JSON parser, we can optimize the string concatenation by using `join` instead of repeated `+`. This reduces the overhead of creating new strings during the parsing process. We can also use a list to collect values and convert it to a dictionary at the end, which reduces the number of allocations and helps in reducing memory usage.
+
+Here's how we can implement this change:
+
+```python
+out = []
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    out.append(value)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return out
+
+# ...
+# (function at lines 48-65)
+def _skip_ws(text: str, pos: int) -> int:
+    m = re.match(r'\s*', text[pos:])
+    if m:
+        return m.end()
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+```
+
+In this implementation, we create an empty list `out` and append each parsed value to it. After parsing the entire string, we convert the list to a dictionary using `dict(out)`. This approach reduces the number of allocations and improves memory usage compared to concatenating strings in each step.

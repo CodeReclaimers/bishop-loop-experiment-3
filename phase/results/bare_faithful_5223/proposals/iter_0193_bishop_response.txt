@@ -1,0 +1,52 @@
+To make the JSON parser faster, we can optimize the `_parse_string` function by avoiding redundant string concatenation during parsing. Instead, we can use a more efficient data structure for storing intermediate results and directly append characters to the output string as they are parsed. This approach reduces the overhead of string manipulation and improves performance significantly.
+
+Specifically, we can use an internal buffer to store characters that have been parsed but not yet added to the final output. When a whitespace character is encountered, we can prepend the current buffer contents to the output string before resetting the buffer. This way, we avoid unnecessary string concatenation and maintain optimal performance while ensuring correctness.
+
+Here's the suggested change:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    # Use a list to store characters parsed but not yet added to the output
+    char_buffer = []
+
+    def append_to_output(c):
+        nonlocal char_buffer
+        if c == '"':
+            # Flush the buffer and add the closing quote
+            output_str += ''.join(char_buffer)
+            return pos + 1
+        elif c == "\\":
+            # Handle escape sequences
+            next_char = text[pos + 1]
+            if next_char == "u":
+                # Parse Unicode character
+                char_buffer.append("\\")
+                append_to_output(text[pos + 2])
+                append_to_output(text[pos + 3])
+                append_to_output(text[pos + 4])
+            else:
+                # Handle other escape sequences
+                char_buffer.append(c)
+        elif ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        else:
+            char_buffer.append(c)
+        return pos + 1
+
+    output_str = ""
+    while pos < len(text):
+        c = text[pos]
+        if c == '"':
+            # End of string, flush the buffer
+            output_str += ''.join(char_buffer)
+            break
+        elif c in _WS_CHARS:
+            # Skip whitespace characters
+            pos = append_to_output(c)
+        else:
+            pos = append_to_output(c)
+
+    return output_str, pos
+```
+
+This change eliminates redundant string concatenation and improves performance by reducing the number of calls to `str.join`, which is particularly expensive for large strings.

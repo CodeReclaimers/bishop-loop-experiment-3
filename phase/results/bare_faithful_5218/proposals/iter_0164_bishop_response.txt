@@ -1,0 +1,28 @@
+To make this JSON parser faster while still maintaining correctness, we can optimize the whitespace skipping by using a generator expression within `_skip_ws` to yield spaces instead of creating temporary lists in `sum`. This reduces the overhead of list concatenation and improves performance.
+
+Here's how the change would look:
+
+```python
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def _skip_ws(text: str, pos: int) -> int:
+    for _ in islice(text[pos:], None):
+        if _ in _WS_CHARS:
+            yield _
+    return pos
+```
+
+This change uses a generator expression to accumulate spaces as it iterates through the text. This avoids the overhead of creating a list and allows the function to process the whitespace without waiting for the entire string to be processed, thus improving performance.

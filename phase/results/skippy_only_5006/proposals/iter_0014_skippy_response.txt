@@ -1,0 +1,104 @@
+Looking at the code, I can identify several performance bottlenecks that were mentioned in the problem description:
+
+1. Whitespace skipping uses a per-call Python loop instead of regex
+2. Numbers are scanned character-by-character with explicit predicates
+3. String concatenation is used extensively instead of efficient building
+4. Object/array building uses string concatenation and rebuilt-on-each-step collections
+
+Let me analyze the most promising optimization approaches:
+
+1. **Use regex for whitespace skipping** - This is mentioned as a major bottleneck in the description
+2. **Use built-in `int()` and `float()` conversion** instead of character-by-character parsing 
+3. **Use `io.StringIO` or list building for strings** instead of repeated concatenation
+
+The most promising approach is to optimize the whitespace skipping and number parsing, which are called frequently and are explicitly identified as bottlenecks.
+
+Looking at the recent history, I see that approaches involving regex have been tried and rejected, but let me reconsider this more carefully. The problem states that the current implementation "leaves significant performance on the table" and specifically mentions whitespace skipping via per-call Python loop instead of regex.
+
+However, I need to be more careful about what I propose. Let me focus on the number parsing which is also explicitly mentioned as a bottleneck.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos = pos + 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos = pos + 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos = pos + 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos = pos + 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos = pos + 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # Use built-in conversion for better performance
+    n = len(text)
+    start = pos
+    # Skip leading minus if present
+    if text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Parse integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    # Parse fractional part
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    # Parse exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    s = text[start:pos]
+    try:
+        if is_float:
+            return float(s), pos
+        return int(s), pos
+    except ValueError:
+        raise JSONParseError(f"bad number at {start}")
+>>>>>>> REPLACE
+```

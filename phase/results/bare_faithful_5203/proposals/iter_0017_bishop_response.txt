@@ -1,0 +1,51 @@
+To speed up the JSON parser, you can optimize the `_parse_string` function by using a loop to scan characters until the end of the string. This avoids the need for `lstrip(_WS_CHARS)` and reduces the number of calls to `ord(c)`, which are expensive operations. The updated function should look like this:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    out = ""
+    while pos < len(text):
+        c = text[pos]
+        if c == "\\":
+            pos += 1
+            if pos >= len(text):
+                raise JSONParseError("unterminated escape")
+            esc = text[pos]
+            pos += 1
+            if esc == "u":
+                if pos + 4 >= len(text):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos : pos + 4]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= len(text) or text[pos + 5] != "\\" or pos + 6 >= len(text) or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= len(text):
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out = out + chr(cp)
+                    pos = pos + 11
+                    continue
+                out = out + chr(cp)
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos = pos + 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos += 1
+    return out, pos + 1
+```
+
+This optimization improves the parsing speed by reducing the number of `ord(c)` calls and avoiding unnecessary string concatenation.

@@ -1,0 +1,38 @@
+To speed up the JSON parser, we can avoid building the entire list in memory by using a generator instead of `out = out + [v]`. This change leverages Python's generator expressions, which are more efficient for producing large sequences compared to appending elements to a list. Here’s how you can implement this change:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    # Use str.lstrip() for efficient whitespace skipping
+    pos = pos + len(text[pos:n].lstrip(' \t\n\r'))
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        yield from _parse_string(text, pos)
+```
+
+This change uses a generator expression `yield from _parse_string(text, pos)` to directly yield the parsed string value without building it in memory. This approach reduces the memory footprint and improves performance when parsing large JSON documents.

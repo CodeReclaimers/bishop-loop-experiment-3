@@ -1,0 +1,107 @@
+To optimize the performance of this JSON parser, we can consider using a more efficient approach for parsing numbers by leveraging Python's built-in `int` and `float` constructors which are optimized for speed. Specifically, instead of manually scanning character-by-character and checking each digit, we can use these constructors directly to parse integers and floats. This eliminates the need for custom logic and reduces the number of comparisons required.
+
+Here's how you can implement this optimization:
+
+1. **Replace manual digit parsing with built-in functions**: Modify the `_parse_number` function to directly call `int` and `float` on substrings of the input string that match the expected formats (e.g., integers, floats).
+
+2. **Use built-in regex for whitespace skipping**: Although you've already skipped whitespace manually, using a regular expression can be more efficient for larger inputs.
+
+Here's the updated code snippet with these changes:
+
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a single call to re.match.
+- Numbers are scanned using built-in functions `int` and `float`.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+import re
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str) -> int:
+    m = re.match(r'\s*', text)
+    if m is None:
+        return len(text)
+    return m.end()
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+
+    # Use built-in functions for numbers
+    if c in "-0123456789.eE":
+        start = pos
+        while pos < len(text) and text[pos] in _DIGIT_CHARS:
+            pos += 1
+        if pos == start or not (text[start] == "-" or text[start] in "0123456789"):
+            raise JSONParseError(f"bad number at {start}")
+        value = float(text[start:pos])
+        return value, pos
+
+    # Skip invalid characters
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos

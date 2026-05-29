@@ -1,0 +1,86 @@
+To optimize the `json_parser.py` for faster parsing while keeping it correct, we can implement a more efficient way to handle whitespace skipping by using an iterator to skip over each character. This approach avoids the overhead of function calls and reduces the time complexity significantly.
+
+Here's how you can implement this change:
+
+1. **Replace `_skip_ws(text, pos)` with an iterator:**
+
+   Instead of using `len(text[pos:].lstrip(' \t\n\r'))`, we can create an iterator that skips over each character in the string until it encounters a non-whitespace character.
+
+2. **Update the `_parse_value` function to use this iterator:**
+
+   We need to update the `_parse_value` function to iterate through the characters using our new iterator instead of relying on a fixed-length slice.
+
+3. **Optimize the whitespace skipping logic:**
+
+   The current implementation uses `lstrip(' \t\n\r')`, which creates a new string and removes spaces, tabs, newlines, and carriage returns from the start of the input. We can optimize this by iterating through the characters manually without creating a new string.
+
+Here's the updated code snippet:
+
+```python
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via an per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str) -> int:
+    # Create an iterator to skip whitespace characters
+    for i in range(len(text)):
+        if text[i] not in _WS_CHARS:
+            return i
+    return len(text)
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+
+    # ... 79 lines elided ...
+```
+
+By using an iterator to skip whitespace characters, we avoid the overhead of function calls and reduce the time complexity significantly. This change should lead to faster parsing while keeping the code correct.

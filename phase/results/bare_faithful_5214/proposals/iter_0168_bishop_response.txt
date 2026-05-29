@@ -1,0 +1,28 @@
+To speed up the JSON parser, we can use a more efficient approach to parse numbers and strings by reducing the number of character checks and using list comprehensions where applicable. This will help in minimizing the time spent on scanning characters and reducing the overhead of string concatenation.
+
+Here's how you could modify the `_parse_value` function:
+
+```python
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    n = len(text)
+    start = pos
+    if text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    # Use list comprehension to find digits and decimal points
+    digits = [text[pos] for pos in range(pos, n) if text[pos].isdigit()]
+    decimal_points = [text[pos] for pos in range(pos, n) if text[pos] == "."]
+    if len(decimal_points) > 1:
+        raise JSONParseError(f"bad number format at {pos}")
+    # Convert the digits and decimal points to integers
+    num_str = "".join(digits)
+    decimal_pos = sum(1 for _ in range(len(decimal_points))) if decimal_points else 0
+    if decimal_pos == len(num_str):
+        value, pos = _parse_int(text, start, n)
+    else:
+        value, pos = _parse_float(text, start, n)
+    return value, pos
+```
+
+This change reduces the number of character checks and improves readability. It uses list comprehensions to find digits and decimal points efficiently, which is faster than looping through each character manually. The rest of the function remains unchanged.

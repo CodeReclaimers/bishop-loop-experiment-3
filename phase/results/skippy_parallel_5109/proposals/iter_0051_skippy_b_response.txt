@@ -1,0 +1,160 @@
+Looking at the code, I can identify several performance bottlenecks that were likely explored in the rejected attempts. Let me analyze the most promising optimization approaches:
+
+1. **String building optimizations**: The current code uses string concatenation (`out = out + c`) which is inefficient for building large strings. Using `io.StringIO` or pre-allocating lists would help.
+
+2. **Number parsing**: The current `_parse_number` function does character-by-character scanning which can be optimized with regex or direct parsing.
+
+3. **Whitespace skipping**: The `_skip_ws` function uses a loop with set membership checks, but could be optimized with regex or pre-computed skip tables.
+
+Looking at the recent history, it seems attempts to optimize `_skip_ws` or string building have been tried and rejected, so I should target a different approach. The most promising optimization would be to optimize the number parsing since it's called frequently and the current approach is very verbose.
+
+Let me focus on optimizing the number parsing function to use a more efficient approach while maintaining correctness.
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # Skip initial minus sign if present
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    # Handle integer part
+    if text[pos] == "0":
+        pos += 1
+    else:
+        # Fast path for non-zero starting digit
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    is_float = False
+    # Handle decimal point
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    # Handle exponent
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    
+    # Use direct conversion for better performance
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```
+
+Wait, let me reconsider this more carefully. The approach above doesn't actually change the algorithm, it just reorganizes the same logic. Looking at the rejected attempts, it seems like the key insight is that we should avoid the character-by-character parsing for numbers and instead use more efficient parsing methods.
+
+Let me think of a different approach - perhaps using regular expressions to match numbers more efficiently:
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    import re
+    
+    # Use regex to match the complete number pattern
+    # This should be faster than character-by-character parsing
+    number_pattern = r'(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)'
+    
+    # Find the number starting at pos
+    match = re.match(number_pattern, text[pos:])
+    if not match:
+        raise JSONParseError(f"bad number at {pos}")
+    
+    number_str = match.group(1)
+    end_pos = pos + len(number_str)
+    
+    # Convert to appropriate type
+    if '.' in number_str or 'e' in number_str.lower():
+        return float(number_str), end_pos
+    else:
+        return int(number_str), end_pos
+>>>>>>> REPLACE
+```

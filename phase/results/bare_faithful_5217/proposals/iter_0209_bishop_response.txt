@@ -1,0 +1,37 @@
+One potential optimization is to use a more efficient string concatenation method for building the output data structure in `parse_object` and `_parse_array`. Currently, the approach uses repeated string concatenation (`out = out + ...`) which results in quadratic time complexity. Instead, we can use a list to collect the values during parsing and then convert it into a dictionary or array at the end. This reduces the overhead of string concatenation by avoiding multiple copies of the same string.
+
+Here's how you might implement this optimization:
+
+```python
+def parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = []
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return dict(out), pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        out.append((key, value))
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return dict(out), pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+```
+
+By using a list to collect the values, we avoid the overhead of string concatenation and improve the efficiency of the parsing process.

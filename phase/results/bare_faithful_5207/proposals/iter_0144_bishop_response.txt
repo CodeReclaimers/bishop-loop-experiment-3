@@ -1,0 +1,34 @@
+To improve the performance of the JSON parser, we can optimize the handling of whitespace by using a generator expression instead of an explicit loop. This will allow us to skip whitespace directly in the `parse` function without having to convert the entire string to a list first.
+
+```python
+import re
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str) -> int:
+    # Use a generator expression to skip whitespace directly
+    return next((i for i, c in enumerate(text[pos:]) if not re.match(r'\s', c)), len(text))
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    # ... rest of the function remains unchanged ...
+```
+
+In this suggestion:
+- We use a generator expression `next((i for i, c in enumerate(text[pos:]) if not re.match(r'\s', c)), len(text))` to find the first non-whitespace character. This is more efficient than manually iterating over each character.
+- The rest of the `_skip_ws` function remains unchanged, but now it directly returns the position of the first non-whitespace character without converting the entire string to a list.
+
+This change significantly reduces the time complexity for skipping whitespace, which can be particularly beneficial when parsing large JSON documents.

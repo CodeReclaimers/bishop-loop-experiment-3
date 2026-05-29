@@ -1,0 +1,126 @@
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    
+    # Stack-based parsing
+    stack = []
+    current = None
+    key = None
+    array_index = 0
+    
+    while pos < len(text):
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        
+        c = text[pos]
+        if c == '{':
+            if current is not None:
+                stack.append(current)
+            current = {}
+            pos += 1
+        elif c == '[':
+            if current is not None:
+                stack.append(current)
+            current = []
+            pos += 1
+        elif c == '}':
+            if not isinstance(current, dict):
+                raise JSONParseError(f"expected '{{' at {pos}")
+            if stack:
+                parent = stack.pop()
+                if isinstance(parent, dict):
+                    parent[key] = current
+                    current = parent
+                elif isinstance(parent, list):
+                    parent.append(current)
+                    current = parent
+            else:
+                value = current
+                current = None
+            pos += 1
+        elif c == ']':
+            if not isinstance(current, list):
+                raise JSONParseError(f"expected '[' at {pos}")
+            if stack:
+                parent = stack.pop()
+                if isinstance(parent, dict):
+                    parent[key] = current
+                    current = parent
+                elif isinstance(parent, list):
+                    parent.append(current)
+                    current = parent
+            else:
+                value = current
+                current = None
+            pos += 1
+        elif c == '"':
+            string_value, pos = _parse_string(text, pos)
+            if current is None:
+                value = string_value
+                break
+            elif isinstance(current, dict):
+                current[key] = string_value
+                key = None
+            elif isinstance(current, list):
+                current.append(string_value)
+        elif c == ':':
+            pos += 1
+        elif c == ',':
+            pos += 1
+        elif c == 't' or c == 'f':
+            bool_value, pos = _parse_bool(text, pos)
+            if current is None:
+                value = bool_value
+                break
+            elif isinstance(current, dict):
+                current[key] = bool_value
+                key = None
+            elif isinstance(current, list):
+                current.append(bool_value)
+        elif c == 'n':
+            null_value, pos = _parse_null(text, pos)
+            if current is None:
+                value = null_value
+                break
+            elif isinstance(current, dict):
+                current[key] = null_value
+                key = None
+            elif isinstance(current, list):
+                current.append(null_value)
+        elif c == '-' or c in _DIGIT_CHARS:
+            number_value, pos = _parse_number(text, pos)
+            if current is None:
+                value = number_value
+                break
+            elif isinstance(current, dict):
+                current[key] = number_value
+                key = None
+            elif isinstance(current, list):
+                current.append(number_value)
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

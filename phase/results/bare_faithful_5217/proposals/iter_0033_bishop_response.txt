@@ -1,0 +1,41 @@
+To improve the performance of the JSON parser, we can optimize the handling of string escaping by using a more efficient approach to decode Unicode characters. Specifically, we can use Python's built-in `chr` function to convert the escape codes directly without needing to parse them manually.
+
+Here's how we can modify the `_parse_string` function:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    pos += 1
+    out = ""
+    while pos < len(text):
+        c = text[pos]
+        if c == "\\":
+            pos += 1
+            esc = text[pos]
+            if esc in ("u", "U"):
+                if pos + 4 >= len(text):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                out += chr(cp)
+                pos += 5
+            elif esc == "n":
+                out += "\n"
+            elif esc == "r":
+                out += "\r"
+            elif esc == "t":
+                out += "\t"
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+        elif c == '"':
+            pos += 1
+            break
+        out += c
+        pos += 1
+    return out, pos
+```
+
+By directly converting the escape codes to their corresponding characters using `chr`, we eliminate the need for manual parsing of hexadecimal values. This simplifies the code and potentially improves performance, especially when dealing with large JSON documents.

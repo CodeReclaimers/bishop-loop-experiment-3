@@ -1,0 +1,100 @@
+```python
+<<<<<<< SEARCH
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+=======
+from __future__ import annotations
+
+from typing import Any
+import re
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+_WS_RE = re.compile(r"[ \t\n\r]*")
+_NUMBER_RE = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?")
+_ESCAPE_RE = re.compile(r'["\\bfnrt/]')
+_UNICODE_RE = re.compile(r"[0-9a-fA-F]{4}")
+
+
+def parse(text: str) -> Any:
+>>>>>>> REPLACE
+```
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    m = _WS_RE.match(text, pos)
+    return m.end()
+>>>>>>> REPLACE
+```
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if is_float:
+        return float(text[start:pos]), pos
+    return int(text[start:pos]), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    m = _NUMBER_RE.match(text, pos)
+    if not m:
+        raise JSONParseError(f"bad number at {pos}")
+    num_str = m.group()
+    pos = m.end()
+    if "." in num_str or "e" in num_str.lower():
+        return float(num_str), pos
+    return int(num_str), pos
+>>>>>>> REPLACE
+```

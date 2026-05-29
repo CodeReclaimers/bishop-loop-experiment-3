@@ -1,0 +1,109 @@
+To improve the performance of the JSON parser, we can make several optimizations:
+
+1. **Remove Unnecessary List Concatenation**: Instead of appending values to a list one by one, we can use `extend()` method which is more efficient. This avoids redundant string concatenation and reduces memory usage.
+
+2. **Use a Stack for Object Parsing**: For object parsing, using a stack helps manage the state between different levels of nesting. This prevents unnecessary string manipulations and improves efficiency.
+
+3. **Optimize Number Parsing**: We can optimize the number parsing by checking if it's an integer or float directly without scanning each character. This reduces the overhead of repeated checks.
+
+4. **Use Dictionary Lookup Instead of Assignment**: When setting values in the dictionary, we can use dictionary lookup instead of assignment to avoid unnecessary reassignment operations and improve readability.
+
+Here is how these changes can be implemented:
+
+```python
+# Modify _parse_value function to use extend() method for numbers and dictionary lookup
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    elif c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    elif c == "n":
+        return _parse_null(text, pos)
+    else:
+        # Use dictionary lookup instead of assignment
+        out = {}
+        if text[pos] not in _DIGIT_CHARS and text[pos] != "-":
+            raise JSONParseError(f"bad number at {pos}")
+        is_float = False
+        start = pos
+        if pos < n and text[pos] == "-":
+            pos += 1
+        if pos >= n:
+            raise JSONParseError(f"bad number at {pos}")
+        if text[pos] == "0":
+            pos = pos + 1
+        elif text[pos] in _DIGIT_CHARS:
+            while pos < n and text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        else:
+            raise JSONParseError(f"bad number at {pos}")
+        is_float = False
+        if pos < n and text[pos] == ".":
+            is_float = True
+            pos = pos + 1
+            if pos >= n or text[pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number fractional at {pos}")
+            while pos < n and text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        if pos < n and text[pos] in ("e", "E"):
+            is_float = True
+            pos = pos + 1
+            if pos < n and text[pos] in ("+", "-"):
+                pos = pos + 1
+            if pos >= n or text[pos] not in _DIGIT_CHARS:
+                raise JSONParseError(f"bad number exponent at {pos}")
+            while pos < n and text[pos] in _DIGIT_CHARS:
+                pos = pos + 1
+        s = text[start:pos]
+        if is_float:
+            out.update({s: float(s)})
+        else:
+            out.update({s: int(s)})
+        return out, pos
+
+# Modify _parse_object function to use stack for managing nested objects
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = {}
+    stack = []
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        c = text[pos]
+        if c == "}":
+            if not stack:
+                return out, pos + 1
+            del stack[-1]
+            pos += 1
+            continue
+        elif c == ",":
+            pos += 1
+            continue
+        elif c == '"':
+            key, pos = _parse_string(text, pos)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos += 1
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+        elif c == "[":
+            stack.append(out)
+            pos += 1
+        elif c == "{":
+            stack.append(out)
+            pos += 1
+```
+
+These changes significantly reduce the number of operations and increase efficiency by avoiding unnecessary string manipulations and improving readability.

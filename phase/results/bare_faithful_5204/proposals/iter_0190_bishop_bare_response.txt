@@ -1,0 +1,125 @@
+```python
+<<<<<<< SEARCH
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+=======
+def _skip_ws(text: str, pos: int) -> int:
+    # State machine for whitespace skipping
+    n = len(text)
+    while pos < n:
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+        else:
+            break
+    return pos
+>>>>>>> REPLACE
+```
+
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    # State machine for number parsing
+    n = len(text)
+    start = pos
+    state = "sign"
+    while pos < n:
+        c = text[pos]
+        if state == "sign":
+            if c == "-":
+                pos += 1
+                state = "integer"
+            else:
+                state = "integer"
+        elif state == "integer":
+            if c == "0":
+                pos += 1
+                state = "fraction"
+            elif c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+                break
+        elif state == "fraction":
+            if c == ".":
+                pos += 1
+                state = "fraction_digits"
+            elif c in ("e", "E"):
+                pos += 1
+                state = "exponent_sign"
+            else:
+                break
+        elif state == "fraction_digits":
+            if c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                state = "exponent"
+        elif state == "exponent":
+            if c in ("e", "E"):
+                pos += 1
+                state = "exponent_sign"
+            else:
+                break
+        elif state == "exponent_sign":
+            if c in ("+", "-"):
+                pos += 1
+                state = "exponent_digits"
+            elif c in _DIGIT_CHARS:
+                state = "exponent_digits"
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+                break
+        elif state == "exponent_digits":
+            if c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                break
+        else:
+            break
+    s = text[start:pos]
+    # Determine if it's a float
+    is_float = ("." in s) or ("e" in s.lower())
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

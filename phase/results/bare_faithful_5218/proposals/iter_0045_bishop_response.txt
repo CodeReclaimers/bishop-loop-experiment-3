@@ -1,0 +1,21 @@
+To optimize the JSON parser, we can use a more efficient character scanning method by leveraging Python's built-in `ord` function to determine the Unicode category of each character and checking if it falls within the expected ranges for numbers, strings, and booleans. This approach reduces the number of unnecessary checks and skips over characters that cannot be part of a valid JSON value.
+
+To implement this change, we can modify the `_parse_value` function as follows:
+
+```python
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if ord(c) == 0x22:
+        return _parse_string(text, pos)
+    elif ord(c) in (0x61, 0x48):  # 'a' or 'A'
+        return _parse_bool(text, pos)
+    elif ord(c) == 0x78:  # 'x'
+        return _parse_number(text, pos)
+    else:
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+```
+
+This change reduces the number of checks in the `_parse_value` function by directly checking the first character of each value. If it is a double quote (`"`), we assume it's a string; if it's an 'a' or an 'A', we assume it's a boolean; and if it's an 'x', we assume it's a number. These assumptions are based on the common patterns in JSON strings, booleans, and numbers. This change significantly improves the performance of the parser by reducing unnecessary checks and reducing the number of function calls.

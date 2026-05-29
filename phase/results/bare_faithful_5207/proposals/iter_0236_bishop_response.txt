@@ -1,0 +1,23 @@
+To speed up the JSON parser, we can use a technique called "lazy parsing" to only parse characters as they are needed. This means that instead of loading the entire string into memory at once, we only process each character one by one. This approach significantly reduces memory usage and improves performance for large inputs.
+
+To implement lazy parsing in `json_parser.py`, we can modify the `_parse_value` function to check if a character is needed before attempting to parse it. If not, we skip it instead of calling `text[pos]`. This way, we avoid unnecessary string slicing and reduces the number of operations performed on the input data.
+
+Here's an example of how this change might look in the code:
+
+```python
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    if text[pos : pos + 4] == "true":
+        return True, pos + 4
+    if text[pos : pos + 5] == "false":
+        return False, pos + 5
+    # ... other checks ...
+    c = text[pos]
+    if c in _DIGIT_CHARS or c == "-" or c == ".":
+        # Only parse characters if needed
+        while pos < len(text) and (c in _DIGIT_CHARS or c == "-" or c == "."):
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+```
+
+By making this change, we can achieve a significant speedup for large JSON inputs, as it reduces the amount of data that needs to be processed and parsed.

@@ -1,0 +1,26 @@
+To optimize the `json_parser.py` for speed, we can consider using a more efficient way to handle whitespace skipping and string parsing. One approach is to use a dedicated function for each type of token (like numbers, strings, booleans, and null) instead of scanning character by character in `_parse_value`. This reduces the overhead of repeated whitespace skipping and parsing.
+
+Here's how you can implement this change:
+
+```python
+def _parse_token(text: str, pos: int) -> tuple[Any, int]:
+    n = len(text)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+```
+
+This change involves updating the `parse` function to call `_parse_token`, which handles each type of token separately. By separating the parsing logic for different types, we reduce the overhead of repeated whitespace skipping and parsing, leading to improved performance.

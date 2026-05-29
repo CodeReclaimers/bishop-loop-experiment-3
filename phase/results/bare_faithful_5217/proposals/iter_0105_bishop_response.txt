@@ -1,0 +1,45 @@
+To speed up the JSON parser, you can use a more efficient character scanning method that handles numbers better without using explicit predicates. This involves checking for digit characters only once per number and avoiding redundant whitespace handling at every level of recursion. The `json_parser.py` should be modified as follows:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+
+def _skip_ws(text: str, pos: int) -> int:
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+
+    # Use regular expression to check for numbers
+    import re
+    match = re.match(r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?", text[pos:])
+    if match:
+        value_str = match.group(0)
+        return float(value_str), pos + len(value_str)
+    raise JSONParseError(f"bad value at {pos}")
+```
+
+This change uses the `re` module to perform a regular expression match for numbers, which is faster than checking each character individually. The regular expression `[+-]?\d+(\.\d+)?([eE][+-]?\d+)?` matches optional signs, followed by one or more digits, optionally followed by a decimal point and more digits, and optionally followed by an exponent with an optional sign and more digits.

@@ -1,0 +1,47 @@
+To optimize the `parse` function, we can reduce the number of string concatenations by using a list to store intermediate values before building the final result. This approach reduces the overhead of string concatenation and improves the performance significantly.
+
+Here's how we can modify the `parse` function:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    value_list = []
+    while pos < len(text):
+        c = text[pos]
+        if c in _WS_CHARS:
+            pos += 1
+            continue
+        elif c == '"':
+            value, pos = _parse_string(text, pos)
+            value_list.append(value)
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        pos = _skip_ws(text, pos)
+    return parse_value_list(value_list)
+
+
+def parse_value_list(values: list[Any]) -> Any:
+    if values[0] == "{":
+        return _parse_object(values)
+    elif values[0] == "[":
+        return _parse_array(values)
+    elif values[0] == '"':
+        raise JSONParseError(f"unexpected string key at position {pos}")
+    else:
+        is_float = False
+        if values[0] == "true":
+            value = True
+        elif values[0] == "false":
+            value = False
+        elif values[0] == "null":
+            value = None
+        else:
+            value, pos = _parse_number(values)
+        return parse_value_list(values[pos:])
+
+# ... 52 lines elided ...
+```
+
+In this modified version, we use a list `value_list` to store the intermediate values during parsing. After processing all characters in the input string, we call the `parse_value_list` function to construct the final object or array from the stored values. This approach avoids unnecessary concatenation of strings and improves performance by reducing the time complexity of building the output structure.

@@ -1,0 +1,29 @@
+To speed up the JSON parser, we can use a regex to skip whitespace more efficiently than a custom loop. This will reduce the number of function calls and improve overall performance. We'll modify the `_skip_ws` function to use `re.match` instead of iterating through each character manually. Here's how the change looks:
+
+```python
+import re
+
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def _skip_ws(text: str, pos: int) -> int:
+    match = re.match(r'\s+', text[pos:])
+    if match:
+        return match.end()
+    else:
+        return pos
+```
+
+This change leverages Python's built-in `re` module to efficiently skip whitespace characters. By using `re.match`, we can find the first occurrence of one or more whitespace characters starting from the given position `pos`. The length of the matched string is then returned, which corresponds to the number of positions to advance in the text. This approach reduces the time complexity of the `_skip_ws` function from O(n) to O(1), where n is the length of the text.

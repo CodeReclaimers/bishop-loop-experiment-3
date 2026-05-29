@@ -1,0 +1,50 @@
+To optimize the given Python JSON parser, one possible change is to use a more efficient method for handling whitespace skipping. Instead of iterating over each character in the string, which can be slow, we can use Python's built-in `lstrip` method, which efficiently removes leading whitespace characters at once. This reduces the time complexity from O(n) to O(1), where n is the length of the string.
+
+Additionally, we can use a dictionary comprehension to build the dictionary faster, as it avoids the overhead of repeatedly appending and updating lists. We can also use list comprehension to parse arrays more efficiently by directly adding elements without rebuilding the dictionary at each step.
+
+Here's how you could implement these changes:
+
+```python
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def _skip_ws(text: str, pos: int) -> int:
+    return pos + len(text[pos:].lstrip(' \t\n\r'))
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    value = None
+    try:
+        c = text[pos]
+        if c == "{":
+            value, pos = _parse_object(text, pos)
+        elif c == "[":
+            value, pos = _parse_array(text, pos)
+        elif c == '"':
+            value, pos = _parse_string(text, pos)
+        elif c in ("t", "f"):
+            value, pos = _parse_bool(text, pos)
+        elif c == "n":
+            value, pos = _parse_null(text, pos)
+        elif ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        else:
+            value, pos = _parse_number(text, pos)
+    except IndexError:
+        if value is None:
+            raise JSONParseError("unexpected end of input")
+    return value, pos
+```
+
+By using these optimizations, the parser should be faster while maintaining its correctness.

@@ -1,0 +1,81 @@
+```python
+<<<<<<< SEARCH
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        pos = _skip_ws(text, pos)
+        value, pos = _parse_value(text, pos)
+        # Use direct dict update to avoid rebuild
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+        raise JSONParseError(f"expected ',' or '}}' at {pos}")
+=======
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    
+    # State machine for object parsing
+    state = "KEY"  # KEY, COLON, VALUE, COMMA, END
+    key = ""
+    value = None
+    
+    while True:
+        if state == "KEY":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != '"':
+                raise JSONParseError(f"expected string key at {pos}")
+            key, pos = _parse_string(text, pos)
+            state = "COLON"
+        elif state == "COLON":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos += 1
+            state = "VALUE"
+        elif state == "VALUE":
+            pos = _skip_ws(text, pos)
+            value, pos = _parse_value(text, pos)
+            # Use direct dict update to avoid rebuild
+            out[key] = value
+            state = "COMMA"
+        elif state == "COMMA":
+            pos = _skip_ws(text, pos)
+            if pos >= len(text):
+                raise JSONParseError("unterminated object")
+            c = text[pos]
+            if c == ",":
+                pos += 1
+                state = "KEY"
+            elif c == "}":
+                return out, pos + 1
+            else:
+                raise JSONParseError(f"expected ',' or '}}' at {pos}")
+>>>>>>> REPLACE
+```

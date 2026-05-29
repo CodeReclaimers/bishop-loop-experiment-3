@@ -1,0 +1,32 @@
+To speed up the JSON parser, we can optimize the string concatenation used to build the object keys and values. Instead of appending each key-value pair individually, we can concatenate them in a single pass. This reduces the overhead of multiple memory allocations and concatenations, resulting in faster execution time. We achieve this by modifying the `_parse_object` function as follows:
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out = {}
+    key = ""
+    value = None
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] == "}":
+            break
+        c = text[pos]
+        if c in (_WS_CHARS | {'"', ':', ','}):
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+        elif c == '"':
+            key, pos = _parse_string(text, pos)
+            pos = _skip_ws(text, pos)
+            if pos >= len(text) or text[pos] != ":":
+                raise JSONParseError(f"expected ':' at {pos}")
+            pos += 1
+            value, pos = _parse_value(text, pos)
+            out[key] = value
+        elif c == ",":
+            pos += 1
+            continue
+    return out, pos + 1
+```
+
+In this modification, we introduce two new variables `key` and `value`, which accumulate characters until a key or a colon is encountered. Once these are determined, the `key` is added to the dictionary with the corresponding `value`. This approach reduces the number of memory allocations required for each key-value pair, resulting in faster execution time.

@@ -1,0 +1,82 @@
+```python
+<<<<<<< SEARCH
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    
+    # Stack-based parsing approach
+    stack = []
+    while pos < len(text):
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            break
+        c = text[pos]
+        if c == '{':
+            stack.append('{')
+            pos += 1
+        elif c == '[':
+            stack.append('[')
+            pos += 1
+        elif c == '"':
+            value, pos = _parse_string(text, pos)
+            stack.append(value)
+        elif c == 't' or c == 'f':
+            value, pos = _parse_bool(text, pos)
+            stack.append(value)
+        elif c == 'n':
+            value, pos = _parse_null(text, pos)
+            stack.append(value)
+        elif c == '-' or c in _DIGIT_CHARS:
+            value, pos = _parse_number(text, pos)
+            stack.append(value)
+        elif c == '}':
+            # Build object from stack
+            obj = {}
+            while stack and stack[-1] != '{':
+                value = stack.pop()
+                key = stack.pop()
+                obj[key] = value
+            if not stack:
+                raise JSONParseError("unbalanced braces")
+            stack.pop()  # Remove the '{'
+            stack.append(obj)
+            pos += 1
+        elif c == ']':
+            # Build array from stack
+            arr = []
+            while stack and stack[-1] != '[':
+                arr.append(stack.pop())
+            arr.reverse()
+            if not stack:
+                raise JSONParseError("unbalanced brackets")
+            stack.pop()  # Remove the '['
+            stack.append(arr)
+            pos += 1
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    if len(stack) != 1:
+        raise JSONParseError("unbalanced brackets/braces")
+    
+    value = stack[0]
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+>>>>>>> REPLACE
+```

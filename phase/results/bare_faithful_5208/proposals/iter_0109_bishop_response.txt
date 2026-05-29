@@ -1,0 +1,34 @@
+To optimize the JSON parser, you could consider replacing the string concatenation in `_parse_object` with a more efficient method for adding items to the dictionary. Instead of using `out = out + [v]`, which is O(k) where k is the length of the list being appended, you can use `out.append(v)`. This reduces the overhead of creating new lists and improves performance.
+
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            return out, pos + 1
+```
+
+This change reduces the time complexity of adding items to the dictionary from O(k) to O(1), which can significantly improve parsing speed for large JSON objects.

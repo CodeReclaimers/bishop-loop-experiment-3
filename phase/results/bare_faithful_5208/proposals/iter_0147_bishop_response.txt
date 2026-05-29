@@ -1,0 +1,30 @@
+To make the JSON parser faster, we can use a more efficient method for whitespace skipping. Instead of using a regular expression, we can manually iterate over the string and skip whitespace characters by checking if the character is in the set of whitespace characters. This approach reduces the overhead of regex operations and improves performance.
+
+Here's how you can implement this change:
+
+```python
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    n = len(text)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    while pos < n and text[pos] in _WS_CHARS:
+        pos += 1
+
+# (function at lines 48-65)
+def _skip_ws(text: str, pos: int) -> int:
+    for _ in range(len(text[pos:])):
+        if text[pos] not in _WS_CHARS:
+            break
+        pos += 1
+    return pos
+
+```
+
+This change uses a simple loop to iterate over the remaining part of the string starting from `pos`. It stops when it encounters a non-whitespace character, which is faster than using a regular expression for this specific task.

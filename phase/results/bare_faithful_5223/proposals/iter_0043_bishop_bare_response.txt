@@ -1,0 +1,142 @@
+```python
+<<<<<<< SEARCH
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+        return _parse_null(text, pos)
+    if c == "-" or c in _DIGIT_CHARS:
+        return _parse_number(text, pos)
+    raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+=======
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    # Stack-based approach to avoid recursion
+    stack = []
+    current = None
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        c = text[pos]
+        if c == "{":
+            if current is None:
+                current = {}
+            else:
+                stack.append(current)
+                current = {}
+            pos += 1
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == "}":
+                if not stack:
+                    return current, pos + 1
+                current = stack.pop()
+                pos += 1
+                continue
+            continue
+        if c == "[":
+            if current is None:
+                current = []
+            else:
+                stack.append(current)
+                current = []
+            pos += 1
+            pos = _skip_ws(text, pos)
+            if pos < len(text) and text[pos] == "]":
+                if not stack:
+                    return current, pos + 1
+                current = stack.pop()
+                pos += 1
+                continue
+            continue
+        if c == '"':
+            if isinstance(current, list):
+                value, pos = _parse_string(text, pos)
+                current.append(value)
+            elif isinstance(current, dict):
+                key, pos = _parse_string(text, pos)
+                pos = _skip_ws(text, pos)
+                if pos >= len(text) or text[pos] != ":":
+                    raise JSONParseError(f"expected ':' at {pos}")
+                pos += 1
+                pos = _skip_ws(text, pos)
+                value, pos = _parse_value(text, pos)
+                current[key] = value
+            else:
+                return _parse_string(text, pos)
+            continue
+        if c == "t" or c == "f":
+            value, pos = _parse_bool(text, pos)
+            if isinstance(current, list):
+                current.append(value)
+            elif isinstance(current, dict):
+                key, pos = _parse_string(text, pos)
+                pos = _skip_ws(text, pos)
+                if pos >= len(text) or text[pos] != ":":
+                    raise JSONParseError(f"expected ':' at {pos}")
+                pos += 1
+                pos = _skip_ws(text, pos)
+                value, pos = _parse_value(text, pos)
+                current[key] = value
+            else:
+                return value, pos
+            continue
+        if c == "n":
+            value, pos = _parse_null(text, pos)
+            if isinstance(current, list):
+                current.append(value)
+            elif isinstance(current, dict):
+                key, pos = _parse_string(text, pos)
+                pos = _skip_ws(text, pos)
+                if pos >= len(text) or text[pos] != ":":
+                    raise JSONParseError(f"expected ':' at {pos}")
+                pos += 1
+                pos = _skip_ws(text, pos)
+                value, pos = _parse_value(text, pos)
+                current[key] = value
+            else:
+                return value, pos
+            continue
+        if c == "-" or c in _DIGIT_CHARS:
+            value, pos = _parse_number(text, pos)
+            if isinstance(current, list):
+                current.append(value)
+            elif isinstance(current, dict):
+                key, pos = _parse_string(text, pos)
+                pos = _skip_ws(text, pos)
+                if pos >= len(text) or text[pos] != ":":
+                    raise JSONParseError(f"expected ':' at {pos}")
+                pos += 1
+                pos = _skip_ws(text, pos)
+                value, pos = _parse_value(text, pos)
+                current[key] = value
+            else:
+                return value, pos
+            continue
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            if not stack:
+                raise JSONParseError(f"unexpected '}}' at {pos}")
+            current = stack.pop()
+            pos += 1
+            continue
+        if c == "]":
+            if not stack:
+                raise JSONParseError(f"unexpected ']' at {pos}")
+            current = stack.pop()
+            pos += 1
+            continue
+        raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+>>>>>>> REPLACE
+```

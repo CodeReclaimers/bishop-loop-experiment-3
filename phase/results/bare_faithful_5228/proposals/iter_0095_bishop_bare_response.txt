@@ -1,0 +1,128 @@
+```python
+<<<<<<< SEARCH
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    if pos < n and text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError(f"bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+=======
+def _parse_number(text: str, pos: int) -> tuple[float | int, int]:
+    n = len(text)
+    start = pos
+    # State machine for number parsing
+    state = "start"
+    while pos < n:
+        c = text[pos]
+        if state == "start":
+            if c == "-":
+                pos += 1
+                state = "after_neg"
+            elif c == "0":
+                pos += 1
+                state = "after_zero"
+            elif c in _DIGIT_CHARS:
+                pos += 1
+                state = "digits"
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+        elif state == "after_neg":
+            if c == "0":
+                pos += 1
+                state = "after_zero"
+            elif c in _DIGIT_CHARS:
+                pos += 1
+                state = "digits"
+            else:
+                raise JSONParseError(f"bad number at {pos}")
+        elif state == "after_zero":
+            if c == ".":
+                pos += 1
+                state = "after_dot"
+            elif c in ("e", "E"):
+                pos += 1
+                state = "after_exp"
+            else:
+                break
+        elif state == "digits":
+            if c in _DIGIT_CHARS:
+                pos += 1
+            elif c == ".":
+                pos += 1
+                state = "after_dot"
+            elif c in ("e", "E"):
+                pos += 1
+                state = "after_exp"
+            else:
+                break
+        elif state == "after_dot":
+            if c in _DIGIT_CHARS:
+                pos += 1
+                state = "frac_digits"
+            else:
+                raise JSONParseError(f"bad number fractional at {pos}")
+        elif state == "frac_digits":
+            if c in _DIGIT_CHARS:
+                pos += 1
+            elif c in ("e", "E"):
+                pos += 1
+                state = "after_exp"
+            else:
+                break
+        elif state == "after_exp":
+            if c in ("+", "-"):
+                pos += 1
+                state = "exp_sign"
+            elif c in _DIGIT_CHARS:
+                pos += 1
+                state = "exp_digits"
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == "exp_sign":
+            if c in _DIGIT_CHARS:
+                pos += 1
+                state = "exp_digits"
+            else:
+                raise JSONParseError(f"bad number exponent at {pos}")
+        elif state == "exp_digits":
+            if c in _DIGIT_CHARS:
+                pos += 1
+            else:
+                break
+    s = text[start:pos]
+    # Check if it's a float
+    is_float = ("." in s) or ("e" in s.lower())
+    if is_float:
+        return float(s), pos
+    return int(s), pos
+>>>>>>> REPLACE
+```

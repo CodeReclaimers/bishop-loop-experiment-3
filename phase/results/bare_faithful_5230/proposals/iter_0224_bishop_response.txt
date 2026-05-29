@@ -1,0 +1,36 @@
+One possible optimization idea is to reduce the number of times `_skip_ws` is called. This can be achieved by using a flag to track whether whitespace has been skipped before, and only calling `_skip_ws` when necessary. For example, you could modify the `parse` function as follows:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text):
+        # Skip any leading whitespace
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        
+        # Parse the next token
+        c = text[pos]
+        if c == "{":
+            value, pos = parse_object(text, pos)
+        elif c == "[":
+            value, pos = parse_array(text, pos)
+        elif c == '"':
+            value, pos = parse_string(text, pos)
+        elif c == "t" or c == "f":
+            value, pos = parse_bool(text, pos)
+        elif c == "n":
+            value, pos = parse_null(text, pos)
+        else:
+            # If no valid token was found, raise an error
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    # Skip any trailing whitespace
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    
+    return value
+```
+
+This change reduces the number of calls to `_skip_ws` by only calling it when necessary, which can improve performance.

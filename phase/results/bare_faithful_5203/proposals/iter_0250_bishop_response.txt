@@ -1,0 +1,39 @@
+To optimize the JSON parser, we can reduce the number of string concatenations and rebuilds by using a list to store intermediate results. This will reduce the overhead of creating new strings and improve the performance of the parser. We can achieve this by modifying the `_parse_string` function as follows:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    pos += 1
+    out = []
+    escape = None
+    while True:
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        if c == "\\" and escape is not None:
+            out.append(escape)
+            escape = None
+        elif c == "u" and escape is None:
+            if pos + 4 >= len(text):
+                raise JSONParseError(f"bad unicode escape at {pos}")
+            hex4 = text[pos + 1 : pos + 5]
+            if not _is_hex4(hex4):
+                raise JSONParseError(f"bad unicode escape at {pos}")
+            cp = int(hex4, 16)
+            out.append(chr(cp))
+            pos += 5
+        elif c == "n":
+            out.append("\n")
+        elif c == "r":
+            out.append("\r")
+        elif c == "t":
+            out.append("\t")
+        else:
+            if escape is not None:
+                raise JSONParseError(f"bad escaped character at {pos}")
+            out.append(c)
+        pos += 1
+```
+
+In this modification, we use a list `out` to store the characters of the string as they are parsed. When we encounter an escape sequence or a non-escaped character that is not part of a special escape sequence, we append it to `out`. This way, we avoid creating new strings at each step of the parsing process, which reduces the overhead of memory allocation and deallocation.

@@ -1,0 +1,25 @@
+To make this JSON parser faster, we can reduce the number of string concatenations by using list comprehensions instead of `+=`. This will eliminate the overhead of repeated string creation and improve performance. The `out` variable should be initialized as an empty list before appending values to it. Here's how you could modify the `_parse_string` function:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    pos += 1
+    out = []
+    while pos < len(text):
+        c = text[pos]
+        if c == '"':
+            return "".join(out), pos + 1
+        elif c == "\\":
+            esc = text[pos + 1]
+            if esc == "u":
+                if pos + 4 >= len(text):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                # ... rest of the code remains unchanged ...
+```
+
+With this change, we avoid creating multiple intermediate strings when building up the result. The `out` list is used as a buffer to collect characters until it encounters a closing double quote. This reduces the overhead of string concatenation by a factor of the length of the input string, potentially leading to significant performance improvements for large JSON documents.

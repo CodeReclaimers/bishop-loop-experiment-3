@@ -1,0 +1,72 @@
+To optimize the given Python JSON parser, a more efficient way to parse numbers would be to use the `decimal` module for handling decimal numbers. This module can handle very large integers and floating-point numbers with greater precision than basic Python types.
+
+The approach is as follows:
+
+1. **Use `decimal.Decimal` for Number Parsing**: Instead of using `float`, which can lead to floating-point inaccuracies, use `decimal.Decimal`. This ensures that all operations are done in a fixed-precision arithmetic environment.
+
+2. **Implement Decimal Parsing Logic**: Create a new function that takes the text and position as arguments, skips any whitespace, and then parses the number. Use `decimal.Decimal` to handle the parsing of the number. If the parsed value is not a valid number (e.g., NaN or infinity), raise a custom exception.
+
+Here's a brief explanation of how the implementation would look:
+
+```python
+def parse_decimal(text: str, pos: int) -> tuple[Decimal | None, int]:
+    n = len(text)
+    start = pos
+    if text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= n:
+        raise JSONParseError("bad number at {pos}")
+    if text[pos] == "-":
+        pos += 1
+    if pos >= n:
+        raise JSONParseError("bad number at {pos}")
+    if text[pos] == "0":
+        pos += 1
+    elif text[pos] in _DIGIT_CHARS:
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    else:
+        raise JSONParseError(f"bad number at {pos}")
+    is_float = False
+    if pos < n and text[pos] == ".":
+        is_float = True
+        pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number fractional at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    if pos < n and text[pos] in ("e", "E"):
+        is_float = True
+        pos += 1
+        if pos < n and text[pos] in ("+", "-"):
+            pos += 1
+        if pos >= n or text[pos] not in _DIGIT_CHARS:
+            raise JSONParseError(f"bad number exponent at {pos}")
+        while pos < n and text[pos] in _DIGIT_CHARS:
+            pos += 1
+    s = text[start:pos]
+    if is_float:
+        try:
+            return Decimal(s), pos
+        except ValueError:
+            raise JSONParseError(f"invalid number at {start}")
+    else:
+        try:
+            return int(s), pos
+        except ValueError:
+            raise JSONParseError(f"invalid number at {start}")
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+```
+
+This change ensures that numbers are parsed more accurately and efficiently, without the need for floating-point inaccuracies.

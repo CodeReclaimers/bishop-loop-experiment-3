@@ -1,0 +1,101 @@
+To optimize the JSON parser for speed, you could consider using a more efficient string concatenation method. Instead of appending to `out` directly, you can use a list and build the final output at the end. This reduces the overhead of Python's string concatenation operations.
+
+Here’s why this change would be beneficial:
+
+1. **Reduced Overhead**: Concatenating strings in Python is an O(n) operation, where n is the length of the resulting string. In the current implementation, you're concatenating every value into a single list, which could lead to inefficient memory usage and longer processing times.
+
+2. **Memory Efficiency**: By using a list, you can avoid creating multiple intermediate strings, which can save memory if dealing with large JSON documents.
+
+3. **Performance Improvement**: This change should generally result in faster parsing times, especially for larger JSON files.
+
+The modified code would look something like this:
+
+```python
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = 0
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    out: list[Any] = []
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos != len(text):
+# ...
+# (function at lines 47-64)
+def _skip_ws(text: str, pos: int) -> int:
+    try:
+        return pos + len(text[pos:].lstrip(' \t\n\r'))
+    except IndexError:
+        return pos
+
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+
+
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    while pos < len(text) and text[pos] in _WS_CHARS:
+        pos += 1
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+        value, pos = _parse_value(text, pos)
+        out[key] = value
+        while pos < len(text) and text[pos] in _WS_CHARS:
+            pos += 1
+# ... 65 lines elided ...
+            elif esc == "r":
+                out.append("\r")
+            elif esc == "t":
+                out.append("\t")
+            elif esc == "u":
+                if pos + 4 >= n:
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= n or text[pos + 5] != "\\" or pos + 6 >= n or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= n:
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b

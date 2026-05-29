@@ -1,0 +1,44 @@
+To optimize the JSON parser, we can implement a more efficient strategy for handling escape sequences in strings. Specifically, instead of scanning each character for an escape sequence, we can use a dictionary to store the mappings between escaped characters and their corresponding Unicode values. This reduces the number of conditional checks required, resulting in faster parsing times.
+
+The specific change is to modify the `_parse_string` function as follows:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos += 1
+    out = ""
+    while True:
+        c = text[pos]
+        if c == "\\":
+            esc = text[pos + 1]
+            # Use a dictionary to map escape characters to their Unicode values
+            esc_map = {"n": "\n", "t": "\t", "r": "\r", "u": "\\u"}
+            if esc in esc_map:
+                pos += 2
+                out += esc_map[esc]
+            elif esc == "f":
+                out += "\f"
+            elif esc == "b":
+                out += "\b"
+            elif esc == "0":
+                out += "\0"
+            elif esc == '"':
+                out += "\""
+            elif esc == "'":
+                out += "'"
+            elif esc == "\\":
+                out += "\\"
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+        elif c == "\\":
+            pos += 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out = out + c
+        pos = pos + 1
+    raise JSONParseError("unterminated string")
+```
+
+This change improves the speed of parsing strings by reducing the number of conditional checks and allowing for faster lookups using a dictionary.

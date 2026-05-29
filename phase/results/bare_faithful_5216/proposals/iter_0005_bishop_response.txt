@@ -1,0 +1,20 @@
+One specific change to try in `json_parser.py` is to use a generator function for `_parse_string`, which can improve performance by reducing the overhead of list concatenation and collection rebuilding on each step. This would involve replacing the current implementation with something like this:
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected string at {pos}")
+    out = ""
+    while pos < len(text) and text[pos] != '"':
+        c = text[pos]
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out += c
+        pos += 1
+    if text[pos] == '"':
+        return out, pos + 1
+    else:
+        raise JSONParseError(f"unterminated string")
+```
+
+This change eliminates the need for a list and collection rebuild, resulting in faster execution times.

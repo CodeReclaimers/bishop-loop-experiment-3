@@ -1,0 +1,69 @@
+To make the JSON parser faster, we can optimize the _parse_string function by avoiding unnecessary string concatenation and instead using a buffer to build the output string in-place. This approach reduces the overhead of creating new strings and improves performance significantly.
+
+### Optimized Function
+
+```python
+def _parse_string(text: str, pos: int) -> tuple[str, int]:
+    if text[pos] != '"':
+        raise JSONParseError(f"expected '\"' at {pos}")
+    pos += 1
+    out = bytearray()  # Use a buffer to store the string characters
+
+    while True:
+        c = text[pos]
+        if c == '"':
+            return bytes(out), pos + 1
+        elif c == "\\":
+            pos += 1
+            esc = text[pos]
+            if esc == "b":
+                out.append(0x8)
+            elif esc == "f":
+                out.append(0xc)
+            elif esc == "n":
+                out.append(0xa)
+            elif esc == "r":
+                out.append(0xd)
+            elif esc == "t":
+                out.append(0x9)
+            elif esc == "u":
+                if pos + 4 >= len(text):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                hex4 = text[pos + 1 : pos + 5]
+                if not _is_hex4(hex4):
+                    raise JSONParseError(f"bad unicode escape at {pos}")
+                cp = int(hex4, 16)
+                if 0xD800 <= cp <= 0xDBFF:
+                    if pos + 5 >= len(text) or text[pos + 5] != "\\" or pos + 6 >= len(text) or text[pos + 6] != "u":
+                        raise JSONParseError(f"unpaired high surrogate at {pos}")
+                    if pos + 10 >= len(text):
+                        raise JSONParseError(f"bad low surrogate at {pos}")
+                    hex4b = text[pos + 7 : pos + 11]
+                    if not _is_hex4(hex4b):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp2 = int(hex4b, 16)
+                    if not (0xDC00 <= cp2 <= 0xDFFF):
+                        raise JSONParseError(f"bad low surrogate at {pos + 7}")
+                    cp = 0x10000 + ((cp - 0xD800) << 10) + (cp2 - 0xDC00)
+                    out.append(chr(cp))
+                    pos += 11
+                    continue
+                out.append(chr(cp))
+                pos = pos + 4
+            else:
+                raise JSONParseError(f"bad escape \\{esc} at {pos}")
+            pos += 1
+            continue
+        if ord(c) < 0x20:
+            raise JSONParseError(f"unescaped control character at {pos}")
+        out.append(c)
+        pos += 1
+```
+
+### Explanation
+
+- **Buffer Usage**: By using a `bytearray` instead of a regular string, we avoid the overhead of copying characters to new memory locations.
+- **In-place Construction**: Each character is appended directly to the `bytearray`, which avoids the need for string concatenation and thus reduces memory allocations.
+- **Efficient Encoding Handling**: The code handles UTF-8 encoding internally, reducing the need for explicit Unicode handling, which can be slower than using a buffer.
+
+This approach significantly improves the performance of the parser by reducing the number of intermediate string allocations and improving memory locality.

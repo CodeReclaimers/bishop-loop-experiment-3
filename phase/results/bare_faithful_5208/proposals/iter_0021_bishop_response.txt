@@ -1,0 +1,40 @@
+To improve the performance of the Python JSON parser, one potential optimization is to preallocate a buffer for storing intermediate results during object and array parsing. This approach reduces the number of string concatenations and rebuilds-on-each-step collections, thereby improving the efficiency of the parser by minimizing memory allocation and deallocation.
+
+Here's how you can implement this optimization:
+
+```python
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+def _skip_ws(text: str, pos: int) -> int:
+    return pos + len(text[pos:].lstrip(_WS_CHARS))
+
+# Preallocate a buffer for storing intermediate results
+out = []
+
+def _parse_value(text: str, pos: int) -> tuple[Any, int]:
+    pos = _skip_ws(text, pos)
+    if pos >= len(text):
+        raise JSONParseError("unexpected end of input")
+    c = text[pos]
+    if c == "{":
+        return _parse_object(text, pos)
+    if c == "[":
+        return _parse_array(text, pos)
+    if c == '"':
+        return _parse_string(text, pos)
+    if c == "t" or c == "f":
+        return _parse_bool(text, pos)
+    if c == "n":
+
+# Continue with the rest of the code, using out to store intermediate results
+```

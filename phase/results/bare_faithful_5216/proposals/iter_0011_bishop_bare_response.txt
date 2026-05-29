@@ -1,0 +1,214 @@
+```python
+<<<<<<< SEARCH
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+=======
+"""Deliberately slow but correct JSON parser. Editable surface.
+
+This is the starting point for the optimization loop. It is correct against
+`json.loads` on the full corpus but is intentionally written in a way that
+leaves significant performance on the table:
+
+- Whitespace is skipped via a per-call Python loop instead of a regex.
+- Numbers are scanned character-by-character with explicit predicates.
+- Object/array building uses string concatenation and rebuilt-on-each-step
+  collection (`out = out + [v]`, `out = dict(out); out[k] = v`).
+- Recursive descent with redundant whitespace handling at every level.
+
+The optimization target is wall-clock time to parse the 200-case fixed
+corpus. The candidate must keep `parse(text) -> Any` as the public entry
+point and must raise `JSONParseError` for malformed inputs.
+"""
+from __future__ import annotations
+
+from typing import Any
+
+
+class JSONParseError(ValueError):
+    """Raised when the input is not valid JSON."""
+
+
+# Deliberately use lists not sets — every membership check is O(k) instead of O(1).
+_WS_CHARS = frozenset(" \t\n\r")
+_DIGIT_CHARS = frozenset("0123456789")
+
+
+def parse(text: str) -> Any:
+    if not isinstance(text, str):
+        raise JSONParseError("input must be a string")
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    
+    # Stack-based approach to avoid recursion
+    stack = []
+    current = None
+    while pos < len(text):
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unexpected end of input")
+        
+        c = text[pos]
+        if c == '{':
+            stack.append(('object', {}, pos + 1))
+            pos = _skip_ws(text, pos + 1)
+            if pos < len(text) and text[pos] == '}':
+                # Empty object
+                pos += 1
+                if stack:
+                    stack.pop()
+                else:
+                    break
+            continue
+        elif c == '[':
+            stack.append(('array', [], pos + 1))
+            pos = _skip_ws(text, pos + 1)
+            if pos < len(text) and text[pos] == ']':
+                # Empty array
+                pos += 1
+                if stack:
+                    stack.pop()
+                else:
+                    break
+            continue
+        elif c == '"':
+            value, pos = _parse_string(text, pos)
+            if stack:
+                if stack[-1][0] == 'object':
+                    # We're parsing an object key or value
+                    if 'key' not in stack[-1][1]:
+                        stack[-1][1]['key'] = value
+                    else:
+                        # This is a value
+                        stack[-1][1]['value'] = value
+                        # Add to object
+                        if 'key' in stack[-1][1] and 'value' in stack[-1][1]:
+                            stack[-1][1][0][stack[-1][1]['key']] = stack[-1][1]['value']
+                            stack[-1][1]['key'] = None
+                            stack[-1][1]['value'] = None
+                elif stack[-1][0] == 'array':
+                    stack[-1][1].append(value)
+            else:
+                current = value
+            continue
+        elif c == '}':
+            if stack and stack[-1][0] == 'object':
+                # End of object
+                stack.pop()
+            else:
+                raise JSONParseError(f"unexpected '}}' at {pos}")
+            pos += 1
+            continue
+        elif c == ']':
+            if stack and stack[-1][0] == 'array':
+                # End of array
+                stack.pop()
+            else:
+                raise JSONParseError(f"unexpected ']' at {pos}")
+            pos += 1
+            continue
+        elif c in _DIGIT_CHARS or c == '-':
+            value, pos = _parse_number(text, pos)
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(value)
+                elif stack[-1][0] == 'object':
+                    if 'key' not in stack[-1][1]:
+                        stack[-1][1]['key'] = value
+                    else:
+                        stack[-1][1]['value'] = value
+                        if 'key' in stack[-1][1] and 'value' in stack[-1][1]:
+                            stack[-1][1][0][stack[-1][1]['key']] = stack[-1][1]['value']
+                            stack[-1][1]['key'] = None
+                            stack[-1][1]['value'] = None
+            else:
+                current = value
+            continue
+        elif c == 't' or c == 'f':
+            value, pos = _parse_bool(text, pos)
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(value)
+                elif stack[-1][0] == 'object':
+                    if 'key' not in stack[-1][1]:
+                        stack[-1][1]['key'] = value
+                    else:
+                        stack[-1][1]['value'] = value
+                        if 'key' in stack[-1][1] and 'value' in stack[-1][1]:
+                            stack[-1][1][0][stack[-1][1]['key']] = stack[-1][1]['value']
+                            stack[-1][1]['key'] = None
+                            stack[-1][1]['value'] = None
+            else:
+                current = value
+            continue
+        elif c == 'n':
+            value, pos = _parse_null(text, pos)
+            if stack:
+                if stack[-1][0] == 'array':
+                    stack[-1][1].append(value)
+                elif stack[-1][0] == 'object':
+                    if 'key' not in stack[-1][1]:
+                        stack[-1][1]['key'] = value
+                    else:
+                        stack[-1][1]['value'] = value
+                        if 'key' in stack[-1][1] and 'value' in stack[-1][1]:
+                            stack[-1][1][0][stack[-1][1]['key']] = stack[-1][1]['value']
+                            stack[-1][1]['key'] = None
+                            stack[-1][1]['value'] = None
+            else:
+                current = value
+            continue
+        elif c == ',':
+            pos += 1
+            continue
+        else:
+            raise JSONParseError(f"unexpected character {c!r} at position {pos}")
+    
+    if stack:
+        raise JSONParseError("unterminated object or array")
+    
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return current
+>>>>>>> REPLACE
+```

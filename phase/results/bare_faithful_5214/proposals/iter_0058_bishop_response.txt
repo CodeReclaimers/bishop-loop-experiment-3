@@ -1,0 +1,36 @@
+To improve the parsing speed, we can optimize the string concatenation used in the object building phase. Instead of using `out = out + [v]` for each value, we can use a list comprehension to build the output dictionary more efficiently.
+
+Specifically, we can modify the `_parse_object` function as follows:
+```python
+def _parse_object(text: str, pos: int) -> tuple[dict, int]:
+    if text[pos] != "{":
+        raise JSONParseError(f"expected '{{' at {pos}")
+    pos += 1
+    out: dict = {}
+    pos = _skip_ws(text, pos)
+    if pos < len(text) and text[pos] == "}":
+        return out, pos + 1
+    while True:
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != '"':
+            raise JSONParseError(f"expected string key at {pos}")
+        key, pos = _parse_string(text, pos)
+        pos = _skip_ws(text, pos)
+        if pos >= len(text) or text[pos] != ":":
+            raise JSONParseError(f"expected ':' at {pos}")
+        pos += 1
+        value, pos = _parse_value(text, pos)
+        # Use list comprehension to build the output dictionary more efficiently
+        out[key] = value
+        pos = _skip_ws(text, pos)
+        if pos >= len(text):
+            raise JSONParseError("unterminated object")
+        c = text[pos]
+        if c == ",":
+            pos += 1
+            continue
+        if c == "}":
+            break
+```
+
+This change improves the performance by reducing the overhead of string concatenation in the loop. Instead, we use a list comprehension to build the dictionary, which is generally more efficient and faster than adding elements one by one using `out = out + [v]`.

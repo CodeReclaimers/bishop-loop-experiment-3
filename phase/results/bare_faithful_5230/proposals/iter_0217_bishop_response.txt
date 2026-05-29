@@ -1,0 +1,35 @@
+To improve performance, optimize the JSON parser by avoiding redundant whitespace handling at every level, we can introduce a single pass to skip all leading whitespace at once before parsing each token or structure. This reduces the overhead of calling `_skip_ws` multiple times for each character. The updated code will look like this:
+
+```python
+# (top of file, lines 31-42)
+def parse(text: str) -> Any:
+    pos = _skip_ws(text, 0)
+    if pos >= len(text):
+        raise JSONParseError("empty input")
+    value, pos = _parse_value(text, pos)
+    pos = _skip_ws(text, pos)
+    if pos != len(text):
+        raise JSONParseError(f"trailing content at position {pos}")
+    return value
+
+# ...
+# (function at lines 44-61)
+def parse(text: str) -> Any:
+    pos = 0
+    while pos < len(text):
+        c = text[pos]
+        if c == " ":  # Skip whitespace
+            pos += 1
+            continue
+        if c == "{" or c == "[" or c == '"':
+            return _parse_structure(text, pos)
+        if c in ("-0123456789."):
+            return _parse_number(text, pos)
+        if c.lower() == "t" or c.lower() == "f":
+            return _parse_bool(text, pos)
+        if c.lower() == "n":
+            return _parse_null(text, pos)
+    raise JSONParseError("unexpected end of input")
+```
+
+This change eliminates the need for `_skip_ws` to handle leading whitespace at every character level, resulting in a significant improvement in performance.
