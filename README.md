@@ -1,5 +1,9 @@
 # Bishop-Loop Variant Experiment 3 — JSON Parser
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20381684.svg)](https://doi.org/10.5281/zenodo.20381684)
+
+📄 **Paper:** [*Bishop-Loop: A Methodological Post-Mortem on Two-Model Code-Optimization Autoloops*](paper/paper.pdf) ([Markdown source](paper/paper.md)) · archived on [Zenodo](https://doi.org/10.5281/zenodo.20381684)
+
 This repo runs the Bishop-loop variant comparison from the experimental
 spec: `skippy_only` vs `bare_faithful` vs `steelman` on a JSON parser
 optimization problem, three seeds per condition, 90 min wall-clock per run.
