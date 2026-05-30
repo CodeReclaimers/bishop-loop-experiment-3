@@ -18,6 +18,19 @@ file-based default in `~/.claude/CLAUDE.shared.md`.
   `progress-20260524.md` remains for historical continuity but is no
   longer the active log destination.
 
+## Numbers in the paper must cite a committed, reproducing script
+
+Every quantitative claim in `paper/paper.md` (table cell, p-value, effect
+size, similarity figure) must be regenerable by a committed script under
+`phase/`, named next to the claim or in its section's prose (as §5.4 cites
+`phase/verify_skippy_parallel_similarity.py`). Before transcribing any number
+from a results memo, session note, or prior run into `paper.md`, re-run its
+producing script and diff against the source — transcribed numbers are the
+ones that have been wrong here (see `postmortem-similarity-numbers.md`). Never
+report a statistic from a one-off in-session script; commit it first. This is
+the project-level instantiation of the global "Reported numbers must be
+reproducible from committed code" rule.
+
 ## Repository layout (load-bearing context for paper edits)
 
 - `paper/paper.md` — the active paper draft.
