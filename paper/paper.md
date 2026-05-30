@@ -257,11 +257,18 @@ This control uses the **1.5B** Bishop (`qwen2.5-coder:1.5b`) -- the *weakest* id
 
 **Table 6.** Pre-registered comparisons.  Two-sided Mann-Whitney U, $\alpha = 0.05$; effect sizes are Cliff's $\delta$ and the Hodges-Lehmann (HL) shift with a 95% bootstrap CI (10,000 resamples).  The HL sign is oriented so a negative shift means the first-named condition is faster.
 
-| Comparison                                      | U     | p       | Cliff's $\delta$ | HL shift [95% CI]               | Verdict ($\alpha=0.05$) |
-| ----------------------------------------------- | ----: | ------: | ---------------: | ------------------------------- | ----------------------- |
-| **PRIMARY** — `bishop` vs `skippy_parallel`     | 215.0 | 0.00053 | 0.52 (large)     | `bishop` −0.179 ms [−0.263, −0.090] | **Significant**     |
-| SECONDARY — `skippy_parallel` vs `skippy_only`  | 92.0  | 0.072   | 0.39 (medium)    | `parallel` −0.088 ms [−0.159, −0.007] | Not significant   |
-| SECONDARY — `bishop` vs `skippy_only`           | 32.0  | 0.00024 | 0.79 (large)     | `bishop` −0.268 ms [−0.357, −0.158] | Significant         |
++---------------------------------+---------+-----------+------------------+-----------------------+-------------------------+
+| Comparison                      | U       | p         | Cliff's $\delta$ | HL shift [95% CI]     | Verdict ($\alpha=0.05$) |
++=================================+=========+===========+==================+=======================+=========================+
+| **PRIMARY** — `bishop` vs       | 215.0   | 0.00053   | 0.52 (large)     | `bishop` −0.179 ms    | **Significant**         |
+| `skippy_parallel`               |         |           |                  | [−0.263, −0.090]      |                         |
++---------------------------------+---------+-----------+------------------+-----------------------+-------------------------+
+| SECONDARY — `skippy_parallel`   | 92.0    | 0.072     | 0.39 (medium)    | `parallel` −0.088 ms  | Not significant         |
+| vs `skippy_only`                |         |           |                  | [−0.159, −0.007]      |                         |
++---------------------------------+---------+-----------+------------------+-----------------------+-------------------------+
+| SECONDARY — `bishop` vs         | 32.0    | 0.00024   | 0.79 (large)     | `bishop` −0.268 ms    | Significant             |
+| `skippy_only`                   |         |           |                  | [−0.357, −0.158]      |                         |
++---------------------------------+---------+-----------+------------------+-----------------------+-------------------------+
 
 ![](../final_per_condition_5xxx.png)
 
@@ -370,7 +377,7 @@ Several limitations constrain generalization.  The benchmark is a single-file Py
 
 The three-condition matched-format sweep introduced in §5.3 -- (1) `skippy_only`, (2) `skippy_parallel` (two independent Skippy draws per iteration, best-of-2), and (3) `bishop` (the current PARALLEL\_PROPOSER design), all under SEARCH/REPLACE -- has now been pre-registered and run (§5.4).  The (3)-vs-(2) comparison that isolates Bishop's directional signal from a free second strong-model draw -- the question the §5.1 data could not answer -- lands as a small but statistically significant Bishop effect.  The remaining open directions follow: a $\geq$ 7B Bishop (e.g., `qwen2.5-coder:7b` or `codestral`) to test whether the steelman signal emerges with a more capable idea generator, since the 1.5B-vs-4B comparison is closed (§5.2); two-round steelman to check whether iterated engagement helps where one round does not; cross-family Bishop diversity isolated from capability; a benchmark whose primitives have no close training-corpus analog, which would stress-test whether Bishop contributes genuine search diversity or just samples from a familiar prior; and multi-file edits where SEARCH/REPLACE may not suffice and a more robust patch format is needed.
 
-The repository is available at https://github.com/CodeReclaimers/bishop-loop-experiment-3; all per-run artifacts are logged under `phase/results/<condition>_<seed>/` in JSONL format, capturing proposal text, critiques, arm winners, and apply outcomes.  The artifact tree is the fact-checker's primary resource -- the aggregate statistics in this paper are derived directly from those logs.  The code and results referenced in this paper are archived on Zenodo at https://doi.org/10.5281/zenodo.20381685 (v1.0.0, commit `cddf1bd2dffffcb05167789519407fdd9cfd7638`); the concept DOI https://doi.org/10.5281/zenodo.20381684 resolves to the latest archived version.
+The repository is available at https://github.com/CodeReclaimers/bishop-loop-experiment-3; all per-run artifacts are logged under `phase/results/<condition>_<seed>/` in JSONL format, capturing proposal text, critiques, arm winners, and apply outcomes.  The artifact tree is the fact-checker's primary resource -- the aggregate statistics in this paper are derived directly from those logs.  The code and results referenced in this paper are archived on Zenodo; the concept DOI https://doi.org/10.5281/zenodo.20381684 resolves to the latest archived version (this is v1.1.0, corresponding to commit `426b5748dfcec84e02ac5db0c10d9eb9001d4537`, whose tree contains the paper source and the full 5xxx artifact tree from which §5.4 is derived). The earlier v1.0.0 archive remains at https://doi.org/10.5281/zenodo.20381685.
 
 ## Acknowledgements
 
