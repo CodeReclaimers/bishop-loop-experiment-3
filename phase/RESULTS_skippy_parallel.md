@@ -65,12 +65,30 @@ than the binary outcome, in three ways the paper should state plainly:
 
 ## 4. Arm-to-arm similarity reference distribution
 
+> **CORRECTION (2026-05-30).** The proposal-block similarity table
+> originally in this section was **not reproducible** and has been replaced
+> with the corrected values below. The originals were produced by an
+> uncommitted one-off script whose summary table silently mixed two
+> `difflib` granularities — the `% ≥ 0.95` column was character-level while
+> the mean / median / `% ≤ 0.30` columns were line-level — so no single
+> computation reproduces a full row. The superseded (do-not-use) values
+> were: `skippy_parallel` 0.949 / 1.000 / 92.4 % / 4.6 % / 4.1 % and
+> `bishop` 0.360 / 0.139 / 9.7 % / 64.6 % / 28.8 %. The corrected figures
+> below use one documented method, reproduced by
+> `phase/verify_skippy_parallel_similarity.py`. The published paper (§5.4,
+> v1.1.0) already uses the corrected numbers; the qualitative conclusion
+> (undirected draws near-identical in the median; Bishop arms distinct) is
+> unchanged. Full account: the v1.1.0 research-integrity post-mortem.
+
 This is the run brief's §3 "free bonus." Two metrics were computed:
 
-- **Proposal-block similarity** (paper-comparable — same methodology as
-  `phase/arm_similarity.py`: extract the fenced code block from each
-  arm's raw response, strip comments/blank lines, `difflib` ratio). This
-  is comparable to the paper's 0.99 → ~0.07 figures.
+- **Proposal-block similarity** (paper-comparable). Each arm's *entire*
+  proposed change — all fenced SEARCH/REPLACE blocks per response
+  concatenated — compared with a **character-level** `difflib` ratio, using
+  the same per-line normalization as `phase/arm_similarity.py`. Reproduced
+  by `phase/verify_skippy_parallel_similarity.py`. (All-blocks is the right
+  unit here because every 5xxx arm emits SR, so a response is several hunks;
+  comparing only the first block would capture one hunk of the proposal.)
 - **Post-applied full-source similarity** (the inline `arm_similarity`
   field now logged each iteration): ratio of the two arms' *resulting*
   `json_parser.py` after SR application. Always high because the bulk of
@@ -80,28 +98,29 @@ This is the run brief's §3 "free bonus." Two metrics were computed:
 
 | Condition (arms compared) | n iters | mean | median | % ≥ 0.95 | % ≤ 0.30 | % ≤ 0.10 |
 |---|--:|--:|--:|--:|--:|--:|
-| `skippy_parallel` (skippy_a vs skippy_b) | 6054 | 0.949 | 1.000 | 92.4 % | 4.6 % | 4.1 % |
-| `bishop` (skippy vs bishop-directed) | 7521 | 0.360 | 0.139 | 9.7 % | 64.6 % | 28.8 % |
+| `skippy_parallel` (skippy_a vs skippy_b) | 6054 | 0.843 | 1.000 | 61.1 % | 9.4 % | 8.4 % |
+| `bishop` (skippy vs bishop-directed) | 7521 | 0.348 | 0.231 | 1.8 % | 56.5 % | 23.5 % |
 
 ### What this calibrates
 
-- **Two "independent" same-model draws are near-duplicates ~92 % of the
-  time** (median similarity 1.000), even at temperature 0.7 with distinct
-  sampling seeds, and even under the SEARCH/REPLACE format. This is the
-  clean reference for "what same-source arms look like," and it explains
-  *why* `skippy_parallel` barely beats `skippy_only`: the second draw
-  rarely explores anything new.
+- **Two "independent" same-model draws propose byte-identical changes in
+  the median** (median similarity 1.000; ≥ 0.95 in 61 % of iterations),
+  even at temperature 0.7 with distinct sampling seeds, and even under the
+  SEARCH/REPLACE format. This is the clean reference for "what same-source
+  arms look like," and it explains *why* `skippy_parallel` barely beats
+  `skippy_only`: the second draw rarely explores anything new.
 
-- **Bishop-directed arms are genuinely distinct ~65 % of the time**
-  (median 0.139). The diversity Bishop injects is real and is the
-  proximate cause of its marginal advantage.
+- **Bishop-directed arms are genuinely distinct ~57 % of the time**
+  (median 0.23, ≤ 0.30 in 56.5 % of iterations). The diversity Bishop
+  injects is real and is the proximate cause of its marginal advantage.
 
 ### Refinement to the paper's lead contribution
 
 The paper attributes the similarity collapse (≈0.99 → ≈0.07) to the
 SEARCH/REPLACE format. The `skippy_parallel` reference shows this is
-incomplete: **SR + the *same* prompt still collapses to ~0.95**. The
-format does not manufacture diversity — a genuinely different prompt
+incomplete: **SR + the *same* prompt still leaves the two draws identical
+in the median** (median 1.000, mean ~0.84). The format does not
+manufacture diversity — a genuinely different prompt
 (Bishop's idea) does. SEARCH/REPLACE merely *reveals* proposal-level
 diversity that full-file rewrite masks (because a whole-file rewrite is
 ~99 % shared boilerplate regardless of intent). Recommended reframing:
@@ -153,8 +172,8 @@ table from §1–2 above, and lead with the primary result:**
 similarity diagnostic establishes *arm distinctness* (a precondition for
 best-of-2), not the genuineness of the Bishop-specific effect; the latter
 is now adjudicated by `skippy_parallel`. Note that the SR format reveals
-rather than creates diversity (the `skippy_parallel` control stays at
-~0.95 under SR).
+rather than creates diversity (two same-prompt `skippy_parallel` draws stay
+identical in the median — median 1.000 — under SR).
 
 **Future Work — keep the 1.5B-vs-4B Bishop capability question here.** It
 is not answered by this run (a different variable — capability, not
